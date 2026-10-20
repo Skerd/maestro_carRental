@@ -1,6 +1,5 @@
 {
-  "imageAlt": "Notification",
-  "copyright": "© {pageName}",
+  "copyright": "© {year} {pageName}. All rights reserved.",
   "greeting": "Hello {fullName},",
   "labelNumber": "Booking",
   "labelCar": "Car",
@@ -8,19 +7,24 @@
   "labelReturn": "Return",
   "labelTotal": "Total",
   "manageLinkText": "View or manage your booking",
-
   "headingConfirmed": "Your car is booked",
   "subjectConfirmed": "Booking {number} confirmed — {companyName}",
   "introConfirmed": "Your rental is confirmed. Here are the details.",
   "closingConfirmed": "Please bring your driving licence and the card used for payment to the pickup.",
-
   "headingCancelled": "Booking cancelled",
   "subjectCancelled": "Booking {number} cancelled — {companyName}",
   "introCancelled": "Your rental has been cancelled. Any refund due goes back to your original payment method.",
   "closingCancelled": "We hope to see you another time.",
-
   "headingReminder": "Your pickup is coming up",
   "subjectReminder": "Reminder: pickup for booking {number} — {companyName}",
   "introReminder": "This is a reminder of your upcoming car pickup.",
-  "closingReminder": "Please bring your driving licence. See you soon."
+  "closingReminder": "Please bring your driving licence. See you soon.",
+  "htmlLang": "en",
+  "summaryTitle": "Your booking",
+  "fallbackLabel": "If the button does not work, copy this link into your browser:",
+  "ignore": "If anything here looks wrong, reply to this email or contact the rental desk.",
+  "footerNote": "You received this email because a car was booked with this address at {companyName}.",
+  "preheaderConfirmed": "Your rental is confirmed. Here are the details.",
+  "preheaderCancelled": "Your rental has been cancelled.",
+  "preheaderReminder": "Your car pickup is coming up."
 }

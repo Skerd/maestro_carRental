@@ -1,6 +1,5 @@
 {
-  "imageAlt": "Notifica",
-  "copyright": "© {pageName}",
+  "copyright": "© {year} {pageName}. Tutti i diritti riservati.",
   "greeting": "Gentile {fullName},",
   "labelNumber": "Prenotazione",
   "labelCar": "Auto",
@@ -19,5 +18,13 @@
   "headingReminder": "Il tuo ritiro si avvicina",
   "subjectReminder": "Promemoria: ritiro della prenotazione {number} — {companyName}",
   "introReminder": "Questo è un promemoria del tuo prossimo ritiro.",
-  "closingReminder": "Ricordati la patente. A presto."
+  "closingReminder": "Ricordati la patente. A presto.",
+  "htmlLang": "it",
+  "summaryTitle": "La tua prenotazione",
+  "fallbackLabel": "Se il pulsante non funziona, copia questo link nel browser:",
+  "ignore": "Se qualcosa non ti sembra corretto, rispondi a questa e-mail o contatta il banco noleggio.",
+  "footerNote": "Ricevi questa e-mail perché con questo indirizzo è stata prenotata un'auto presso {companyName}.",
+  "preheaderConfirmed": "Il tuo noleggio è confermato. Ecco i dettagli.",
+  "preheaderCancelled": "Il tuo noleggio è stato annullato.",
+  "preheaderReminder": "Il ritiro della tua auto si avvicina."
 }

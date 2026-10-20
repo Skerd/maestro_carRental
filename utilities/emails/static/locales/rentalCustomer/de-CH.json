@@ -1,6 +1,5 @@
 {
-  "imageAlt": "Benachrichtigung",
-  "copyright": "© {pageName}",
+  "copyright": "© {year} {pageName}. Alle Rechte vorbehalten.",
   "greeting": "Hallo {fullName},",
   "labelNumber": "Buchung",
   "labelCar": "Auto",
@@ -8,19 +7,24 @@
   "labelReturn": "Rückgabe",
   "labelTotal": "Total",
   "manageLinkText": "Buchung ansehen oder verwalten",
-
   "headingConfirmed": "Ihr Auto ist gebucht",
   "subjectConfirmed": "Buchung {number} bestätigt — {companyName}",
   "introConfirmed": "Ihre Miete ist bestätigt. Hier sind die Details.",
   "closingConfirmed": "Bitte bringen Sie Ihren Führerschein und die Zahlungskarte zur Abholung mit.",
-
   "headingCancelled": "Buchung storniert",
   "subjectCancelled": "Buchung {number} storniert — {companyName}",
   "introCancelled": "Ihre Miete wurde storniert. Eine allfällige Rückerstattung geht auf Ihr ursprüngliches Zahlungsmittel zurück.",
   "closingCancelled": "Wir hoffen, Sie ein andermal wiederzusehen.",
-
   "headingReminder": "Ihre Abholung steht bevor",
   "subjectReminder": "Erinnerung: Abholung für Buchung {number} — {companyName}",
   "introReminder": "Dies ist eine Erinnerung an Ihre bevorstehende Fahrzeugabholung.",
-  "closingReminder": "Bitte bringen Sie Ihren Führerschein mit. Bis bald."
+  "closingReminder": "Bitte bringen Sie Ihren Führerschein mit. Bis bald.",
+  "htmlLang": "de",
+  "summaryTitle": "Ihre Buchung",
+  "fallbackLabel": "Falls die Schaltfläche nicht funktioniert, kopieren Sie diesen Link in Ihren Browser:",
+  "ignore": "Falls hier etwas nicht stimmt, antworten Sie auf diese E-Mail oder kontaktieren Sie den Vermietschalter.",
+  "footerNote": "Sie erhalten diese E-Mail, weil mit dieser Adresse bei {companyName} ein Auto gebucht wurde.",
+  "preheaderConfirmed": "Ihre Miete ist bestätigt. Hier die Einzelheiten.",
+  "preheaderCancelled": "Ihre Miete wurde storniert.",
+  "preheaderReminder": "Ihre Fahrzeugabholung steht bevor."
 }

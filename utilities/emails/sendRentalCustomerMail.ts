@@ -2,19 +2,28 @@ import * as fs from "fs";
 import * as path from "path";
 import {CLIENT_SIDE, CONSTANTS, EMAIL, clientHostFor} from "@coreModule/environment";
 import {applyPlaceholders, loadEmailStrings} from "@coreModule/utilities/emails/emailLocale";
+import {
+    ctaButtonHtml,
+    currentYear,
+    escapeHtml,
+    layoutStrings,
+    localized,
+    pushRow,
+    summaryCardHtml,
+    type SummaryRow,
+} from "@coreModule/utilities/emails/emailLayout";
 import {sendMail} from "@coreModule/utilities/emails/mailDeliveryService";
 
-const imagePath = path.join(__dirname, "./static/images/image-1.png");
-const imageCID = "imageCID@example.com";
 const LOCALES_ROOT = path.join(__dirname, "static", "locales");
 const TEMPLATE_DIR = path.join(__dirname, "templates", "rentalCustomer");
 
 export type RentalCustomerEmailKind = "confirmed" | "cancelled" | "reminder";
 
-const KIND_KEYS: Record<RentalCustomerEmailKind, {subject: string; heading: string; intro: string; closing: string}> = {
-    confirmed: {subject: "subjectConfirmed", heading: "headingConfirmed", intro: "introConfirmed", closing: "closingConfirmed"},
-    cancelled: {subject: "subjectCancelled", heading: "headingCancelled", intro: "introCancelled", closing: "closingCancelled"},
-    reminder: {subject: "subjectReminder", heading: "headingReminder", intro: "introReminder", closing: "closingReminder"},
+/** Copy suffix per kind: `subject{X}`, `heading{X}`, `preheader{X}`, `intro{X}`, `closing{X}`. */
+const KIND_SUFFIX: Record<RentalCustomerEmailKind, string> = {
+    confirmed: "Confirmed",
+    cancelled: "Cancelled",
+    reminder: "Reminder",
 };
 
 export type RentalCustomerEmail = {
@@ -35,53 +44,46 @@ export type RentalCustomerEmail = {
     manageToken: string;
 };
 
-/** Escapes a customer- or staff-entered value before it goes into the HTML. */
-function escapeHtml(value: string): string {
-    return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+function readTemplate(filename: string): string {
+    return fs.readFileSync(path.join(TEMPLATE_DIR, filename), "utf8");
 }
 
-/** Sends a rental email to the customer over the company's SMTP. Does nothing when email is off. */
+/**
+ * Sends a rental email to the customer over the company's SMTP, in the same shell
+ * as the property-management client emails. Does nothing when email is off.
+ */
 export async function sendRentalCustomerMail(data: RentalCustomerEmail): Promise<void> {
     if (!EMAIL.ENABLED) return;
     const languageCode = data.languageCode || CONSTANTS.DEFAULT_LANGUAGE || "en-US";
     const pageName = CLIENT_SIDE.NAME ?? "";
-    const strings = loadEmailStrings(["rentalCustomer"], languageCode, LOCALES_ROOT) as Record<string, string>;
-    const keys = KIND_KEYS[data.kind];
-    const safe = (value: string) => escapeHtml(value);
+    const strings = loadEmailStrings(["rentalCustomer"], languageCode, LOCALES_ROOT);
+    const loc = strings as Record<string, string>;
+    const suffix = KIND_SUFFIX[data.kind];
 
-    const bodyInner = applyPlaceholders(fs.readFileSync(path.join(TEMPLATE_DIR, "body.html"), "utf8"), {
-        greeting: applyPlaceholders(strings.greeting, {fullName: safe(data.fullName)}),
-        intro: strings[keys.intro],
-        closing: strings[keys.closing],
-        labelNumber: strings.labelNumber,
-        labelCar: strings.labelCar,
-        labelPickup: strings.labelPickup,
-        labelReturn: strings.labelReturn,
-        labelTotal: strings.labelTotal,
-        number: safe(data.number),
-        categoryName: safe(data.categoryName),
-        pickupAt: safe(data.pickupAt),
-        pickupLocation: safe(data.pickupLocation),
-        returnAt: safe(data.returnAt),
-        returnLocation: safe(data.returnLocation),
-        total: safe(data.total),
-        manageUrl: `${clientHostFor("rental")}/manage?token=${encodeURIComponent(data.manageToken)}`,
-        manageLinkText: strings.manageLinkText,
+    const rows: SummaryRow[] = [];
+    pushRow(rows, loc.labelNumber, data.number);
+    pushRow(rows, loc.labelCar, data.categoryName);
+    pushRow(rows, loc.labelPickup, `${data.pickupAt}, ${data.pickupLocation}`);
+    pushRow(rows, loc.labelReturn, `${data.returnAt}, ${data.returnLocation}`);
+    pushRow(rows, loc.labelTotal, data.total);
+
+    const manageUrl = `${clientHostFor("rental")}/manage?token=${encodeURIComponent(data.manageToken)}`;
+    const bodyInner = applyPlaceholders(readTemplate("body.html"), {
+        intro: loc[`intro${suffix}`] ?? "",
+        detailsSummary: summaryCardHtml(loc.summaryTitle ?? "", rows),
+        cta: ctaButtonHtml(loc.manageLinkText ?? "", manageUrl, loc.fallbackLabel ?? ""),
+        closing: loc[`closing${suffix}`] ?? "",
     });
-    const html = applyPlaceholders(fs.readFileSync(path.join(TEMPLATE_DIR, "rentalCustomer.html"), "utf8"), {
-        heading: strings[keys.heading],
-        imageAlt: strings.imageAlt,
-        copyright: applyPlaceholders(strings.copyright, {pageName}),
-        username: safe(data.fullName),
+
+    let html = applyPlaceholders(readTemplate("rentalCustomer.html"), layoutStrings(strings, `heading${suffix}`, `preheader${suffix}`));
+    html = applyPlaceholders(html, {
+        greeting: localized(strings, "greeting", {fullName: escapeHtml(data.fullName)}),
         bodyInner,
+        companyName: escapeHtml(data.companyName),
         pageName,
+        year: currentYear(),
     });
-    const subject = applyPlaceholders(strings[keys.subject], {number: data.number, companyName: data.companyName});
+    const subject = applyPlaceholders(loc[`subject${suffix}`] ?? "", {number: data.number, companyName: data.companyName});
 
-    await sendMail(data.companyId, {
-        to: data.email,
-        subject,
-        html,
-        attachments: [{filename: "companyTick.png", path: imagePath, cid: imageCID}],
-    });
+    await sendMail(data.companyId, {to: data.email, subject, html});
 }

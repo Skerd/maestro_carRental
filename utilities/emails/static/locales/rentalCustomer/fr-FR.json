@@ -1,6 +1,5 @@
 {
-  "imageAlt": "Notification",
-  "copyright": "© {pageName}",
+  "copyright": "© {year} {pageName}. Tous droits réservés.",
   "greeting": "Bonjour {fullName},",
   "labelNumber": "Réservation",
   "labelCar": "Voiture",
@@ -19,5 +18,13 @@
   "headingReminder": "Votre prise en charge approche",
   "subjectReminder": "Rappel : prise en charge de la réservation {number} — {companyName}",
   "introReminder": "Ceci est un rappel de votre prochaine prise en charge.",
-  "closingReminder": "N'oubliez pas votre permis de conduire. À bientôt."
+  "closingReminder": "N'oubliez pas votre permis de conduire. À bientôt.",
+  "htmlLang": "fr",
+  "summaryTitle": "Votre réservation",
+  "fallbackLabel": "Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur :",
+  "ignore": "Si quelque chose vous semble incorrect, répondez à cet e-mail ou contactez le comptoir de location.",
+  "footerNote": "Vous recevez cet e-mail car une voiture a été réservée avec cette adresse chez {companyName}.",
+  "preheaderConfirmed": "Votre location est confirmée. Voici les détails.",
+  "preheaderCancelled": "Votre location a été annulée.",
+  "preheaderReminder": "La prise en charge de votre voiture approche."
 }
