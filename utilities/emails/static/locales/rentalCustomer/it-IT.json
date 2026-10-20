@@ -1,0 +1,23 @@
+{
+  "imageAlt": "Notifica",
+  "copyright": "© {pageName}",
+  "greeting": "Gentile {fullName},",
+  "labelNumber": "Prenotazione",
+  "labelCar": "Auto",
+  "labelPickup": "Ritiro",
+  "labelReturn": "Riconsegna",
+  "labelTotal": "Totale",
+  "manageLinkText": "Visualizza o gestisci la tua prenotazione",
+  "headingConfirmed": "La tua auto è prenotata",
+  "subjectConfirmed": "Prenotazione {number} confermata — {companyName}",
+  "introConfirmed": "Il tuo noleggio è confermato. Ecco i dettagli.",
+  "closingConfirmed": "Porta con te la patente e la carta usata per il pagamento al ritiro.",
+  "headingCancelled": "Prenotazione annullata",
+  "subjectCancelled": "Prenotazione {number} annullata — {companyName}",
+  "introCancelled": "Il tuo noleggio è stato annullato. Eventuali rimborsi tornano sul metodo di pagamento originale.",
+  "closingCancelled": "Speriamo di rivederti presto.",
+  "headingReminder": "Il tuo ritiro si avvicina",
+  "subjectReminder": "Promemoria: ritiro della prenotazione {number} — {companyName}",
+  "introReminder": "Questo è un promemoria del tuo prossimo ritiro.",
+  "closingReminder": "Ricordati la patente. A presto."
+}

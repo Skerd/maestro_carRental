@@ -1,0 +1,26 @@
+{
+  "imageAlt": "Benachrichtigung",
+  "copyright": "© {pageName}",
+  "greeting": "Hallo {fullName},",
+  "labelNumber": "Buchung",
+  "labelCar": "Auto",
+  "labelPickup": "Abholung",
+  "labelReturn": "Rückgabe",
+  "labelTotal": "Total",
+  "manageLinkText": "Buchung ansehen oder verwalten",
+
+  "headingConfirmed": "Ihr Auto ist gebucht",
+  "subjectConfirmed": "Buchung {number} bestätigt — {companyName}",
+  "introConfirmed": "Ihre Miete ist bestätigt. Hier sind die Details.",
+  "closingConfirmed": "Bitte bringen Sie Ihren Führerschein und die Zahlungskarte zur Abholung mit.",
+
+  "headingCancelled": "Buchung storniert",
+  "subjectCancelled": "Buchung {number} storniert — {companyName}",
+  "introCancelled": "Ihre Miete wurde storniert. Eine allfällige Rückerstattung geht auf Ihr ursprüngliches Zahlungsmittel zurück.",
+  "closingCancelled": "Wir hoffen, Sie ein andermal wiederzusehen.",
+
+  "headingReminder": "Ihre Abholung steht bevor",
+  "subjectReminder": "Erinnerung: Abholung für Buchung {number} — {companyName}",
+  "introReminder": "Dies ist eine Erinnerung an Ihre bevorstehende Fahrzeugabholung.",
+  "closingReminder": "Bitte bringen Sie Ihren Führerschein mit. Bis bald."
+}

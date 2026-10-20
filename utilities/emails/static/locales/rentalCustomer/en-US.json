@@ -1,0 +1,26 @@
+{
+  "imageAlt": "Notification",
+  "copyright": "© {pageName}",
+  "greeting": "Hello {fullName},",
+  "labelNumber": "Booking",
+  "labelCar": "Car",
+  "labelPickup": "Pickup",
+  "labelReturn": "Return",
+  "labelTotal": "Total",
+  "manageLinkText": "View or manage your booking",
+
+  "headingConfirmed": "Your car is booked",
+  "subjectConfirmed": "Booking {number} confirmed — {companyName}",
+  "introConfirmed": "Your rental is confirmed. Here are the details.",
+  "closingConfirmed": "Please bring your driving licence and the card used for payment to the pickup.",
+
+  "headingCancelled": "Booking cancelled",
+  "subjectCancelled": "Booking {number} cancelled — {companyName}",
+  "introCancelled": "Your rental has been cancelled. Any refund due goes back to your original payment method.",
+  "closingCancelled": "We hope to see you another time.",
+
+  "headingReminder": "Your pickup is coming up",
+  "subjectReminder": "Reminder: pickup for booking {number} — {companyName}",
+  "introReminder": "This is a reminder of your upcoming car pickup.",
+  "closingReminder": "Please bring your driving licence. See you soon."
+}

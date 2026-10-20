@@ -1,0 +1,26 @@
+{
+  "imageAlt": "Njoftim",
+  "copyright": "© {pageName}",
+  "greeting": "Përshëndetje {fullName},",
+  "labelNumber": "Rezervimi",
+  "labelCar": "Makina",
+  "labelPickup": "Marrja",
+  "labelReturn": "Kthimi",
+  "labelTotal": "Totali",
+  "manageLinkText": "Shikoni ose menaxhoni rezervimin",
+
+  "headingConfirmed": "Makina juaj është rezervuar",
+  "subjectConfirmed": "Rezervimi {number} u konfirmua — {companyName}",
+  "introConfirmed": "Qiraja juaj është konfirmuar. Ja detajet.",
+  "closingConfirmed": "Ju lutemi sillni patentën dhe kartën e pagesës në marrje.",
+
+  "headingCancelled": "Rezervimi u anulua",
+  "subjectCancelled": "Rezervimi {number} u anulua — {companyName}",
+  "introCancelled": "Qiraja juaj u anulua. Çdo rimbursim kthehet në mënyrën origjinale të pagesës.",
+  "closingCancelled": "Shpresojmë t'ju shohim një herë tjetër.",
+
+  "headingReminder": "Marrja juaj po afron",
+  "subjectReminder": "Kujtesë: marrja për rezervimin {number} — {companyName}",
+  "introReminder": "Kjo është një kujtesë për marrjen e afërt të makinës.",
+  "closingReminder": "Ju lutemi sillni patentën. Shihemi së shpejti."
+}
