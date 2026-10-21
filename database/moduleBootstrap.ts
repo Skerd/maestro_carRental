@@ -6,6 +6,10 @@ import Vehicle from "@carRentalModule/database/schemas/vehicle/vehicle";
 import VehicleBlock from "@carRentalModule/database/schemas/vehicleBlock/vehicleBlock";
 import RentalExtra from "@carRentalModule/database/schemas/rentalExtra/rentalExtra";
 import RentalReservation from "@carRentalModule/database/schemas/rentalReservation/rentalReservation";
+import VehicleInsurance from "@carRentalModule/database/schemas/vehicleInsurance/vehicleInsurance";
+import VehicleDocument from "@carRentalModule/database/schemas/vehicleDocument/vehicleDocument";
+import VehicleMaintenance from "@carRentalModule/database/schemas/vehicleMaintenance/vehicleMaintenance";
+import VehicleDamage from "@carRentalModule/database/schemas/vehicleDamage/vehicleDamage";
 import {registerDefaultRoles} from "@coreModule/database/schemas/role/role.defaults";
 import {registerPublicMediaBackfillSource} from "@coreModule/utilities/media/publicMediaBackfillRegistry";
 import {carRentalDefaultRoles} from "@carRentalModule/database/schemas/role/carRental.role.defaults";
@@ -19,6 +23,10 @@ export const carRentalModels: Model<any>[] = [
     VehicleBlock,
     RentalExtra,
     RentalReservation,
+    VehicleInsurance,
+    VehicleDocument,
+    VehicleMaintenance,
+    VehicleDamage,
 ];
 
 export async function dropCarRentalCollections(): Promise<void> {

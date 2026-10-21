@@ -10,6 +10,7 @@ export function vehicleCategoryToDTO(category: IVehicleCategory): VehicleCategor
         slug: category.slug,
         description: category.description,
         images: category.images?.length ? category.images.map(mapMedia).filter((media) => media !== undefined) : undefined,
+        videos: category.videos?.length ? category.videos.map(mapMedia).filter((media) => media !== undefined) : undefined,
         seats: category.seats,
         doors: category.doors,
         luggage: category.luggage,

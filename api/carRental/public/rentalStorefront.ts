@@ -114,6 +114,7 @@ function categoryToStorefront(category: IVehicleCategory): RentalStorefrontCateg
         slug: category.slug,
         description: category.description,
         images: publicMediaUrls(category.images),
+        videos: publicMediaUrls(category.videos),
         seats: category.seats,
         doors: category.doors,
         luggage: category.luggage,

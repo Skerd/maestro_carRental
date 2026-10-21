@@ -2,10 +2,12 @@ import type {ViewConfig} from "armonia/src/modules/core/api/auxiliary/private/vi
 import {lifecycleSheetGroup} from "@coreModule/database/schemas/shared/lifecycleSheetGroup";
 import {
     VEHICLE_COLOR_MAX,
+    VEHICLE_IMAGES_MAX,
     VEHICLE_MAKE_MAX,
     VEHICLE_MODEL_MAX,
     VEHICLE_NOTES_MAX,
     VEHICLE_PLATE_MAX,
+    VEHICLE_VIDEOS_MAX,
     VEHICLE_VIN_MAX,
 } from "armonia/src/modules/carRental/api/carRental/private/vehicle/vehicle.schema-def";
 
@@ -18,6 +20,36 @@ export const vehicleSheetView: ViewConfig = {
     apiUrl: API_URL,
     header: {titleField: "plate", subtitleKey: "vehicleSubtitle", showCloseButton: true},
     nodes: [
+        {
+            render: "#SheetGroup",
+            props: {title: "images"},
+            permissions: {readAny: ["images", "videos"]},
+            children: [
+                {
+                    render: "div",
+                    props: {className: "max-w-full"},
+                    children: [
+                        {
+                            render: "#GalleryCarousel",
+                            permissions: {readAny: ["images", "videos"]},
+                            field: {
+                                name: "images",
+                                widget: "#GalleryCarousel",
+                                widgetProps: {
+                                    imageGalleryField: "images",
+                                    videoGalleryField: "videos",
+                                    showThumbnails: false,
+                                    allowFullScreen: false,
+                                    coverAfterFirst: false,
+                                    showPreviews: true,
+                                    previewLocation: "right",
+                                },
+                            },
+                        },
+                    ],
+                },
+            ],
+        },
         {
             render: "#SheetGroup",
             props: {title: "overview"},
@@ -39,6 +71,23 @@ export const vehicleSheetView: ViewConfig = {
                     ],
                 },
                 {render: "#DisplayCard", permissions: {read: "notes"}, field: {name: "notes", widget: "#DisplayCard", label: "notes", widgetProps: {icon: "#IconNotes"}}},
+            ],
+        },
+        {
+            render: "#SheetGroup",
+            permissions: {readAny: ["nextServiceDueAt", "nextServiceDueKm", "acquiredAt", "purchasePrice"]},
+            props: {title: "fleet"},
+            children: [
+                {
+                    render: "#SheetGrid",
+                    props: {columns: 2},
+                    children: [
+                        {render: "#DisplayCard", permissions: {read: "nextServiceDueAt"}, field: {name: "nextServiceDueAt", widget: "#DisplayCard", label: "nextServiceDueAt", widgetProps: {icon: "#IconTool", format: "date", type: "date"}}},
+                        {render: "#DisplayCard", permissions: {read: "nextServiceDueKm"}, field: {name: "nextServiceDueKm", widget: "#DisplayCard", label: "nextServiceDueKm", widgetProps: {icon: "#IconGauge", type: "number"}}},
+                        {render: "#DisplayCard", permissions: {read: "acquiredAt"}, field: {name: "acquiredAt", widget: "#DisplayCard", label: "acquiredAt", widgetProps: {icon: "#IconCalendar", format: "date", type: "date"}}},
+                        {render: "#DisplayCard", permissions: {read: "purchasePrice"}, field: {name: "purchasePrice", widget: "#DisplayCard", label: "purchasePrice", widgetProps: {icon: "#IconCash", type: "number"}}},
+                    ],
+                },
             ],
         },
         lifecycleSheetGroup,
@@ -72,7 +121,19 @@ function vehicleFormNodes(edit: boolean): ViewConfig["nodes"] {
                 {render: "#Field", ...perm("color"), field: {name: "color", widget: "#Input", label: "form.colorLabel", placeholder: "form.colorPlaceholder", widgetProps: {maxLength: VEHICLE_COLOR_MAX}}},
                 {render: "#Field", ...perm("odometerKm"), field: {name: "odometerKm", widget: "#Input", label: "form.odometerKmLabel", placeholder: "form.odometerKmPlaceholder", widgetProps: {type: "number", min: 0}}},
                 {render: "#Field", ...perm("vin"), field: {name: "vin", widget: "#Input", label: "form.vinLabel", placeholder: "form.vinPlaceholder", widgetProps: {maxLength: VEHICLE_VIN_MAX}}},
+                {render: "#Field", ...perm("acquiredAt"), field: {name: "acquiredAt", widget: "#DateInput", label: "form.acquiredAtLabel", placeholder: "form.acquiredAtPlaceholder", widgetProps: {valueFormat: "yyyy-MM-dd"}}},
+                {render: "#Field", ...perm("purchasePrice"), field: {name: "purchasePrice", widget: "#Input", label: "form.purchasePriceLabel", placeholder: "form.purchasePricePlaceholder", widgetProps: {type: "number", min: 0, step: "0.01"}}},
             ],
+        },
+        {
+            render: "#Field",
+            ...perm("images"),
+            field: {name: "images", widget: "#MediaField", label: "form.imagesLabel", widgetProps: {mediaType: "image", mode: "multiple", maxCount: VEHICLE_IMAGES_MAX}},
+        },
+        {
+            render: "#Field",
+            ...perm("videos"),
+            field: {name: "videos", widget: "#MediaField", label: "form.videosLabel", widgetProps: {mediaType: "video", mode: "multiple", maxCount: VEHICLE_VIDEOS_MAX}},
         },
         {
             render: "#Field",

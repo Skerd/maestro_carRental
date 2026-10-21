@@ -7,14 +7,33 @@ import {NotificationEventCodes} from "@carRentalModule/domain/notifications/noti
 
 type RentalCode = (typeof NotificationEventCodes)[keyof typeof NotificationEventCodes];
 
-const DESCRIPTIONS: Record<RentalCode, (payload: Record<string, unknown>) => string> = {
-    [NotificationEventCodes.RENTAL_RESERVATION_NEW]: (p) => `New rental booking ${p.number ?? ""} (${p.categoryName ?? ""})`,
-    [NotificationEventCodes.RENTAL_RESERVATION_CANCELLED]: (p) => `Rental booking ${p.number ?? ""} was cancelled by the customer`,
+type Alert = {description: string; content: Record<string, unknown>; importance: NotificationImportance};
+
+const reservationAlert = (description: string, p: Record<string, unknown>): Alert => ({
+    description,
+    content: {reservationId: p.reservationId, number: p.number},
+    importance: NotificationImportance.HIGH,
+});
+const vehicleAlert = (description: string, p: Record<string, unknown>): Alert => ({
+    description,
+    content: {vehicleId: p.vehicleId, plate: p.plate, recordId: p.recordId},
+    importance: NotificationImportance.MEDIUM,
+});
+
+const ALERTS: Record<RentalCode, (payload: Record<string, unknown>) => Alert> = {
+    [NotificationEventCodes.RENTAL_RESERVATION_NEW]: (p) => reservationAlert(`New rental booking ${p.number ?? ""} (${p.categoryName ?? ""})`, p),
+    [NotificationEventCodes.RENTAL_RESERVATION_CANCELLED]: (p) => reservationAlert(`Rental booking ${p.number ?? ""} was cancelled by the customer`, p),
+    [NotificationEventCodes.VEHICLE_INSURANCE_EXPIRING]: (p) =>
+        vehicleAlert(`Insurance ${p.policyNumber ?? ""} (${p.insurer ?? ""}) of ${p.plate ?? ""} expires on ${p.expiresOn ?? ""}`, p),
+    [NotificationEventCodes.VEHICLE_DOCUMENT_EXPIRING]: (p) => vehicleAlert(`${p.documentType ?? "Document"} of ${p.plate ?? ""} expires on ${p.expiresOn ?? ""}`, p),
+    [NotificationEventCodes.VEHICLE_SERVICE_DUE]: (p) =>
+        vehicleAlert(`${p.plate ?? ""} is due for service${p.dueOn ? ` by ${p.dueOn}` : ""}${p.dueKm ? ` or at ${p.dueKm} km` : ""}`, p),
 };
 
 function bindHandler(code: RentalCode): void {
     notificationEventBus.on(code, async (event: NotificationEvent) => {
         const {receiverIds, payload} = event;
+        const {description, content, importance} = ALERTS[code](payload);
         for (const receiverId of receiverIds) {
             try {
                 await createAndPushNotification(
@@ -22,9 +41,9 @@ function bindHandler(code: RentalCode): void {
                         receiver: new ObjectId(receiverId),
                         company: new ObjectId(payload.companyId as string),
                         code,
-                        description: DESCRIPTIONS[code](payload),
-                        content: {reservationId: payload.reservationId, number: payload.number},
-                        importance: NotificationImportance.HIGH,
+                        description,
+                        content,
+                        importance,
                         category: NotificationCategory.SYSTEM,
                     },
                     {languageCode: (payload.languageCode as string) ?? "en-US"},
@@ -37,6 +56,7 @@ function bindHandler(code: RentalCode): void {
 }
 
 export function registerCarRentalNotificationHandlers(): void {
-    bindHandler(NotificationEventCodes.RENTAL_RESERVATION_NEW);
-    bindHandler(NotificationEventCodes.RENTAL_RESERVATION_CANCELLED);
+    for (const code of Object.values(NotificationEventCodes)) {
+        bindHandler(code);
+    }
 }

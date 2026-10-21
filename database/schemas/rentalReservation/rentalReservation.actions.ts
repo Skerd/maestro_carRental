@@ -33,7 +33,13 @@ import {carRentalConfigService} from "../carRentalConfig/carRentalConfig.service
 import {rentalReservationToDTO} from "@carRentalModule/utilities/mappers/rentalReservation/rentalReservationMapper.dto";
 import {busyUntil, busyVehicleIds, lockVehicle} from "@carRentalModule/utilities/services/rentalAvailability";
 import {computeRentalQuote, totalsFor} from "@carRentalModule/utilities/services/rentalQuote";
-import {assertStatus, cancelRentalReservation} from "@carRentalModule/utilities/services/rentalLifecycle";
+import {
+    assertStatus,
+    cancelRentalReservation,
+    handOverRentalReservation,
+    markRentalNoShow,
+    returnRentalReservation,
+} from "@carRentalModule/utilities/services/rentalLifecycle";
 import {paymentStatusFor, recordCounterPayment} from "@carRentalModule/utilities/services/rentalPayments";
 import {isLocationOpenAt} from "@carRentalModule/utilities/services/rentalTrip";
 
@@ -103,18 +109,8 @@ export class RentalReservationActions {
     async handover(params: ActionParams<HandoverRentalReservationFormType>): Promise<RentalReservationDto> {
         assertWrite("status", params.actionUserCtx, params.languageCode);
         const reservation = await loadReservation(params);
-        assertStatus(reservation, ["confirmed"], params.languageCode);
-        const vehicle = await Vehicle.findOne({_id: reservation.vehicle, company: params.company._id}).session(params.session);
-        const now = new Date();
-        reservation.status = "in_progress";
-        reservation.handover = {at: now, by: new ObjectId(params.actionUserCtx.userId), odometerKm: params.odometerKm, fuelLevel: params.fuelLevel, notes: params.notes};
-        reservation.snapshot.vehicleLabel = vehicle ? `${vehicle.make} ${vehicle.model} · ${vehicle.plate}` : undefined;
-        reservation.timeline.push({event: "handover", at: now, by: new ObjectId(params.actionUserCtx.userId)});
-        await reservation.save({session: params.session});
-        if (vehicle) {
-            vehicle.odometerKm = params.odometerKm;
-            await vehicle.save({session: params.session});
-        }
+        const {odometerKm, fuelLevel, notes} = params;
+        await handOverRentalReservation(reservation, {odometerKm, fuelLevel, notes, by: new ObjectId(params.actionUserCtx.userId)}, ctxOf(params));
         return toDto(reservation, params);
     }
 
@@ -123,22 +119,12 @@ export class RentalReservationActions {
     async returnVehicle(params: ActionParams<ReturnRentalReservationFormType>): Promise<RentalReservationDto> {
         assertWrite("status", params.actionUserCtx, params.languageCode);
         const reservation = await loadReservation(params);
-        assertStatus(reservation, ["in_progress"], params.languageCode);
-        const now = new Date();
-        const by = new ObjectId(params.actionUserCtx.userId);
-
-        for (const charge of params.extraCharges ?? []) {
-            const amount = roundMoney(charge.amount);
-            reservation.pricing.lines.push({label: charge.label, kind: "charge", quantity: 1, unitPrice: amount, total: amount});
-        }
-        Object.assign(reservation.pricing, totalsFor(reservation.pricing.lines, reservation.pricing.vatRate, reservation.pricing.pricesIncludeVat));
-        reservation.paymentStatus = paymentStatusFor(reservation, false);
-
-        reservation.status = "completed";
-        reservation.returnInfo = {at: now, by, odometerKm: params.odometerKm, fuelLevel: params.fuelLevel, notes: params.notes, damageNoted: params.damageNoted ?? false};
-        reservation.timeline.push({event: "returned", at: now, by});
-        await reservation.save({session: params.session});
-        await Vehicle.updateOne({_id: reservation.vehicle, company: params.company._id}, {$set: {odometerKm: params.odometerKm}}, {session: params.session});
+        const {odometerKm, fuelLevel, notes, damageNoted, extraCharges} = params;
+        await returnRentalReservation(
+            reservation,
+            {odometerKm, fuelLevel, notes, damageNoted, extraCharges, by: new ObjectId(params.actionUserCtx.userId)},
+            ctxOf(params),
+        );
         return toDto(reservation, params);
     }
 
@@ -162,9 +148,7 @@ export class RentalReservationActions {
         if (now.getTime() < reservation.pickupAt.getTime() + config.lateGraceMinutes * MINUTE) {
             throw apiValidationException("rental_no_show_too_early", "", null, params.languageCode);
         }
-        reservation.status = "no_show";
-        reservation.timeline.push({event: "no_show", at: now, by: new ObjectId(params.actionUserCtx.userId)});
-        await reservation.save({session: params.session});
+        await markRentalNoShow(reservation, {by: new ObjectId(params.actionUserCtx.userId), now}, ctxOf(params));
         return toDto(reservation, params);
     }
 

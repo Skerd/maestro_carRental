@@ -22,12 +22,12 @@ export const vehicleCategorySheetView: ViewConfig = {
             children: [
                 {
                     render: "#DisplayCard",
-                    permissions: {read: "images"},
+                    permissions: {readAny: ["images", "videos"]},
                     field: {
                         name: "images",
                         widget: "#GalleryCarousel",
                         label: "images",
-                        widgetProps: {icon: "#IconPhoto", imageGalleryField: "images", showThumbnails: false, allowFullScreen: false, coverAfterFirst: false},
+                        widgetProps: {icon: "#IconPhoto", imageGalleryField: "images", videoGalleryField: "videos", showThumbnails: false, allowFullScreen: false, coverAfterFirst: false},
                     },
                 },
                 {
@@ -132,6 +132,11 @@ function vehicleCategoryFormNodes(edit: boolean): ViewConfig["nodes"] {
             render: "#Field",
             ...perm("images"),
             field: {name: "images", widget: "#MediaField", label: "form.imagesLabel", widgetProps: {mediaType: "image", mode: "multiple", maxCount: 12}},
+        },
+        {
+            render: "#Field",
+            ...perm("videos"),
+            field: {name: "videos", widget: "#MediaField", label: "form.videosLabel", widgetProps: {mediaType: "video", mode: "multiple", maxCount: 3}},
         },
         {
             render: "#TitleWithCollapse",

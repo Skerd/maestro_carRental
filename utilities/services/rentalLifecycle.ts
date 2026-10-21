@@ -8,9 +8,11 @@ import {runAfterCommit} from "@coreModule/utilities/middlewares/transactionUtils
 import {getPaymentAdapter} from "@financeModule/utilities/services/payment/paymentService";
 import type {SettledPaymentIntent} from "@financeModule/utilities/services/payment/paymentSourceHandlers";
 import type {RentalReservationStatus} from "armonia/src/modules/carRental/api/carRental/private/rentalReservation/rentalReservation.constants";
-import type {IRentalReservation} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation";
+import type {IRentalReservation, IRentalVehicleCheck} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation";
+import Vehicle from "@carRentalModule/database/schemas/vehicle/vehicle";
 import {busyVehicleIds, lockVehicle} from "./rentalAvailability";
 import {currencyCodeOf, paymentStatusFor, refundRentalPayments} from "./rentalPayments";
+import {totalsFor} from "./rentalQuote";
 import {notifyRentalCustomer, notifyRentalStaff} from "./rentalNotify";
 import {NotificationEventCodes} from "@carRentalModule/domain/notifications/notificationEventCodes";
 
@@ -74,6 +76,67 @@ export async function cancelRentalReservation(
         await notifyRentalStaff(NotificationEventCodes.RENTAL_RESERVATION_CANCELLED, reservation, ctx);
     }
     return {fee, refunded};
+}
+
+/** What staff record when the car leaves or comes back. `now` defaults to the present (the demo seed replays past dates). */
+type VehicleCheckInput = Pick<IRentalVehicleCheck, "odometerKm" | "fuelLevel" | "notes"> & {by?: ObjectId; now?: Date};
+
+/** The customer drives off: odometer and fuel are recorded and the car is on the road. */
+export async function handOverRentalReservation(reservation: IRentalReservation, input: VehicleCheckInput, ctx: Ctx): Promise<void> {
+    assertStatus(reservation, ["confirmed"], ctx.languageCode);
+    const vehicle = await Vehicle.findOne({_id: reservation.vehicle, company: nestedEntityToRef(reservation.company)}).session(ctx.session);
+    const now = input.now ?? new Date();
+    reservation.status = "in_progress";
+    reservation.handover = {at: now, by: input.by, odometerKm: input.odometerKm, fuelLevel: input.fuelLevel, notes: input.notes};
+    reservation.snapshot.vehicleLabel = vehicle ? `${vehicle.make} ${vehicle.model} · ${vehicle.plate}` : undefined;
+    reservation.timeline.push({event: "handover", at: now, by: input.by});
+    await reservation.save({session: ctx.session});
+    if (vehicle) {
+        vehicle.odometerKm = input.odometerKm;
+        await vehicle.save({session: ctx.session});
+    }
+}
+
+/** The car is back. Extra charges (fuel, km, damage) are added to what the customer owes. */
+export async function returnRentalReservation(
+    reservation: IRentalReservation,
+    input: VehicleCheckInput & {damageNoted?: boolean; extraCharges?: {label: string; amount: number}[]},
+    ctx: Ctx,
+): Promise<void> {
+    assertStatus(reservation, ["in_progress"], ctx.languageCode);
+    const now = input.now ?? new Date();
+
+    for (const charge of input.extraCharges ?? []) {
+        const amount = roundMoney(charge.amount);
+        reservation.pricing.lines.push({label: charge.label, kind: "charge", quantity: 1, unitPrice: amount, total: amount});
+    }
+    Object.assign(reservation.pricing, totalsFor(reservation.pricing.lines, reservation.pricing.vatRate, reservation.pricing.pricesIncludeVat));
+    reservation.paymentStatus = paymentStatusFor(reservation, false);
+
+    reservation.status = "completed";
+    reservation.returnInfo = {
+        at: now,
+        by: input.by,
+        odometerKm: input.odometerKm,
+        fuelLevel: input.fuelLevel,
+        notes: input.notes,
+        damageNoted: input.damageNoted ?? false,
+    };
+    reservation.timeline.push({event: "returned", at: now, by: input.by});
+    await reservation.save({session: ctx.session});
+    await Vehicle.updateOne(
+        {_id: reservation.vehicle, company: nestedEntityToRef(reservation.company)},
+        {$set: {odometerKm: input.odometerKm}},
+        {session: ctx.session},
+    );
+}
+
+/** The customer never came. The caller checks that the grace period has passed. */
+export async function markRentalNoShow(reservation: IRentalReservation, input: {by?: ObjectId; now?: Date}, ctx: Ctx): Promise<void> {
+    assertStatus(reservation, ["confirmed"], ctx.languageCode);
+    reservation.status = "no_show";
+    reservation.timeline.push({event: "no_show", at: input.now ?? new Date(), by: input.by});
+    await reservation.save({session: ctx.session});
 }
 
 /**

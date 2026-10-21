@@ -2,6 +2,7 @@ import {ObjectId} from "mongodb";
 import {z} from "zod";
 import {createCrudRouter} from "@coreModule/api/crudRouterFactory";
 import {createRentalReservationFormSchema} from "armonia/src/modules/carRental/api/carRental/private/rentalReservation/rentalReservation.form.validators";
+import {rentalReservationSelectFormSchema} from "armonia/src/modules/carRental/api/carRental/private/rentalReservation/rentalReservationSelect.form.validator";
 import RentalReservation from "@carRentalModule/database/schemas/rentalReservation/rentalReservation";
 import {rentalReservationService} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation.service";
 import {RentalReservationActions} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation.actions";
@@ -24,8 +25,10 @@ export const {router} = createCrudRouter({
     editSchema: () => z.looseObject({_id: z.string()}),
     toDTO: rentalReservationToDTO,
     toDTOArray: rentalReservationsToDTO,
+    selectSchema: rentalReservationSelectFormSchema,
     toSelect: (reservations) => reservations.map((reservation) => ({value: reservation._id.toString(), label: reservation.number})),
     selectSearchField: "number",
+    extraSelectFilter: ({vehicle}: any) => (vehicle ? {vehicle: new ObjectId(String(vehicle))} : {}),
     defaultSort: {pickupAt: -1},
     actions: RentalReservationActions,
     /** Staff booking: the same trip rules, pricing and vehicle lock as online, but paid at the counter. */

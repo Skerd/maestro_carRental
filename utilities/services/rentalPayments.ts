@@ -68,7 +68,13 @@ export async function startOnlinePayment(reservation: IRentalReservation, ctx: C
 }
 
 /** Records money taken at the counter (cash, card terminal) as a manual ledger charge. */
-export async function recordCounterPayment(reservation: IRentalReservation, amount: number, note: string | undefined, ctx: Ctx): Promise<void> {
+export async function recordCounterPayment(
+    reservation: IRentalReservation,
+    amount: number,
+    note: string | undefined,
+    ctx: Ctx,
+    now = new Date(),
+): Promise<void> {
     const due = amountDue(reservation);
     if (amount > due + 0.005) {
         throw apiValidationException("rental_payment_exceeds_due", "", null, ctx.languageCode, [String(due)]);
@@ -88,7 +94,7 @@ export async function recordCounterPayment(reservation: IRentalReservation, amou
     await PaymentTransaction.updateOne({_id: charge._id}, {$set: {status: "succeeded"}}, {session: ctx.session});
     reservation.amountPaid = roundMoney(reservation.amountPaid + amount);
     reservation.paymentStatus = paymentStatusFor(reservation, false);
-    reservation.timeline.push({event: "payment_received", at: new Date(), note: note ?? `manual ${roundMoney(amount)}`});
+    reservation.timeline.push({event: "payment_received", at: now, note: note ?? `manual ${roundMoney(amount)}`});
 }
 
 /**

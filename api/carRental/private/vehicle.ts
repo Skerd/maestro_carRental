@@ -2,8 +2,13 @@ import {ObjectId} from "mongodb";
 import {createCrudRouter} from "@coreModule/api/crudRouterFactory";
 import {buildCreateDataFromSchemaDef, buildUpdateDataFromSchemaDef} from "@coreModule/api/buildUpdateDataFromSchemaDef";
 import {restoreUnlessKeyTaken} from "@coreModule/api/restoreUnlessKeyTaken";
+import {mediaUploadMW} from "@coreModule/utilities/middlewares/mediaUploadMW";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
-import {VehicleSchemaDef} from "armonia/src/modules/carRental/api/carRental/private/vehicle/vehicle.schema-def";
+import {
+    VEHICLE_IMAGES_MAX,
+    VEHICLE_VIDEOS_MAX,
+    VehicleSchemaDef,
+} from "armonia/src/modules/carRental/api/carRental/private/vehicle/vehicle.schema-def";
 import {createVehicleFormSchema} from "armonia/src/modules/carRental/api/carRental/private/vehicle/createVehicle.form.validator";
 import {editVehicleFormSchema} from "armonia/src/modules/carRental/api/carRental/private/vehicle/editVehicle.form.validator";
 import {vehicleSelectFormSchema} from "armonia/src/modules/carRental/api/carRental/private/vehicle/vehicleSelect.form.validator";
@@ -13,6 +18,15 @@ import RentalReservation from "@carRentalModule/database/schemas/rentalReservati
 import {vehicleToDTO, vehiclesToDTO} from "@carRentalModule/utilities/mappers/vehicle/vehicleMapper.dto";
 import {vehiclesToSelect} from "@carRentalModule/utilities/mappers/vehicle/vehicleMapper.select";
 import {blockingReservationFilter, lockVehicle} from "@carRentalModule/utilities/services/rentalAvailability";
+
+const mediaUpload = mediaUploadMW({
+    fields: {images: VEHICLE_IMAGES_MAX, videos: VEHICLE_VIDEOS_MAX},
+    fieldMimeTypes: {
+        images: ["image/jpeg", "image/png", "image/webp"],
+        videos: ["video/mp4", "video/webm", "video/quicktime"],
+    },
+    maxFileSize: 250 * 1024 * 1024,
+});
 
 export const basePath = "/api/carRental/vehicle";
 
@@ -30,10 +44,12 @@ export const {router} = createCrudRouter({
     selectSearchField: "plate",
     selectProjection: "_id plate make model",
     defaultSort: {plate: 1},
-    extraSelectFilter: ({category}: any) => ({
-        status: "active",
+    extraSelectFilter: ({category, includeInactive}: any) => ({
+        ...(includeInactive ? {} : {status: "active"}),
         ...(category ? {category: new ObjectId(String(category))} : {}),
     }),
+    createMiddleware: [mediaUpload],
+    editMiddleware: [mediaUpload],
     buildCreateData: buildCreateDataFromSchemaDef(VehicleSchemaDef),
     buildUpdateData: buildUpdateDataFromSchemaDef(VehicleSchemaDef),
     /**

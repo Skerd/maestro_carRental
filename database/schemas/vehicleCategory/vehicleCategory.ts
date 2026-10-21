@@ -33,6 +33,7 @@ export interface IVehicleCategory extends Document, IOwnershipPluginFields, ISof
     slug: string;
     description?: string;
     images: IMedia[];
+    videos: IMedia[];
     seats: number;
     doors?: number;
     luggage?: number;
@@ -58,6 +59,12 @@ const VehicleCategorySchema = new Schema<IVehicleCategory>(
         slug: {type: SchemaTypes.String, required: true, trim: true, lowercase: true, minlength: 1, maxlength: VEHICLE_CATEGORY_SLUG_MAX},
         description: {type: SchemaTypes.String, maxlength: VEHICLE_CATEGORY_DESCRIPTION_MAX, dynamicTableConfiguration: {hideColumn: true}},
         images: {
+            type: [{type: SchemaTypes.ObjectId, ref: "Media"}],
+            default: [],
+            refAllowlist: MediaSimpleSnippet,
+            dynamicTableConfiguration: {sortable: false, filterable: false, hideColumn: true},
+        },
+        videos: {
             type: [{type: SchemaTypes.ObjectId, ref: "Media"}],
             default: [],
             refAllowlist: MediaSimpleSnippet,

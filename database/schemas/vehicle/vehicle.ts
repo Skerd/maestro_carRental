@@ -7,6 +7,9 @@ import lifeCyclePlugin from "@coreModule/database/plugins/lifeCyclePlugin";
 import {ILifeCyclePluginFields, IOwnershipPluginFields, ISoftDeletePluginFields} from "@coreModule/database/types/plugin-fields";
 import {addModelData} from "@coreModule/database/collections";
 import {validateSchemaDefAgainstMongoose} from "@coreModule/database/utilities/validateSchemaDefAgainstMongoose";
+import {IMedia} from "@coreModule/database/schemas/media/media";
+import {MediaSimpleSnippet} from "@coreModule/database/schemas/media/media.snippets";
+import {COLUMN_TYPE} from "armonia/src/modules/core/database/filter/typeOperators";
 import {
     VEHICLE_COLOR_MAX,
     VEHICLE_MAKE_MAX,
@@ -40,6 +43,15 @@ export interface IVehicle extends Document, IOwnershipPluginFields, ISoftDeleteP
     status: VehicleStatus;
     odometerKm?: number;
     notes?: string;
+    images: IMedia[];
+    videos: IMedia[];
+    acquiredAt?: Date;
+    purchasePrice?: number;
+    /** Copied from the latest completed VehicleMaintenance record by `syncVehicleServiceDue`. */
+    nextServiceDueAt?: Date;
+    nextServiceDueKm?: number;
+    /** Set once the fleet reminder job has warned about the current due date/km; cleared when they change. */
+    serviceReminderSentAt?: Date;
     /**
      * Bumped inside every transaction that books, blocks or reassigns this vehicle.
      * Two such transactions write the same document, so MongoDB lets only one commit
@@ -79,6 +91,27 @@ const VehicleSchema = new Schema<IVehicle>(
         },
         odometerKm: {type: SchemaTypes.Number, min: 0},
         notes: {type: SchemaTypes.String, maxlength: VEHICLE_NOTES_MAX, dynamicTableConfiguration: {hideColumn: true}},
+        images: {
+            type: [{type: SchemaTypes.ObjectId, ref: "Media"}],
+            default: [],
+            refAllowlist: MediaSimpleSnippet,
+            dynamicTableConfiguration: {sortable: false, filterable: false, hideColumn: true},
+        },
+        videos: {
+            type: [{type: SchemaTypes.ObjectId, ref: "Media"}],
+            default: [],
+            refAllowlist: MediaSimpleSnippet,
+            dynamicTableConfiguration: {sortable: false, filterable: false, hideColumn: true},
+        },
+        acquiredAt: {type: SchemaTypes.Date, dynamicTableConfiguration: {cellType: COLUMN_TYPE.DATE, hideColumn: true}},
+        purchasePrice: {type: SchemaTypes.Number, min: 0, dynamicTableConfiguration: {hideColumn: true}},
+        nextServiceDueAt: {type: SchemaTypes.Date, permissions: NoWritePermission, dynamicTableConfiguration: {cellType: COLUMN_TYPE.DATE}},
+        nextServiceDueKm: {type: SchemaTypes.Number, permissions: NoWritePermission},
+        serviceReminderSentAt: {
+            type: SchemaTypes.Date,
+            permissions: NoWritePermission,
+            dynamicTableConfiguration: {hideColumn: true, filterable: false},
+        },
         allocationVersion: {
             type: SchemaTypes.Number,
             default: 0,

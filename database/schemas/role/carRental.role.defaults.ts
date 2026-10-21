@@ -1,7 +1,17 @@
 import type {DefaultRoleDefinition} from "@coreModule/database/schemas/role/role.defaults";
 
 // RolePermission groups are the capitalised collection names.
-const FLEET = ["Vehiclecategories", "Vehicles", "Vehicleblocks", "Rentalextras", "Rentallocations"];
+const FLEET = [
+    "Vehiclecategories",
+    "Vehicles",
+    "Vehicleblocks",
+    "Rentalextras",
+    "Rentallocations",
+    "Vehicleinsurances",
+    "Vehicledocuments",
+    "Vehiclemaintenances",
+    "Vehicledamages",
+];
 const RESERVATIONS = ["Rentalreservations"];
 const SETTINGS = ["Carrentalconfigs"];
 
@@ -36,8 +46,8 @@ export const carRentalDefaultRoles: DefaultRoleDefinition[] = [
     rentalRole(
         "Rental Agent",
         "rental_agent",
-        "Works the counter: books, hands over and takes back cars, records payments, blocks cars for maintenance. Cannot change prices or settings.",
-        [...RESERVATIONS, "Vehicleblocks"],
-        ["Vehicles", "Vehiclecategories", "Rentalextras", "Rentallocations", ...SETTINGS],
+        "Works the counter: books, hands over and takes back cars, records payments and damage, blocks cars for maintenance. Cannot change prices or settings.",
+        [...RESERVATIONS, "Vehicleblocks", "Vehicledamages"],
+        ["Vehicles", "Vehiclecategories", "Rentalextras", "Rentallocations", "Vehicleinsurances", "Vehicledocuments", "Vehiclemaintenances", ...SETTINGS],
     ),
 ];

@@ -11,7 +11,14 @@ import {vehicleCategoryService} from "@carRentalModule/database/schemas/vehicleC
 import {vehicleCategoryToDTO, vehicleCategoriesToDTO} from "@carRentalModule/utilities/mappers/vehicleCategory/vehicleCategoryMapper.dto";
 import {vehicleCategoriesToSelect} from "@carRentalModule/utilities/mappers/vehicleCategory/vehicleCategoryMapper.select";
 
-const mediaUpload = mediaUploadMW({fields: {images: 12}, maxFileSize: 20 * 1024 * 1024});
+const mediaUpload = mediaUploadMW({
+    fields: {images: 12, videos: 3},
+    fieldMimeTypes: {
+        images: ["image/jpeg", "image/png", "image/webp"],
+        videos: ["video/mp4", "video/webm", "video/quicktime"],
+    },
+    maxFileSize: 250 * 1024 * 1024,
+});
 
 function assertValidSeasons(seasons: {startDate: string; endDate: string}[] | undefined, languageCode: string): void {
     if (seasons?.some((season) => season.endDate < season.startDate)) {

@@ -2,7 +2,7 @@ import type {IVehicle} from "@carRentalModule/database/schemas/vehicle/vehicle";
 import type {Vehicle} from "armonia/src/modules/carRental/api/carRental/private/vehicle/vehicle.dto";
 import type {VehicleCategorySimple} from "armonia/src/modules/carRental/dto/vehicleCategory.dto";
 import type {RentalLocationSimple} from "armonia/src/modules/carRental/dto/rentalLocation.dto";
-import {mapSnippet} from "@coreModule/utilities/mappers/common.mapper";
+import {dateToISOString, mapMedia, mapSnippet} from "@coreModule/utilities/mappers/common.mapper";
 import {VehicleCategorySimpleSnippet} from "@carRentalModule/database/schemas/vehicleCategory/vehicleCategory.snippets";
 import {RentalLocationSimpleSnippet} from "@carRentalModule/database/schemas/rentalLocation/rentalLocation.snippets";
 import {mapLifeCycleToDTO, mapOwnershipToDTO, mapSoftDeleteToDTO} from "@coreModule/utilities/mappers/plugin/pluginMappers.dto";
@@ -21,6 +21,12 @@ export function vehicleToDTO(vehicle: IVehicle): Vehicle {
         status: vehicle.status,
         odometerKm: vehicle.odometerKm,
         notes: vehicle.notes,
+        images: vehicle.images?.length ? vehicle.images.map(mapMedia).filter((media) => media !== undefined) : undefined,
+        videos: vehicle.videos?.length ? vehicle.videos.map(mapMedia).filter((media) => media !== undefined) : undefined,
+        acquiredAt: vehicle.acquiredAt ? dateToISOString(vehicle.acquiredAt) : undefined,
+        purchasePrice: vehicle.purchasePrice,
+        nextServiceDueAt: vehicle.nextServiceDueAt ? dateToISOString(vehicle.nextServiceDueAt) : undefined,
+        nextServiceDueKm: vehicle.nextServiceDueKm,
         ...mapSoftDeleteToDTO(vehicle),
         ...mapOwnershipToDTO(vehicle),
         ...mapLifeCycleToDTO(vehicle),

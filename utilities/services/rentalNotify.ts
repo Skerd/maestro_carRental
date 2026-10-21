@@ -1,3 +1,4 @@
+import type {ObjectId} from "mongodb";
 import type {ClientSession} from "mongoose";
 import Company from "@coreModule/database/schemas/company/company";
 import Currency from "@coreModule/database/schemas/currency/currency";
@@ -62,15 +63,22 @@ export async function notifyRentalCustomer(
     });
 }
 
+type RentalNotificationCode = (typeof NotificationEventCodes)[keyof typeof NotificationEventCodes];
+
+/** The staff listed in the rental settings to alert. */
+async function staffReceiverIds(companyId: ObjectId, languageCode: string): Promise<string[]> {
+    const config = await carRentalConfigService.findForCompany(companyId, {languageCode});
+    return (config?.notifyUsers ?? []).map((user) => String(nestedEntityToRef(user)));
+}
+
 /** In-app alert to the staff listed in the rental settings. */
 export async function notifyRentalStaff(
-    code: (typeof NotificationEventCodes)[keyof typeof NotificationEventCodes],
+    code: RentalNotificationCode,
     reservation: IRentalReservation,
     ctx: {session?: ClientSession | null; languageCode: string},
 ): Promise<void> {
     const companyId = nestedEntityToRef(reservation.company);
-    const config = await carRentalConfigService.findForCompany(companyId, {languageCode: ctx.languageCode});
-    const receiverIds = (config?.notifyUsers ?? []).map((user) => String(nestedEntityToRef(user)));
+    const receiverIds = await staffReceiverIds(companyId, ctx.languageCode);
     if (!receiverIds.length) return;
     await runAfterCommit(ctx.session, async () => {
         emitNotificationEvent(code, {
@@ -84,4 +92,16 @@ export async function notifyRentalStaff(
             },
         });
     });
+}
+
+/** In-app alert about a vehicle (expiring paperwork, service due) to the rental staff. Emits right away. */
+export async function notifyFleetStaff(
+    code: RentalNotificationCode,
+    companyId: ObjectId,
+    payload: Record<string, unknown>,
+    languageCode: string,
+): Promise<void> {
+    const receiverIds = await staffReceiverIds(companyId, languageCode);
+    if (!receiverIds.length) return;
+    emitNotificationEvent(code, {receiverIds, payload: {companyId: String(companyId), languageCode, ...payload}});
 }
