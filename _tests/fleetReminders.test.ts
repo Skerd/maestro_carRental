@@ -53,11 +53,11 @@ describe("fleet reminders", {timeout: 60000}, () => {
         await VehicleDocument.create({company: companyId, vehicle: vehicle._id, type: "technical_inspection", expiresAt: inDays(20)});
         await policy(vehicle._id, inDays(90), {coverage: "full_casco"});
 
-        await runFleetReminders();
+        await runFleetReminders(companyId);
         expect(codes()).toEqual(["VEHICLE_DOCUMENT_EXPIRING", "VEHICLE_INSURANCE_EXPIRING"]);
         expect(emitted.find((event) => event.code === "VEHICLE_INSURANCE_EXPIRING")!.payload).toMatchObject({plate: vehicle.plate, insurer: "Sigal"});
 
-        await runFleetReminders();
+        await runFleetReminders(companyId);
         expect(emitted).toHaveLength(2);
     });
 
@@ -68,7 +68,7 @@ describe("fleet reminders", {timeout: 60000}, () => {
         const retiredCar = await car({status: "retired"});
         await policy(retiredCar._id, inDays(5));
 
-        await runFleetReminders();
+        await runFleetReminders(companyId);
         expect(emitted).toEqual([]);
     });
 
@@ -78,7 +78,7 @@ describe("fleet reminders", {timeout: 60000}, () => {
         const document = await VehicleDocument.create({company: companyId, vehicle: vehicle._id, type: "road_tax", expiresAt: inDays(-3)});
         const timeless = await VehicleDocument.create({company: companyId, vehicle: vehicle._id, type: "registration"});
 
-        await runFleetReminders();
+        await runFleetReminders(companyId);
         expect((await VehicleInsurance.findById(lapsed._id))!.status).toBe("expired");
         expect((await VehicleDocument.findById(document._id))!.status).toBe("expired");
         expect((await VehicleDocument.findById(timeless._id))!.status).toBe("active");
@@ -91,11 +91,11 @@ describe("fleet reminders", {timeout: 60000}, () => {
         await car({odometerKm: 50_000});
         await car({status: "retired", nextServiceDueAt: inDays(1)});
 
-        await runFleetReminders();
+        await runFleetReminders(companyId);
         expect(emitted.map((event) => event.payload.plate).sort()).toEqual([byDate.plate, byKm.plate].sort());
         expect(new Set(codes())).toEqual(new Set(["VEHICLE_SERVICE_DUE"]));
 
-        await runFleetReminders();
+        await runFleetReminders(companyId);
         expect(emitted).toHaveLength(2);
     });
 
@@ -104,7 +104,7 @@ describe("fleet reminders", {timeout: 60000}, () => {
         const vehicle = await car({nextServiceDueAt: inDays(1)});
         await policy(vehicle._id, inDays(3));
 
-        await runFleetReminders();
+        await runFleetReminders(companyId);
         expect(emitted).toEqual([]);
         expect((await Vehicle.findById(vehicle._id))!.serviceReminderSentAt).toBeInstanceOf(Date);
     });

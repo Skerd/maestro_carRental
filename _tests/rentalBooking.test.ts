@@ -323,7 +323,7 @@ describe("on the road", {timeout: 60000}, () => {
     it("expires a lapsed hold and cancels its payment intent", async () => {
         const {body} = await book({paymentChoice: "online"});
         await RentalReservation.updateOne({_id: body.data.reservation._id}, {$set: {holdExpiresAt: new Date(Date.now() - 1000)}});
-        await runRentalHoldExpiry();
+        await runRentalHoldExpiry(companyId);
         expect((await RentalReservation.findById(body.data.reservation._id))!.status).toBe("expired");
         expect(stripe.cancelPaymentIntent).toHaveBeenCalledWith("pi_test");
     });

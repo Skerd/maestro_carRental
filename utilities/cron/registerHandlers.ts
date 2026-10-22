@@ -7,9 +7,8 @@ export function registerCarRentalCronHandlers(): void {
     registerCronHandler({
         code: "carRental.holdExpiry",
         handler: async (ctx) => {
-            await runRentalHoldExpiry(ctx.logger);
+            await runRentalHoldExpiry(ctx.company, ctx.logger);
         },
-        version: "1",
         defaultJob: {
             name: "Rental hold expiry",
             cronExpression: "0 */5 * * * *",
@@ -20,9 +19,8 @@ export function registerCarRentalCronHandlers(): void {
     registerCronHandler({
         code: "carRental.pickupReminder",
         handler: async (ctx) => {
-            await runRentalPickupReminders(ctx.logger);
+            await runRentalPickupReminders(ctx.company, ctx.logger);
         },
-        version: "1",
         defaultJob: {
             name: "Rental pickup reminders",
             cronExpression: "0 10 * * * *",
@@ -33,9 +31,8 @@ export function registerCarRentalCronHandlers(): void {
     registerCronHandler({
         code: "carRental.fleetReminders",
         handler: async (ctx) => {
-            await runFleetReminders(ctx.logger);
+            await runFleetReminders(ctx.company, ctx.logger);
         },
-        version: "1",
         defaultJob: {
             name: "Fleet expiry and service reminders",
             cronExpression: "0 0 7 * * *",

@@ -8,6 +8,7 @@
  * if two runs overlap; editing the date (or a new service record) re-arms it.
  */
 
+import type {ObjectId} from "mongodb";
 import {CONSTANTS} from "@coreModule/environment";
 import {getLogger, serverLogger} from "@coreModule/loggers/serverLog";
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
@@ -35,19 +36,19 @@ async function eachBatch<T>(find: () => Promise<T[]>, handle: (row: T) => Promis
     } while (batch.length === BATCH_SIZE);
 }
 
-export async function runFleetReminders(parentLogger?: serverLogger): Promise<void> {
+export async function runFleetReminders(company: ObjectId, parentLogger?: serverLogger): Promise<void> {
     const logger = getLogger("fleet_reminders", parentLogger);
     const languageCode = CONSTANTS.DEFAULT_LANGUAGE ?? "en-US";
     const now = new Date();
     const expiryHorizon = new Date(now.getTime() + EXPIRY_WARNING_DAYS * DAY_MS);
     logger.start("Checking fleet expiries and service due dates...");
 
-    const expiredFilter = {status: "active", deletedAt: null, expiresAt: {$lt: now}};
+    const expiredFilter = {company, status: "active", deletedAt: null, expiresAt: {$lt: now}};
     const expiredPolicies = await VehicleInsurance.updateMany(expiredFilter, {$set: {status: "expired"}});
     const expiredDocuments = await VehicleDocument.updateMany(expiredFilter, {$set: {status: "expired"}});
 
     // `null` also matches a missing stamp; an edited expiry date writes null back.
-    const expiringFilter = {status: "active", deletedAt: null, expiryReminderSentAt: null, expiresAt: {$gt: now, $lte: expiryHorizon}};
+    const expiringFilter = {company, status: "active", deletedAt: null, expiryReminderSentAt: null, expiresAt: {$gt: now, $lte: expiryHorizon}};
     let warned = 0;
 
     await eachBatch(
@@ -117,6 +118,7 @@ export async function runFleetReminders(parentLogger?: serverLogger): Promise<vo
 
     let serviceDue = 0;
     const serviceFilter = {
+        company,
         deletedAt: null,
         status: {$ne: "retired"},
         serviceReminderSentAt: null,

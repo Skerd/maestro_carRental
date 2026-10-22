@@ -4,6 +4,7 @@
  * reservation expired and cancels its unpaid payment intent.
  */
 
+import type {ObjectId} from "mongodb";
 import {CONSTANTS} from "@coreModule/environment";
 import {getLogger, serverLogger} from "@coreModule/loggers/serverLog";
 import RentalReservation from "@carRentalModule/database/schemas/rentalReservation/rentalReservation";
@@ -12,12 +13,12 @@ import {runInTransaction} from "@coreModule/utilities/middlewares/runInTransacti
 
 const BATCH_SIZE = 200;
 
-export async function runRentalHoldExpiry(parentLogger?: serverLogger): Promise<void> {
+export async function runRentalHoldExpiry(company: ObjectId, parentLogger?: serverLogger): Promise<void> {
     const logger = getLogger("rental_hold_expiry", parentLogger);
     const languageCode = CONSTANTS.DEFAULT_LANGUAGE ?? "en-US";
     logger.start("Expiring rental holds...");
 
-    const due = await RentalReservation.find({status: "held", holdExpiresAt: {$lte: new Date()}, deletedAt: null})
+    const due = await RentalReservation.find({company, status: "held", holdExpiresAt: {$lte: new Date()}, deletedAt: null})
         .select("_id")
         .limit(BATCH_SIZE);
     let expired = 0;

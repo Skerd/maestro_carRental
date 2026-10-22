@@ -4,6 +4,7 @@
  * even if two runs overlap.
  */
 
+import type {ObjectId} from "mongodb";
 import {CONSTANTS} from "@coreModule/environment";
 import {getLogger, serverLogger} from "@coreModule/loggers/serverLog";
 import RentalReservation from "@carRentalModule/database/schemas/rentalReservation/rentalReservation";
@@ -12,13 +13,14 @@ import {notifyRentalCustomer} from "@carRentalModule/utilities/services/rentalNo
 const REMINDER_WINDOW_MS = 24 * 3600 * 1000;
 const BATCH_SIZE = 200;
 
-export async function runRentalPickupReminders(parentLogger?: serverLogger): Promise<void> {
+export async function runRentalPickupReminders(company: ObjectId, parentLogger?: serverLogger): Promise<void> {
     const logger = getLogger("rental_pickup_reminders", parentLogger);
     const languageCode = CONSTANTS.DEFAULT_LANGUAGE ?? "en-US";
     const now = new Date();
     logger.start("Sending rental pickup reminders...");
 
     const due = await RentalReservation.find({
+        company,
         status: "confirmed",
         deletedAt: null,
         pickupReminderSentAt: {$exists: false},
