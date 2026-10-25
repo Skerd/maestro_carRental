@@ -48,7 +48,6 @@ function rentalExtraFormNodes(edit: boolean): ViewConfig["nodes"] {
                 {render: "#Field", ...perm("pricing"), field: {name: "pricing", widget: "#Select", label: "form.pricingLabel", placeholder: "form.pricingPlaceholder", required: true, widgetProps: {options: pricingOptions, className: "grow w-full"}}},
                 {render: "#Field", ...perm("price"), field: {name: "price", widget: "#Input", label: "form.priceLabel", placeholder: "form.pricePlaceholder", required: true, widgetProps: {type: "number", min: 0, step: "any"}}},
                 {render: "#Field", ...perm("maxQuantity"), field: {name: "maxQuantity", widget: "#Input", label: "form.maxQuantityLabel", placeholder: "form.maxQuantityPlaceholder", required: true, widgetProps: {type: "number", min: 1, max: 10}}},
-                {render: "#Field", ...perm("isActive"), field: {name: "isActive", widget: "#Switch", label: "form.isActiveLabel"}},
                 {render: "#Field", ...perm("sortOrder"), field: {name: "sortOrder", widget: "#Input", label: "form.sortOrderLabel", placeholder: "form.sortOrderPlaceholder", widgetProps: {type: "number", min: 0}}},
             ],
         },

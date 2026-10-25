@@ -86,7 +86,7 @@ const RentalLocationSchema = new Schema<IRentalLocation>(
         },
         pickupAllowed: {type: SchemaTypes.Boolean, default: true},
         returnAllowed: {type: SchemaTypes.Boolean, default: true},
-        isActive: {type: SchemaTypes.Boolean, default: true},
+        isActive: {type: SchemaTypes.Boolean, default: true}, // activate / deactivate actions
     },
     {accessMode: "loose"},
 );

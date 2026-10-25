@@ -8,6 +8,7 @@ import RentalExtra from "@carRentalModule/database/schemas/rentalExtra/rentalExt
 import {rentalExtraService} from "@carRentalModule/database/schemas/rentalExtra/rentalExtra.service";
 import {rentalExtraToDTO, rentalExtrasToDTO} from "@carRentalModule/utilities/mappers/rentalExtra/rentalExtraMapper.dto";
 import {rentalExtrasToSelect} from "@carRentalModule/utilities/mappers/rentalExtra/rentalExtraMapper.select";
+import {RentalExtraActions} from "@carRentalModule/database/schemas/rentalExtra/rentalExtra.actions";
 
 export const basePath = "/api/carRental/rentalExtra";
 
@@ -23,6 +24,7 @@ export const {router} = createCrudRouter({
     toSelect: rentalExtrasToSelect,
     defaultSort: {sortOrder: 1, name: 1},
     extraSelectFilter: () => ({isActive: true}),
+    actions: RentalExtraActions,
     buildCreateData: buildCreateDataFromSchemaDef(RentalExtraSchemaDef),
     buildUpdateData: buildUpdateDataFromSchemaDef(RentalExtraSchemaDef),
     overrideRestoreHandler: restoreUnlessKeyTaken({

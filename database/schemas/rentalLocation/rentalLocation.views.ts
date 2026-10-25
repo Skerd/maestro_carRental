@@ -135,11 +135,10 @@ function rentalLocationFormNodes(edit: boolean): ViewConfig["nodes"] {
         },
         {
             render: "#FormGrid",
-            props: {columns: 3},
+            props: {columns: 2},
             children: [
                 {render: "#Field", ...perm("pickupAllowed"), field: {name: "pickupAllowed", widget: "#Switch", label: "form.pickupAllowedLabel"}},
                 {render: "#Field", ...perm("returnAllowed"), field: {name: "returnAllowed", widget: "#Switch", label: "form.returnAllowedLabel"}},
-                {render: "#Field", ...perm("isActive"), field: {name: "isActive", widget: "#Switch", label: "form.isActiveLabel"}},
             ],
         },
         {

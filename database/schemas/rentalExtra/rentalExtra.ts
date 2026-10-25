@@ -40,7 +40,7 @@ const RentalExtraSchema = new Schema<IRentalExtra>(
         },
         price: {type: SchemaTypes.Number, required: true, min: 0},
         maxQuantity: {type: SchemaTypes.Number, required: true, default: 1, ...RENTAL_EXTRA_QUANTITY},
-        isActive: {type: SchemaTypes.Boolean, default: true},
+        isActive: {type: SchemaTypes.Boolean, default: true}, // activate / deactivate actions
         sortOrder: {type: SchemaTypes.Number, default: 0},
     },
     {accessMode: "loose"},

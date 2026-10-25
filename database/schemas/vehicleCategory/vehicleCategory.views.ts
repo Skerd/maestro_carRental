@@ -41,6 +41,7 @@ export const vehicleCategorySheetView: ViewConfig = {
                         {render: "#DisplayCard", permissions: {read: "transmission"}, field: {name: "transmission", widget: "#DisplayCard", label: "transmission", widgetProps: {icon: "#IconManualGearbox", type: "enum", languageKeyCategory: "transmissionValues"}}},
                         {render: "#DisplayCard", permissions: {read: "fuelType"}, field: {name: "fuelType", widget: "#DisplayCard", label: "fuelType", widgetProps: {icon: "#IconGasStation", type: "enum", languageKeyCategory: "fuelTypeValues"}}},
                         {render: "#DisplayCard", permissions: {read: "isPublic"}, field: {name: "isPublic", widget: "#DisplayCard", label: "isPublic", widgetProps: {icon: "#IconWorld", type: "boolean"}}},
+                        {render: "#DisplayCard", permissions: {read: "sortOrder"}, field: {name: "sortOrder", widget: "#DisplayCard", label: "sortOrder", widgetProps: {icon: "#Hash", type: "number"}}},
                         {render: "#DisplayCard", permissions: {read: "minDriverAge"}, field: {name: "minDriverAge", widget: "#DisplayCard", label: "minDriverAge", widgetProps: {icon: "#IconUser", type: "number"}}},
                     ],
                 },
@@ -214,14 +215,7 @@ function vehicleCategoryFormNodes(edit: boolean): ViewConfig["nodes"] {
                 },
             ],
         },
-        {
-            render: "#FormGrid",
-            props: {columns: 2},
-            children: [
-                {render: "#Field", ...perm("isPublic"), field: {name: "isPublic", widget: "#Switch", label: "form.isPublicLabel"}},
-                number("sortOrder"),
-            ],
-        },
+        number("sortOrder"),
     ];
 }
 

@@ -10,6 +10,7 @@ import RentalLocation from "@carRentalModule/database/schemas/rentalLocation/ren
 import {rentalLocationService} from "@carRentalModule/database/schemas/rentalLocation/rentalLocation.service";
 import {rentalLocationToDTO, rentalLocationsToDTO} from "@carRentalModule/utilities/mappers/rentalLocation/rentalLocationMapper.dto";
 import {rentalLocationsToSelect} from "@carRentalModule/utilities/mappers/rentalLocation/rentalLocationMapper.select";
+import {RentalLocationActions} from "@carRentalModule/database/schemas/rentalLocation/rentalLocation.actions";
 
 /** The Zod contract can't compare fields, so the timezone name and each hours row are checked here. */
 function assertValidSchedule(data: {timezone?: string; openingHours?: {startTime: string; endTime: string}[]}, languageCode: string): void {
@@ -37,6 +38,7 @@ export const {router} = createCrudRouter({
     toSelect: rentalLocationsToSelect,
     defaultSort: {name: 1},
     extraSelectFilter: () => ({isActive: true}),
+    actions: RentalLocationActions,
     buildCreateData: (params: any) => {
         assertValidSchedule(params, params.languageCode);
         return buildCreateDataFromSchemaDef(RentalLocationSchemaDef)(params);

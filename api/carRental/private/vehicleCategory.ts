@@ -10,6 +10,7 @@ import VehicleCategory from "@carRentalModule/database/schemas/vehicleCategory/v
 import {vehicleCategoryService} from "@carRentalModule/database/schemas/vehicleCategory/vehicleCategory.service";
 import {vehicleCategoryToDTO, vehicleCategoriesToDTO} from "@carRentalModule/utilities/mappers/vehicleCategory/vehicleCategoryMapper.dto";
 import {vehicleCategoriesToSelect} from "@carRentalModule/utilities/mappers/vehicleCategory/vehicleCategoryMapper.select";
+import {VehicleCategoryActions} from "@carRentalModule/database/schemas/vehicleCategory/vehicleCategory.actions";
 
 const mediaUpload = mediaUploadMW({
     fields: {images: 12, videos: 3},
@@ -49,6 +50,7 @@ export const {router} = createCrudRouter({
         assertValidSeasons(params.rateSeasons, params.languageCode);
         return buildUpdateDataFromSchemaDef(VehicleCategorySchemaDef)(params, writeFields);
     },
+    actions: VehicleCategoryActions,
     overrideRestoreHandler: restoreUnlessKeyTaken({
         model: VehicleCategory,
         service: vehicleCategoryService,
