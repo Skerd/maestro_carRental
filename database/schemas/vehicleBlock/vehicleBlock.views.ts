@@ -9,7 +9,11 @@ export const vehicleBlockSheetView: ViewConfig = {
     viewType: "sheet",
     accessModel: "vehicleblocks",
     apiUrl: API_URL,
-    header: {titleField: "vehicle.plate", subtitleKey: "vehicleBlockSubtitle", showCloseButton: true},
+    header: {
+        titleField: "vehicle.plate",
+        subtitleKey: "vehicleBlockSubtitle",
+        showCloseButton: true,
+    },
     nodes: [
         {
             render: "#SheetGroup",
@@ -19,20 +23,77 @@ export const vehicleBlockSheetView: ViewConfig = {
                     render: "#SheetGrid",
                     props: {columns: 2},
                     children: [
-                        {render: "#DisplayCard", permissions: {read: "vehicle"}, field: {name: "vehicle.plate", widget: "#DisplayCard", label: "vehicle", widgetProps: {icon: "#IconCar"}}},
-                        {render: "#DisplayCard", permissions: {read: "reason"}, field: {name: "reason", widget: "#DisplayCard", label: "reason", widgetProps: {icon: "#IconTool", type: "enum", languageKeyCategory: "reasonValues"}}},
-                        {render: "#DisplayCard", permissions: {read: "startAt"}, field: {name: "startAt", widget: "#DisplayCard", label: "startAt", widgetProps: {icon: "#IconCalendarEvent", type: "dateTime"}}},
-                        {render: "#DisplayCard", permissions: {read: "endAt"}, field: {name: "endAt", widget: "#DisplayCard", label: "endAt", widgetProps: {icon: "#IconCalendarEvent", type: "dateTime"}}},
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "vehicle"},
+                            field: {
+                                name: "vehicle.plate",
+                                widget: "#DisplayCard",
+                                label: "vehicle",
+                                widgetProps: {icon: "#IconCar"},
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "reason"},
+                            field: {
+                                name: "reason",
+                                widget: "#DisplayCard",
+                                label: "reason",
+                                widgetProps: {
+                                    icon: "#IconTool",
+                                    type: "enum",
+                                    languageKeyCategory: "reasonValues",
+                                },
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "startAt"},
+                            field: {
+                                name: "startAt",
+                                widget: "#DisplayCard",
+                                label: "startAt",
+                                widgetProps: {
+                                    icon: "#IconCalendarEvent",
+                                    type: "dateTime",
+                                },
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "endAt"},
+                            field: {
+                                name: "endAt",
+                                widget: "#DisplayCard",
+                                label: "endAt",
+                                widgetProps: {
+                                    icon: "#IconCalendarEvent",
+                                    type: "dateTime",
+                                },
+                            },
+                        },
                     ],
                 },
-                {render: "#DisplayCard", permissions: {read: "note"}, field: {name: "note", widget: "#DisplayCard", label: "note", widgetProps: {icon: "#IconNotes"}}},
+                {
+                    render: "#DisplayCard",
+                    permissions: {read: "note"},
+                    field: {
+                        name: "note",
+                        widget: "#DisplayCard",
+                        label: "note",
+                        widgetProps: {icon: "#IconNotes"},
+                    },
+                },
             ],
         },
         lifecycleSheetGroup,
     ],
 };
 
-const reasonOptions = ["maintenance", "repair", "transfer", "other"].map((value) => ({value, label: `form.reason.${value}`}));
+const reasonOptions = ["maintenance", "repair", "transfer", "other"].map(
+    (value) => ({value, label: `form.reason.${value}`}),
+);
 
 export const vehicleBlockCreateFormView: ViewConfig = {
     model: "vehicleblocks",
@@ -48,16 +109,67 @@ export const vehicleBlockCreateFormView: ViewConfig = {
             children: [
                 {
                     render: "#Field",
-                    field: {name: "vehicle", widget: "#ApiSelect", label: "form.vehicleLabel", placeholder: "form.vehiclePlaceholder", required: true, widgetProps: {apiUrl: "/api/carRental/vehicle/select", method: "POST", pageSize: 50, normalizeEmptyToUndefined: true}},
+                    field: {
+                        name: "vehicle",
+                        widget: "#ApiSelect",
+                        label: "form.vehicleLabel",
+                        placeholder: "form.vehiclePlaceholder",
+                        required: true,
+                        widgetProps: {
+                            apiUrl: "/api/carRental/vehicle/select",
+                            method: "POST",
+                            pageSize: 50,
+                            normalizeEmptyToUndefined: true,
+                        },
+                    },
                 },
-                {render: "#Field", field: {name: "reason", widget: "#Select", label: "form.reasonLabel", placeholder: "form.reasonPlaceholder", required: true, widgetProps: {options: reasonOptions, className: "grow w-full"}}},
-                {render: "#Field", field: {name: "startAt", widget: "#DateInput", label: "form.startAtLabel", placeholder: "form.startAtPlaceholder", required: true, widgetProps: {valueFormat: "yyyy-MM-dd HH:mm"}}},
-                {render: "#Field", field: {name: "endAt", widget: "#DateInput", label: "form.endAtLabel", placeholder: "form.endAtPlaceholder", required: true, widgetProps: {valueFormat: "yyyy-MM-dd HH:mm"}}},
+                {
+                    render: "#Field",
+                    field: {
+                        name: "reason",
+                        widget: "#SimpleSelect",
+                        label: "form.reasonLabel",
+                        placeholder: "form.reasonPlaceholder",
+                        required: true,
+                        widgetProps: {
+                            options: reasonOptions,
+                            className: "grow w-full",
+                        },
+                    },
+                },
+                {
+                    render: "#Field",
+                    field: {
+                        name: "startAt",
+                        widget: "#DateInput",
+                        label: "form.startAtLabel",
+                        placeholder: "form.startAtPlaceholder",
+                        required: true,
+                        widgetProps: {valueFormat: "yyyy-MM-dd HH:mm"},
+                    },
+                },
+                {
+                    render: "#Field",
+                    field: {
+                        name: "endAt",
+                        widget: "#DateInput",
+                        label: "form.endAtLabel",
+                        placeholder: "form.endAtPlaceholder",
+                        required: true,
+                        widgetProps: {valueFormat: "yyyy-MM-dd HH:mm"},
+                    },
+                },
             ],
         },
         {
             render: "#Field",
-            field: {name: "note", widget: "#Textarea", label: "form.noteLabel", placeholder: "form.notePlaceholder", widgetProps: {rows: 3, maxLength: VEHICLE_BLOCK_NOTE_MAX}},
+            field: {
+                name: "note",
+                widget: "#Textarea",
+                label: "form.noteLabel",
+                placeholder: "form.notePlaceholder",
+                widgetProps: {rows: 3, maxLength: VEHICLE_BLOCK_NOTE_MAX},
+            },
         },
     ],
 };
@@ -74,14 +186,31 @@ export const vehicleBlockEditFormView: ViewConfig = {
         {
             render: "#Field",
             permissions: {read: "reason", write: "reason"},
-            field: {name: "reason", widget: "#Select", label: "form.reasonLabel", placeholder: "form.reasonPlaceholder", required: true, widgetProps: {options: reasonOptions, className: "grow w-full"}},
+            field: {
+                name: "reason",
+                widget: "#SimpleSelect",
+                label: "form.reasonLabel",
+                placeholder: "form.reasonPlaceholder",
+                required: true,
+                widgetProps: {options: reasonOptions, className: "grow w-full"},
+            },
         },
         {
             render: "#Field",
             permissions: {read: "note", write: "note"},
-            field: {name: "note", widget: "#Textarea", label: "form.noteLabel", placeholder: "form.notePlaceholder", widgetProps: {rows: 3, maxLength: VEHICLE_BLOCK_NOTE_MAX}},
+            field: {
+                name: "note",
+                widget: "#Textarea",
+                label: "form.noteLabel",
+                placeholder: "form.notePlaceholder",
+                widgetProps: {rows: 3, maxLength: VEHICLE_BLOCK_NOTE_MAX},
+            },
         },
     ],
 };
 
-export const vehicleBlockViews: ViewConfig[] = [vehicleBlockSheetView, vehicleBlockCreateFormView, vehicleBlockEditFormView];
+export const vehicleBlockViews: ViewConfig[] = [
+    vehicleBlockSheetView,
+    vehicleBlockCreateFormView,
+    vehicleBlockEditFormView,
+];

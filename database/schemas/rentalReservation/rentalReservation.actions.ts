@@ -24,7 +24,7 @@ import type {
     ReassignRentalVehicleFormType,
     RecordRentalPaymentFormType,
     ReturnRentalReservationFormType,
-} from "armonia/src/modules/carRental/api/carRental/private/rentalReservation/rentalReservation.forms";
+} from "armonia/src/modules/carRental/api/carRental/private/rentalReservation/rentalReservation.schema-def";
 import Vehicle from "../vehicle/vehicle";
 import VehicleCategory from "../vehicleCategory/vehicleCategory";
 import RentalLocation from "../rentalLocation/rentalLocation";

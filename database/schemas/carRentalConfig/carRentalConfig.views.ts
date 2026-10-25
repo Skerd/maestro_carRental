@@ -1,26 +1,16 @@
 import type {ViewConfig} from "armonia/src/modules/core/api/auxiliary/private/viewConfig";
-import {RENTAL_TERMS_TEXT_MAX, RENTAL_TERMS_VERSION_MAX} from "armonia/src/modules/carRental/api/carRental/private/carRentalConfig/carRentalConfig.schema-def";
+import {
+    RENTAL_TERMS_TEXT_MAX,
+    RENTAL_TERMS_VERSION_MAX,
+} from "armonia/src/modules/carRental/api/carRental/private/carRentalConfig/carRentalConfig.schema-def";
 
 const API_URL = "/api/carRental/carRentalConfig";
 
-const numberField = (name: string, min: number, max: number) => ({
-    render: "#Field",
-    field: {
-        name,
-        widget: "#Input",
-        label: `form.${name}Label`,
-        placeholder: `form.${name}Placeholder`,
-        required: true,
-        widgetProps: {type: "number", min, max},
-    },
-    permissions: {read: name, write: name},
-});
-
-const switchField = (name: string) => ({
-    render: "#Field",
-    field: {name, widget: "#Switch", label: `form.${name}Label`},
-    permissions: {read: name, write: name},
-});
+const paymentPolicyOptions = [
+    {value: "pay_at_pickup", label: "form.paymentPolicy.pay_at_pickup"},
+    {value: "prepay_online", label: "form.paymentPolicy.prepay_online"},
+    {value: "customer_choice", label: "form.paymentPolicy.customer_choice"},
+];
 
 /** Settings are edited in place from the settings page; there is no create form or sheet. */
 export const carRentalConfigEditFormView: ViewConfig = {
@@ -34,31 +24,170 @@ export const carRentalConfigEditFormView: ViewConfig = {
         {
             render: "#TitleWithCollapse",
             props: {title: "form.bookingSectionTitle"},
+            permissions: {
+                readAny: [
+                    "publicBookingEnabled",
+                    "guestBookingAllowed",
+                    "currency",
+                    "minRentalHours",
+                    "maxRentalDays",
+                    "minLeadTimeHours",
+                    "maxAdvanceDays",
+                    "turnaroundBufferMinutes",
+                    "lateGraceMinutes",
+                ],
+                writeAny: [
+                    "publicBookingEnabled",
+                    "guestBookingAllowed",
+                    "currency",
+                    "minRentalHours",
+                    "maxRentalDays",
+                    "minLeadTimeHours",
+                    "maxAdvanceDays",
+                    "turnaroundBufferMinutes",
+                    "lateGraceMinutes",
+                ],
+            },
             children: [
                 {
                     render: "#FormGrid",
                     props: {columns: 3},
                     children: [
-                        switchField("publicBookingEnabled"),
-                        switchField("guestBookingAllowed"),
                         {
                             render: "#Field",
+                            permissions: {
+                                read: "publicBookingEnabled",
+                                write: "publicBookingEnabled",
+                            },
+                            field: {
+                                name: "publicBookingEnabled",
+                                widget: "#Switch",
+                                label: "form.publicBookingEnabledLabel",
+                            },
+                        },
+                        {
+                            render: "#Field",
+                            permissions: {
+                                read: "guestBookingAllowed",
+                                write: "guestBookingAllowed",
+                            },
+                            field: {
+                                name: "guestBookingAllowed",
+                                widget: "#Switch",
+                                label: "form.guestBookingAllowedLabel",
+                            },
+                        },
+                        {
+                            render: "#Field",
+                            permissions: {read: "currency", write: "currency"},
                             field: {
                                 name: "currency",
                                 widget: "#ApiSelect",
                                 label: "form.currencyLabel",
                                 placeholder: "form.currencyPlaceholder",
                                 required: true,
-                                widgetProps: {apiUrl: "/api/finance/currency/select", method: "POST", pageSize: 50},
+                                widgetProps: {
+                                    apiUrl: "/api/finance/currency/select",
+                                    method: "POST",
+                                    pageSize: 50,
+                                },
                             },
-                            permissions: {read: "currency", write: "currency"},
                         },
-                        numberField("minRentalHours", 1, 720),
-                        numberField("maxRentalDays", 1, 365),
-                        numberField("minLeadTimeHours", 0, 720),
-                        numberField("maxAdvanceDays", 1, 730),
-                        numberField("turnaroundBufferMinutes", 0, 1440),
-                        numberField("lateGraceMinutes", 0, 720),
+                        {
+                            render: "#Field",
+                            permissions: {
+                                read: "minRentalHours",
+                                write: "minRentalHours",
+                            },
+                            field: {
+                                name: "minRentalHours",
+                                widget: "#Input",
+                                label: "form.minRentalHoursLabel",
+                                placeholder: "form.minRentalHoursPlaceholder",
+                                required: true,
+                                widgetProps: {type: "number", min: 1, max: 720},
+                            },
+                        },
+                        {
+                            render: "#Field",
+                            permissions: {
+                                read: "maxRentalDays",
+                                write: "maxRentalDays",
+                            },
+                            field: {
+                                name: "maxRentalDays",
+                                widget: "#Input",
+                                label: "form.maxRentalDaysLabel",
+                                placeholder: "form.maxRentalDaysPlaceholder",
+                                required: true,
+                                widgetProps: {type: "number", min: 1, max: 365},
+                            },
+                        },
+                        {
+                            render: "#Field",
+                            permissions: {
+                                read: "minLeadTimeHours",
+                                write: "minLeadTimeHours",
+                            },
+                            field: {
+                                name: "minLeadTimeHours",
+                                widget: "#Input",
+                                label: "form.minLeadTimeHoursLabel",
+                                placeholder: "form.minLeadTimeHoursPlaceholder",
+                                required: true,
+                                widgetProps: {type: "number", min: 0, max: 720},
+                            },
+                        },
+                        {
+                            render: "#Field",
+                            permissions: {
+                                read: "maxAdvanceDays",
+                                write: "maxAdvanceDays",
+                            },
+                            field: {
+                                name: "maxAdvanceDays",
+                                widget: "#Input",
+                                label: "form.maxAdvanceDaysLabel",
+                                placeholder: "form.maxAdvanceDaysPlaceholder",
+                                required: true,
+                                widgetProps: {type: "number", min: 1, max: 730},
+                            },
+                        },
+                        {
+                            render: "#Field",
+                            permissions: {
+                                read: "turnaroundBufferMinutes",
+                                write: "turnaroundBufferMinutes",
+                            },
+                            field: {
+                                name: "turnaroundBufferMinutes",
+                                widget: "#Input",
+                                label: "form.turnaroundBufferMinutesLabel",
+                                placeholder:
+                                    "form.turnaroundBufferMinutesPlaceholder",
+                                required: true,
+                                widgetProps: {
+                                    type: "number",
+                                    min: 0,
+                                    max: 1440,
+                                },
+                            },
+                        },
+                        {
+                            render: "#Field",
+                            permissions: {
+                                read: "lateGraceMinutes",
+                                write: "lateGraceMinutes",
+                            },
+                            field: {
+                                name: "lateGraceMinutes",
+                                widget: "#Input",
+                                label: "form.lateGraceMinutesLabel",
+                                placeholder: "form.lateGraceMinutesPlaceholder",
+                                required: true,
+                                widgetProps: {type: "number", min: 0, max: 720},
+                            },
+                        },
                     ],
                 },
             ],
@@ -66,6 +195,24 @@ export const carRentalConfigEditFormView: ViewConfig = {
         {
             render: "#TitleWithCollapse",
             props: {title: "form.paymentSectionTitle"},
+            permissions: {
+                readAny: [
+                    "paymentPolicy",
+                    "holdMinutes",
+                    "vatRate",
+                    "pricesIncludeVat",
+                    "freeCancellationHours",
+                    "cancellationFeePercent",
+                ],
+                writeAny: [
+                    "paymentPolicy",
+                    "holdMinutes",
+                    "vatRate",
+                    "pricesIncludeVat",
+                    "freeCancellationHours",
+                    "cancellationFeePercent",
+                ],
+            },
             children: [
                 {
                     render: "#FormGrid",
@@ -73,28 +220,93 @@ export const carRentalConfigEditFormView: ViewConfig = {
                     children: [
                         {
                             render: "#Field",
+                            permissions: {
+                                read: "paymentPolicy",
+                                write: "paymentPolicy",
+                            },
                             field: {
                                 name: "paymentPolicy",
-                                widget: "#Select",
+                                widget: "#SimpleSelect",
                                 label: "form.paymentPolicyLabel",
                                 placeholder: "form.paymentPolicyPlaceholder",
                                 required: true,
                                 widgetProps: {
-                                    options: [
-                                        {value: "pay_at_pickup", label: "form.paymentPolicy.pay_at_pickup"},
-                                        {value: "prepay_online", label: "form.paymentPolicy.prepay_online"},
-                                        {value: "customer_choice", label: "form.paymentPolicy.customer_choice"},
-                                    ],
+                                    options: paymentPolicyOptions,
                                     className: "grow w-full",
                                 },
                             },
-                            permissions: {read: "paymentPolicy", write: "paymentPolicy"},
                         },
-                        numberField("holdMinutes", 5, 120),
-                        numberField("vatRate", 0, 100),
-                        switchField("pricesIncludeVat"),
-                        numberField("freeCancellationHours", 0, 720),
-                        numberField("cancellationFeePercent", 0, 100),
+                        {
+                            render: "#Field",
+                            permissions: {
+                                read: "holdMinutes",
+                                write: "holdMinutes",
+                            },
+                            field: {
+                                name: "holdMinutes",
+                                widget: "#Input",
+                                label: "form.holdMinutesLabel",
+                                placeholder: "form.holdMinutesPlaceholder",
+                                required: true,
+                                widgetProps: {type: "number", min: 5, max: 120},
+                            },
+                        },
+                        {
+                            render: "#Field",
+                            permissions: {read: "vatRate", write: "vatRate"},
+                            field: {
+                                name: "vatRate",
+                                widget: "#Input",
+                                label: "form.vatRateLabel",
+                                placeholder: "form.vatRatePlaceholder",
+                                required: true,
+                                widgetProps: {type: "number", min: 0, max: 100},
+                            },
+                        },
+                        {
+                            render: "#Field",
+                            permissions: {
+                                read: "pricesIncludeVat",
+                                write: "pricesIncludeVat",
+                            },
+                            field: {
+                                name: "pricesIncludeVat",
+                                widget: "#Switch",
+                                label: "form.pricesIncludeVatLabel",
+                            },
+                        },
+                        {
+                            render: "#Field",
+                            permissions: {
+                                read: "freeCancellationHours",
+                                write: "freeCancellationHours",
+                            },
+                            field: {
+                                name: "freeCancellationHours",
+                                widget: "#Input",
+                                label: "form.freeCancellationHoursLabel",
+                                placeholder:
+                                    "form.freeCancellationHoursPlaceholder",
+                                required: true,
+                                widgetProps: {type: "number", min: 0, max: 720},
+                            },
+                        },
+                        {
+                            render: "#Field",
+                            permissions: {
+                                read: "cancellationFeePercent",
+                                write: "cancellationFeePercent",
+                            },
+                            field: {
+                                name: "cancellationFeePercent",
+                                widget: "#Input",
+                                label: "form.cancellationFeePercentLabel",
+                                placeholder:
+                                    "form.cancellationFeePercentPlaceholder",
+                                required: true,
+                                widgetProps: {type: "number", min: 0, max: 100},
+                            },
+                        },
                     ],
                 },
             ],
@@ -102,6 +314,10 @@ export const carRentalConfigEditFormView: ViewConfig = {
         {
             render: "#TitleWithCollapse",
             props: {title: "form.termsSectionTitle"},
+            permissions: {
+                readAny: ["termsVersion", "termsText"],
+                writeAny: ["termsVersion", "termsText"],
+            },
             children: [
                 {
                     render: "#FormGrid",
@@ -114,9 +330,14 @@ export const carRentalConfigEditFormView: ViewConfig = {
                                 widget: "#Input",
                                 label: "form.termsVersionLabel",
                                 placeholder: "form.termsVersionPlaceholder",
-                                widgetProps: {maxLength: RENTAL_TERMS_VERSION_MAX},
+                                widgetProps: {
+                                    maxLength: RENTAL_TERMS_VERSION_MAX,
+                                },
                             },
-                            permissions: {read: "termsVersion", write: "termsVersion"},
+                            permissions: {
+                                read: "termsVersion",
+                                write: "termsVersion",
+                            },
                         },
                         {
                             render: "#Field",
@@ -125,9 +346,17 @@ export const carRentalConfigEditFormView: ViewConfig = {
                                 widget: "#Textarea",
                                 label: "form.termsTextLabel",
                                 placeholder: "form.termsTextPlaceholder",
-                                widgetProps: {rows: 10, maxLength: RENTAL_TERMS_TEXT_MAX, className: "field-sizing-fixed max-h-96 min-h-40 overflow-y-auto"},
+                                widgetProps: {
+                                    rows: 10,
+                                    maxLength: RENTAL_TERMS_TEXT_MAX,
+                                    className:
+                                        "field-sizing-fixed max-h-96 min-h-40 overflow-y-auto",
+                                },
                             },
-                            permissions: {read: "termsText", write: "termsText"},
+                            permissions: {
+                                read: "termsText",
+                                write: "termsText",
+                            },
                         },
                     ],
                 },
@@ -136,6 +365,7 @@ export const carRentalConfigEditFormView: ViewConfig = {
         {
             render: "#TitleWithCollapse",
             props: {title: "form.notificationsSectionTitle"},
+            permissions: {readAny: ["notifyUsers"], writeAny: ["notifyUsers"]},
             children: [
                 {
                     render: "#Field",
