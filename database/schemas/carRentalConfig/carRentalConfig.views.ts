@@ -27,6 +27,7 @@ export const carRentalConfigEditFormView: ViewConfig = {
             permissions: {
                 readAny: [
                     "publicBookingEnabled",
+                    "listedOnPortal",
                     "guestBookingAllowed",
                     "currency",
                     "minRentalHours",
@@ -38,6 +39,7 @@ export const carRentalConfigEditFormView: ViewConfig = {
                 ],
                 writeAny: [
                     "publicBookingEnabled",
+                    "listedOnPortal",
                     "guestBookingAllowed",
                     "currency",
                     "minRentalHours",
@@ -75,6 +77,18 @@ export const carRentalConfigEditFormView: ViewConfig = {
                                 name: "guestBookingAllowed",
                                 widget: "#Switch",
                                 label: "form.guestBookingAllowedLabel",
+                            },
+                        },
+                        {
+                            render: "#Field",
+                            permissions: {
+                                read: "listedOnPortal",
+                                write: "listedOnPortal",
+                            },
+                            field: {
+                                name: "listedOnPortal",
+                                widget: "#Switch",
+                                label: "form.listedOnPortalLabel",
                             },
                         },
                         {

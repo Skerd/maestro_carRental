@@ -32,6 +32,8 @@ import {carRentalConfigViews} from "./carRentalConfig.views";
 
 export interface ICarRentalConfig extends Document, IOwnershipPluginFields, ISoftDeletePluginFields, ILifeCyclePluginFields {
     publicBookingEnabled: boolean;
+    /** The company opts in to being listed and booked on the central portal. */
+    listedOnPortal: boolean;
     currency: ICurrency;
     minRentalHours: number;
     maxRentalDays: number;
@@ -54,6 +56,7 @@ export interface ICarRentalConfig extends Document, IOwnershipPluginFields, ISof
 const CarRentalConfigSchema = new Schema<ICarRentalConfig>(
     {
         publicBookingEnabled: {type: SchemaTypes.Boolean, default: false},
+        listedOnPortal: {type: SchemaTypes.Boolean, default: false},
         currency: {
             type: SchemaTypes.ObjectId,
             ref: "Currency",

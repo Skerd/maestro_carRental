@@ -39,8 +39,14 @@ import {syncVehicleServiceDue} from "@carRentalModule/utilities/services/vehicle
 import {DEMO_CATEGORIES, DEMO_CONTACTS, DEMO_EXTRAS, DEMO_LOCATIONS, DEMO_MODELS, DEMO_TIMEZONE, demoVehicles, type DemoVehicle} from "./carRental.demo.data";
 import {CATEGORY_PHOTOS, CATEGORY_PHOTO_SIZE, CATEGORY_VIDEOS, DEMO_VIDEO_URLS, VEHICLE_VIDEOS, modelPhotos} from "./carRental.demo.media";
 import {planDemoBookings, planVehicleHistory, type DemoBooking, type DemoHistory} from "./carRental.demo.plan";
+import City from "@coreModule/database/schemas/city/city";
 
 const LANGUAGE = "en-US";
+
+/** The company's own City record by name; cities are seeded per company. */
+async function demoCityId(companyId: unknown, name: string) {
+    return (await City.findOne({company: companyId, name}).select("_id"))?._id;
+}
 const DAY_MS = 24 * 3600 * 1000;
 const MINUTE_MS = 60 * 1000;
 
@@ -73,13 +79,14 @@ export async function seedCarRentalDemoData(parentLogger: serverLogger | undefin
         const config = await carRentalConfigService.getOrCreateForCompany(company._id, {logger, languageCode: LANGUAGE});
         await CarRentalConfig.updateOne({_id: config._id}, {
             // The company's owner gets the staff alerts (new bookings, expiring paperwork, service due).
-            $set: {publicBookingEnabled: true, paymentPolicy: "pay_at_pickup", vatRate: 20, termsVersion: "demo-1", notifyUsers: [createdBy]},
+            $set: {publicBookingEnabled: true, listedOnPortal: true, paymentPolicy: "pay_at_pickup", vatRate: 20, termsVersion: "demo-1", notifyUsers: [createdBy]},
         });
 
         const locationDocs: IRentalLocation[] = [];
-        for (const location of DEMO_LOCATIONS) {
+        for (const {cityName, ...location} of DEMO_LOCATIONS) {
             locationDocs.push(await upsert(RentalLocation, {company: company._id, name: location.name}, {
-                ...owned, ...location, timezone: DEMO_TIMEZONE, closures: [], isActive: true,
+                ...owned, ...location, address: {...location.address, city: await demoCityId(company._id, cityName)},
+                timezone: DEMO_TIMEZONE, closures: [], isActive: true,
             }) as unknown as IRentalLocation);
         }
 

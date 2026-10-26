@@ -11,6 +11,7 @@ export function carRentalConfigToDTO(config: ICarRentalConfig): CarRentalConfig 
     return {
         _id: config._id.toString(),
         publicBookingEnabled: config.publicBookingEnabled,
+        listedOnPortal: config.listedOnPortal,
         currency: mapSnippet<CurrencySimple>()(config.currency, CurrencySimpleSnippet),
         minRentalHours: config.minRentalHours,
         maxRentalDays: config.maxRentalDays,

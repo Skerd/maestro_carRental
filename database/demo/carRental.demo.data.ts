@@ -13,6 +13,7 @@ export const DEMO_TIMEZONE = "Europe/Tirane";
 export const DEMO_LOCATIONS = [
     {
         name: "Tirana City Center",
+        cityName: "Tirana",
         phone: "+355 69 000 1001",
         email: "city@rental.demo",
         address: {street: "Rruga e Durrësit 12", postalCode: "1001", latitude: 41.3289, longitude: 19.8136},
@@ -20,6 +21,7 @@ export const DEMO_LOCATIONS = [
     },
     {
         name: "Tirana Airport (TIA)",
+        cityName: "Tirana",
         phone: "+355 69 000 1002",
         email: "airport@rental.demo",
         address: {street: "Rinas", postalCode: "1504", latitude: 41.4147, longitude: 19.7206},
@@ -28,6 +30,7 @@ export const DEMO_LOCATIONS = [
     },
     {
         name: "Durrës Port",
+        cityName: "Durrës",
         phone: "+355 69 000 1003",
         email: "durres@rental.demo",
         address: {street: "Rruga Tregtare, Porti i Durrësit", postalCode: "2001", latitude: 41.3133, longitude: 19.4453},
@@ -35,6 +38,7 @@ export const DEMO_LOCATIONS = [
     },
     {
         name: "Sarandë Promenade",
+        cityName: "Sarandë",
         phone: "+355 69 000 1004",
         email: "sarande@rental.demo",
         address: {street: "Rruga Jonianët 15", postalCode: "9701", latitude: 39.873, longitude: 20.005},
@@ -42,6 +46,7 @@ export const DEMO_LOCATIONS = [
     },
     {
         name: "Vlorë Lungomare",
+        cityName: "Vlorë",
         phone: "+355 69 000 1005",
         email: "vlore@rental.demo",
         address: {street: "Rruga Ismail Qemali, Lungomare", postalCode: "9401", latitude: 40.452, longitude: 19.485},
@@ -49,6 +54,7 @@ export const DEMO_LOCATIONS = [
     },
     {
         name: "Shkodër Center",
+        cityName: "Shkodër",
         phone: "+355 69 000 1006",
         email: "shkoder@rental.demo",
         address: {street: "Bulevardi Skënderbeu 22", postalCode: "4001", latitude: 42.0683, longitude: 19.5126},

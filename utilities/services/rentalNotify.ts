@@ -11,6 +11,7 @@ import type {IRentalReservation} from "@carRentalModule/database/schemas/rentalR
 import {carRentalConfigService} from "@carRentalModule/database/schemas/carRentalConfig/carRentalConfig.service";
 import {NotificationEventCodes} from "@carRentalModule/domain/notifications/notificationEventCodes";
 import {sendRentalCustomerMail, type RentalCustomerEmailKind} from "@carRentalModule/utilities/emails/sendRentalCustomerMail";
+import {portalSlug} from "@coreModule/utilities/marketing/portalCompanies";
 
 function formatLocal(date: Date, timeZone: string, languageCode: string): string {
     return new Intl.DateTimeFormat(languageCode, {timeZone, dateStyle: "medium", timeStyle: "short"}).format(date);
@@ -37,7 +38,7 @@ export async function notifyRentalCustomer(
 ): Promise<void> {
     await runAfterCommit(ctx.session, async () => {
         const companyId = nestedEntityToRef(reservation.company);
-        const company = await Company.findById(companyId).select("name");
+        const company = await Company.findById(companyId).select("name shopSlug");
         const {snapshot, contact} = reservation;
         await sendRentalCustomerMail({
             kind,
@@ -59,6 +60,7 @@ export async function notifyRentalCustomer(
                 recordId: reservation._id,
                 version: reservation.manageTokenVersion,
             }),
+            portalSlug: reservation.bookedVia === "portal" && company ? portalSlug(company) : undefined,
         });
     });
 }

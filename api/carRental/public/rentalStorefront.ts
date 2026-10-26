@@ -6,7 +6,12 @@ import {rateLimiter} from "@coreModule/utilities/middlewares/rateLimiter";
 import {validateFormZod} from "@coreModule/utilities/middlewares/validateFormZod";
 import {transactionHandler, type TransactionRequiredParams} from "@coreModule/utilities/middlewares/transactionUtils";
 import publicChatCustomerMW, {type PublicChatCustomerMWType} from "@coreModule/utilities/middlewares/publicChatCustomerMW";
+import {publicCustomerFor, requirePortalAccount} from "@coreModule/domain/publicChat/publicChatCustomer";
+import {companyIdsWithModule} from "@coreModule/utilities/modules/companyModules";
+import {portalCompanyRefs} from "@coreModule/utilities/marketing/portalCompanies";
+import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import {resolveCompanyByOrigin} from "@coreModule/utilities/marketing/resolveCompanyByOrigin";
+import {isPortalOrigin} from "@coreModule/utilities/marketing/platformShopOrigin";
 import {publicMediaUrl, publicMediaUrls} from "@coreModule/utilities/media/publicMediaUrl";
 import {generateRecordAccessToken, validateRecordAccessToken} from "@coreModule/utilities/security/recordAccessToken";
 import {mapSnippet} from "@coreModule/utilities/mappers/common.mapper";
@@ -30,6 +35,7 @@ import type {
 } from "armonia/src/modules/carRental/api/carRental/public/rentalStorefront/rentalStorefront.forms";
 import type {
     PublicRentalReservationResponse,
+    RentalMyReservationsResponse,
     RentalBookingResponse,
     RentalQuoteResponse,
     RentalSearchResponse,
@@ -63,6 +69,8 @@ import {registerPaymentSourceHandler} from "@financeModule/utilities/services/pa
 import {NotificationEventCodes} from "@carRentalModule/domain/notifications/notificationEventCodes";
 
 export const basePath = "/api/carRental/rentalStorefront";
+
+const MY_RESERVATIONS_MAX = 50;
 export const router = Router();
 
 /**
@@ -87,17 +95,23 @@ registerPaymentSourceHandler(["rentalReservation"], {
 
 type PublicParams<F> = NotAuthenticatedMWType & F;
 
-/** The tenant behind the site and its rental settings; 404 until public booking is switched on. */
+/**
+ * The tenant behind the site and its rental settings; 404 until public booking is switched
+ * on, and on the portal until the company opts in to being listed there.
+ */
 async function storefrontContext(origin: string, languageCode: string): Promise<{company: ICompany; config: ICarRentalConfig}> {
     const company = await resolveCompanyByOrigin(origin, languageCode);
     const config = await carRentalConfigService.findForCompany(company._id, {languageCode});
     if (!config?.publicBookingEnabled) {
         throw apiValidationException("car_rental_not_configured", "", null, languageCode);
     }
+    if (isPortalOrigin(origin) && !config.listedOnPortal) {
+        throw apiValidationException("portal_company_not_listed", "", null, languageCode);
+    }
     return {company, config};
 }
 
-async function currencyOf(config: ICarRentalConfig, languageCode: string): Promise<CurrencySimple> {
+export async function currencyOf(config: ICarRentalConfig, languageCode: string): Promise<CurrencySimple> {
     const currency = mapSnippet<CurrencySimple>()(await Currency.findById(config.currency).select("name symbol abbreviation"), CurrencySimpleSnippet);
     if (!currency) throw apiValidationException("rental_currency_not_configured", "", null, languageCode);
     return currency;
@@ -107,7 +121,7 @@ function onlinePaymentAvailable(): boolean {
     return Boolean(PAYMENTS.STRIPE_ENABLED && getPaymentAdapter("stripe")?.isEnabled());
 }
 
-function categoryToStorefront(category: IVehicleCategory): RentalStorefrontCategory {
+export function categoryToStorefront(category: IVehicleCategory): RentalStorefrontCategory {
     return {
         _id: category._id.toString(),
         name: category.name,
@@ -130,7 +144,7 @@ function categoryToStorefront(category: IVehicleCategory): RentalStorefrontCateg
     };
 }
 
-async function publicCategories(companyId: ObjectId): Promise<IVehicleCategory[]> {
+export async function publicCategories(companyId: ObjectId): Promise<IVehicleCategory[]> {
     return VehicleCategory.find({company: companyId, isPublic: true, deletedAt: null}).sort({sortOrder: 1, name: 1});
 }
 
@@ -271,7 +285,7 @@ router.post(
     asyncHandler(async (params: TransactionRequiredParams & PublicParams<BookRentalFormType> & PublicChatCustomerMWType): Promise<RentalBookingResponse> => {
         const {origin, languageCode, session, logger} = params;
         const {company, config} = await storefrontContext(origin, languageCode);
-        const customer = params.customer && params.customer.companyId.equals(company._id) ? params.customer.user : undefined;
+        const customer = await publicCustomerFor(params.customer, company, origin);
         if (!customer && !config.guestBookingAllowed) {
             throw apiValidationException("rental_guest_booking_disabled", "", null, languageCode);
         }
@@ -300,6 +314,7 @@ router.post(
                 customerId: customer?._id,
                 idempotencyKey: params.idempotencyKey,
                 source: "online",
+                bookedVia: isPortalOrigin(origin) ? "portal" : "site",
                 paymentChoice,
                 expectedTotal: params.expectedTotal,
             },
@@ -330,6 +345,40 @@ router.post(
                 payment,
             },
         };
+    }),
+);
+
+/**
+ * A portal account's reservations at every rental company that still has the module, newest
+ * pickup first. Each comes with the company's portal slug and a fresh manage token, so the
+ * existing manage/cancel endpoints serve it under `x-site-company`.
+ */
+router.post(
+    "/mine",
+    authMW("public"),
+    rateLimiter({windowMs: 60000, max: 30}),
+    publicChatCustomerMW(),
+    asyncHandler(async (params: NotAuthenticatedMWType & PublicChatCustomerMWType): Promise<RentalMyReservationsResponse> => {
+        const {origin, languageCode} = params;
+        const user = await requirePortalAccount(params.customer, origin, languageCode);
+        const reservations = await RentalReservation.find({
+            customer: user._id,
+            deletedAt: null,
+            company: {$in: await companyIdsWithModule("carRental")},
+        }).sort({pickupAt: -1}).limit(MY_RESERVATIONS_MAX);
+        const companies = await portalCompanyRefs(reservations.map((reservation) => nestedEntityToRef(reservation.company)!));
+        const data = await Promise.all(reservations.map(async (reservation) => ({
+            reservation: await publicReservation(reservation),
+            company: companies.get(String(nestedEntityToRef(reservation.company))) ?? {name: "", slug: ""},
+            manageToken: generateRecordAccessToken({
+                purpose: RENTAL_RESERVATION_LINK_PURPOSE,
+                companyId: nestedEntityToRef(reservation.company)!,
+                recordId: reservation._id,
+                version: reservation.manageTokenVersion,
+                languageCode,
+            }),
+        })));
+        return {data};
     }),
 );
 

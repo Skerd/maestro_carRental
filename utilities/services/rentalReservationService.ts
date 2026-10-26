@@ -157,6 +157,7 @@ export type CreateRentalReservationInput = {
     notes?: string;
     idempotencyKey: string;
     source: "online" | "staff";
+    bookedVia?: "site" | "portal";
     paymentChoice: RentalPaymentChoice;
     /** The total the customer was shown; omitted for staff bookings. */
     expectedTotal?: number;
@@ -173,7 +174,7 @@ export async function buildRentalReservation(
     input: CreateRentalReservationInput,
     ctx: Ctx,
 ): Promise<CreateInput<IRentalReservation>> {
-    const {companyId, config, category, trip, extras, contact, idempotencyKey, source, paymentChoice} = input;
+    const {companyId, config, category, trip, extras, contact, idempotencyKey, source, bookedVia, paymentChoice} = input;
     const now = input.now ?? new Date();
 
     const quote = quoteTrip(config, category, extras, trip);
@@ -201,6 +202,7 @@ export async function buildRentalReservation(
         number: reservationNumber(now),
         status: held ? "held" : "confirmed",
         source,
+        ...(bookedVia ? {bookedVia} : {}),
         category: category._id,
         vehicle: vehicleId,
         pickupLocation: trip.pickupLocation._id,
