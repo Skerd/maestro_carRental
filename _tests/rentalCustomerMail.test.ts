@@ -29,6 +29,7 @@ const mail = (kind: RentalCustomerEmailKind, languageCode = "en-US") => sendRent
     returnLocation: "Zurich Airport",
     total: "CHF 120.00",
     manageToken: "tok.en/value",
+    manageUrl: "https://drive.arpeggio.al/car-rental/manage",
 });
 
 beforeEach(() => {
@@ -43,7 +44,7 @@ describe("rental customer email", () => {
         expect(html).toContain("Your car is booked");
         expect(html).toContain("Your booking");
         expect(html).toContain("Zurich Airport");
-        expect(html).toContain("/manage?token=tok.en%2Fvalue");
+        expect(html).toContain("https://drive.arpeggio.al/car-rental/manage?token=tok.en%2Fvalue");
         expect(html).toContain("© " + new Date().getFullYear() + " Arpeggio");
         // The customer's name is escaped and no placeholder is left unfilled
         expect(html).toContain("Ada &lt;Lovelace&gt;");

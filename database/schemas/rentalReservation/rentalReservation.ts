@@ -90,7 +90,6 @@ export interface IRentalReservation extends Document, IOwnershipPluginFields, IS
     status: RentalReservationStatus;
     source: (typeof RENTAL_RESERVATION_SOURCES)[number];
     /** Where an online booking was made: the company's own site or the central portal. Emails link back there. */
-    bookedVia: "site" | "portal";
     category: IVehicleCategory;
     vehicle: IVehicle;
     pickupLocation: IRentalLocation;
@@ -163,7 +162,6 @@ const RentalReservationSchema = new Schema<IRentalReservation>(
             },
         },
         source: {type: SchemaTypes.String, enum: RENTAL_RESERVATION_SOURCES, required: true, immutable: true, permissions: NoWritePermission},
-        bookedVia: {type: SchemaTypes.String, enum: ["site", "portal"], default: "site", immutable: true, permissions: NoWritePermission},
         category: {
             type: SchemaTypes.ObjectId,
             ref: "VehicleCategory",

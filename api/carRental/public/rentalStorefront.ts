@@ -11,7 +11,7 @@ import {companyIdsWithModule} from "@coreModule/utilities/modules/companyModules
 import {portalCompanyRefs} from "@coreModule/utilities/marketing/portalCompanies";
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import {resolveCompanyByOrigin} from "@coreModule/utilities/marketing/resolveCompanyByOrigin";
-import {isPortalOrigin} from "@coreModule/utilities/marketing/platformShopOrigin";
+import {isPortalApexOrigin} from "@coreModule/utilities/marketing/portalOrigin";
 import {publicMediaUrl, publicMediaUrls} from "@coreModule/utilities/media/publicMediaUrl";
 import {generateRecordAccessToken, validateRecordAccessToken} from "@coreModule/utilities/security/recordAccessToken";
 import {mapSnippet} from "@coreModule/utilities/mappers/common.mapper";
@@ -97,7 +97,7 @@ type PublicParams<F> = NotAuthenticatedMWType & F;
 
 /**
  * The tenant behind the site and its rental settings; 404 until public booking is switched
- * on, and on the portal until the company opts in to being listed there.
+ * on, and on the portal apex until the company opts in to being listed there.
  */
 async function storefrontContext(origin: string, languageCode: string): Promise<{company: ICompany; config: ICarRentalConfig}> {
     const company = await resolveCompanyByOrigin(origin, languageCode);
@@ -105,7 +105,7 @@ async function storefrontContext(origin: string, languageCode: string): Promise<
     if (!config?.publicBookingEnabled) {
         throw apiValidationException("car_rental_not_configured", "", null, languageCode);
     }
-    if (isPortalOrigin(origin) && !config.listedOnPortal) {
+    if (isPortalApexOrigin(origin) && !config.listedOnPortal) {
         throw apiValidationException("portal_company_not_listed", "", null, languageCode);
     }
     return {company, config};
@@ -314,7 +314,6 @@ router.post(
                 customerId: customer?._id,
                 idempotencyKey: params.idempotencyKey,
                 source: "online",
-                bookedVia: isPortalOrigin(origin) ? "portal" : "site",
                 paymentChoice,
                 expectedTotal: params.expectedTotal,
             },

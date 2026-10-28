@@ -1,6 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
-import {CLIENT_SIDE, CONSTANTS, EMAIL, clientHostFor} from "@coreModule/environment";
+import {CLIENT_SIDE, CONSTANTS, EMAIL} from "@coreModule/environment";
 import {applyPlaceholders, loadEmailStrings} from "@coreModule/utilities/emails/emailLocale";
 import {
     ctaButtonHtml,
@@ -42,8 +42,8 @@ export type RentalCustomerEmail = {
     returnLocation: string;
     total: string;
     manageToken: string;
-    /** Set when booked on the central portal: the manage link opens the company's portal page. */
-    portalSlug?: string;
+    /** The manage page on the company's own site; the token is appended. */
+    manageUrl: string;
 };
 
 function readTemplate(filename: string): string {
@@ -69,8 +69,7 @@ export async function sendRentalCustomerMail(data: RentalCustomerEmail): Promise
     pushRow(rows, loc.labelReturn, `${data.returnAt}, ${data.returnLocation}`);
     pushRow(rows, loc.labelTotal, data.total);
 
-    const manageBase = data.portalSlug ? `${clientHostFor("portal")}/car-rental/${data.portalSlug}` : clientHostFor("rental");
-    const manageUrl = `${manageBase}/manage?token=${encodeURIComponent(data.manageToken)}`;
+    const manageUrl = `${data.manageUrl}?token=${encodeURIComponent(data.manageToken)}`;
     const bodyInner = applyPlaceholders(readTemplate("body.html"), {
         intro: loc[`intro${suffix}`] ?? "",
         detailsSummary: summaryCardHtml(loc.summaryTitle ?? "", rows),
