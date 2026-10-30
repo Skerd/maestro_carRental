@@ -12,7 +12,10 @@ const paymentPolicyOptions = [
     {value: "customer_choice", label: "form.paymentPolicy.customer_choice"},
 ];
 
-/** Settings are edited in place from the settings page; there is no create form or sheet. */
+/**
+ * One settings record, edited in place. Each collapse is its own page under
+ * Configurations → Car rental (`skipRenderWhenFormExtraNotTruthy`).
+ */
 export const carRentalConfigEditFormView: ViewConfig = {
     model: "carrentalconfigs",
     viewType: "form",
@@ -23,7 +26,7 @@ export const carRentalConfigEditFormView: ViewConfig = {
     nodes: [
         {
             render: "#TitleWithCollapse",
-            props: {title: "form.bookingSectionTitle"},
+            props: {title: "form.bookingSectionTitle", skipRenderWhenFormExtraNotTruthy: "sectionBooking"},
             permissions: {
                 readAny: [
                     "publicBookingEnabled",
@@ -208,7 +211,7 @@ export const carRentalConfigEditFormView: ViewConfig = {
         },
         {
             render: "#TitleWithCollapse",
-            props: {title: "form.paymentSectionTitle"},
+            props: {title: "form.paymentSectionTitle", skipRenderWhenFormExtraNotTruthy: "sectionPayment"},
             permissions: {
                 readAny: [
                     "paymentPolicy",
@@ -327,7 +330,7 @@ export const carRentalConfigEditFormView: ViewConfig = {
         },
         {
             render: "#TitleWithCollapse",
-            props: {title: "form.termsSectionTitle"},
+            props: {title: "form.termsSectionTitle", skipRenderWhenFormExtraNotTruthy: "sectionTerms"},
             permissions: {
                 readAny: ["termsVersion", "termsText"],
                 writeAny: ["termsVersion", "termsText"],
@@ -378,7 +381,7 @@ export const carRentalConfigEditFormView: ViewConfig = {
         },
         {
             render: "#TitleWithCollapse",
-            props: {title: "form.notificationsSectionTitle"},
+            props: {title: "form.notificationsSectionTitle", skipRenderWhenFormExtraNotTruthy: "sectionAlerts"},
             permissions: {readAny: ["notifyUsers"], writeAny: ["notifyUsers"]},
             children: [
                 {
