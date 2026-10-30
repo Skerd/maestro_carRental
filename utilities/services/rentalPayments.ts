@@ -1,13 +1,13 @@
-import {ObjectId} from "mongodb";
+import type {ObjectId} from "mongodb";
 import type {ClientSession} from "mongoose";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import type {serverLogger} from "@coreModule/loggers/serverLog";
 import {roundMoney} from "@coreModule/utilities/helpers/money";
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import Currency from "@coreModule/database/schemas/currency/currency";
-import PaymentTransaction from "@financeModule/database/schemas/paymentTransaction/paymentTransaction";
 import {paymentTransactionService} from "@financeModule/database/schemas/paymentTransaction/paymentTransaction.service";
 import {getPaymentAdapter} from "@financeModule/utilities/services/payment/paymentService";
+import {recordManualCharge, refundSourceCharges, type PaymentSource} from "@financeModule/utilities/services/payment/sourcePayments";
 import type {IRentalReservation} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation";
 
 type Ctx = {session: ClientSession; logger: serverLogger; languageCode: string; auditUserId?: string | ObjectId};
@@ -67,6 +67,17 @@ export async function startOnlinePayment(reservation: IRentalReservation, ctx: C
     return {clientSecret: intent.clientSecret ?? ""};
 }
 
+/** The reservation as a ledger source, for the shared manual-charge and refund moves. */
+async function rentalSource(reservation: IRentalReservation, session: ClientSession): Promise<PaymentSource> {
+    return {
+        sourceType: "rentalReservation",
+        sourceId: reservation._id,
+        company: nestedEntityToRef(reservation.company),
+        currency: nestedEntityToRef(reservation.pricing.currency),
+        currencyCode: await currencyCodeOf(reservation, session),
+    };
+}
+
 /** Records money taken at the counter (cash, card terminal) as a manual ledger charge. */
 export async function recordCounterPayment(
     reservation: IRentalReservation,
@@ -79,19 +90,7 @@ export async function recordCounterPayment(
     if (amount > due + 0.005) {
         throw apiValidationException("rental_payment_exceeds_due", "", null, ctx.languageCode, [String(due)]);
     }
-    const charge = await paymentTransactionService.createPending(
-        {
-            sourceType: "rentalReservation",
-            sourceId: reservation._id,
-            gateway: "manual",
-            amount: roundMoney(amount),
-            currency: nestedEntityToRef(reservation.pricing.currency),
-            metadata: note ? {note} : undefined,
-            company: nestedEntityToRef(reservation.company),
-        },
-        ctx,
-    );
-    await PaymentTransaction.updateOne({_id: charge._id}, {$set: {status: "succeeded"}}, {session: ctx.session});
+    await recordManualCharge(await rentalSource(reservation, ctx.session), amount, note, ctx);
     reservation.amountPaid = roundMoney(reservation.amountPaid + amount);
     reservation.paymentStatus = paymentStatusFor(reservation, false);
     reservation.timeline.push({event: "payment_received", at: now, note: note ?? `manual ${roundMoney(amount)}`});
@@ -103,58 +102,11 @@ export async function recordCounterPayment(
  * staff pay out. Returns the amount refunded.
  */
 export async function refundRentalPayments(reservation: IRentalReservation, amount: number, reason: string, ctx: Ctx): Promise<number> {
-    let left = roundMoney(Math.min(amount, reservation.amountPaid));
-    if (left <= 0) return 0;
-
-    const charges = await PaymentTransaction.find({
-        sourceType: "rentalReservation",
-        sourceId: reservation._id,
-        type: "charge",
-        status: {$in: ["succeeded", "partially_refunded"]},
-    }).sort({createdAt: -1}).session(ctx.session);
-
-    let refunded = 0;
-    for (const charge of charges) {
-        if (left <= 0) break;
-        const refundable = roundMoney(charge.amount - (charge.refundedAmount ?? 0));
-        const part = roundMoney(Math.min(refundable, left));
-        if (part <= 0) continue;
-
-        let gatewayRefundId: string | undefined;
-        if (charge.gateway !== "manual" && charge.gatewayTransactionId) {
-            const adapter = getPaymentAdapter(charge.gateway);
-            if (!adapter?.isEnabled()) {
-                throw apiValidationException("payment_gateway_not_configured", "", null, ctx.languageCode);
-            }
-            const result = await adapter.createRefund({
-                gatewayTransactionId: charge.gatewayTransactionId,
-                amount: part < refundable ? part : undefined,
-                currencyCode: await currencyCodeOf(reservation, ctx.session),
-                reason,
-                // Keyed on what was refunded before: a replayed transaction reuses the key
-                idempotencyKey: `rental-refund-${reservation._id.toString()}-${charge._id.toString()}-${charge.refundedAmount ?? 0}`,
-            });
-            gatewayRefundId = result.id;
-        }
-
-        await paymentTransactionService.recordRefund(
-            {
-                sourceType: "rentalReservation",
-                sourceId: reservation._id,
-                chargeTransactionId: new ObjectId(charge._id.toString()),
-                gateway: charge.gateway,
-                amount: part,
-                currency: nestedEntityToRef(reservation.pricing.currency),
-                gatewayTransactionId: gatewayRefundId,
-                metadata: {reason},
-                company: nestedEntityToRef(reservation.company),
-            },
-            ctx,
-        );
-        left = roundMoney(left - part);
-        refunded = roundMoney(refunded + part);
-    }
-
+    const refunded = await refundSourceCharges(
+        await rentalSource(reservation, ctx.session),
+        {amount, paid: reservation.amountPaid, reason, idempotencyPrefix: `rental-refund-${reservation._id.toString()}`},
+        ctx,
+    );
     if (refunded > 0) {
         reservation.amountPaid = roundMoney(reservation.amountPaid - refunded);
         reservation.paymentStatus = paymentStatusFor(reservation, true);
