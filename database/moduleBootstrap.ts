@@ -10,6 +10,14 @@ import VehicleInsurance from "@carRentalModule/database/schemas/vehicleInsurance
 import VehicleDocument from "@carRentalModule/database/schemas/vehicleDocument/vehicleDocument";
 import VehicleMaintenance from "@carRentalModule/database/schemas/vehicleMaintenance/vehicleMaintenance";
 import VehicleDamage from "@carRentalModule/database/schemas/vehicleDamage/vehicleDamage";
+import RentalPromoCode from "@carRentalModule/database/schemas/rentalPromoCode/rentalPromoCode";
+import VehicleFine from "@carRentalModule/database/schemas/vehicleFine/vehicleFine";
+import VehicleTransfer from "@carRentalModule/database/schemas/vehicleTransfer/vehicleTransfer";
+import RentalBusinessAccount from "@carRentalModule/database/schemas/rentalBusinessAccount/rentalBusinessAccount";
+import RentalDenyEntry from "@carRentalModule/database/schemas/rentalDenyEntry/rentalDenyEntry";
+import RentalReview from "@carRentalModule/database/schemas/rentalReview/rentalReview";
+import RentalSubscription from "@carRentalModule/database/schemas/rentalSubscription/rentalSubscription";
+import RentalSearchStat from "@carRentalModule/database/schemas/rentalSearchStat/rentalSearchStat";
 import {registerDefaultRoles} from "@coreModule/database/schemas/role/role.defaults";
 import {registerPublicMediaBackfillSource} from "@coreModule/utilities/media/publicMediaBackfillRegistry";
 import {carRentalDefaultRoles} from "@carRentalModule/database/schemas/role/carRental.role.defaults";
@@ -27,6 +35,14 @@ export const carRentalModels: Model<any>[] = [
     VehicleDocument,
     VehicleMaintenance,
     VehicleDamage,
+    RentalPromoCode,
+    VehicleFine,
+    VehicleTransfer,
+    RentalBusinessAccount,
+    RentalDenyEntry,
+    RentalReview,
+    RentalSubscription,
+    RentalSearchStat,
 ];
 
 export async function dropCarRentalCollections(): Promise<void> {
@@ -43,7 +59,10 @@ registerDefaultRoles(carRentalDefaultRoles);
 registerPublicMediaBackfillSource({
     name: "VehicleCategory",
     schemaDef: VehicleCategorySchemaDef,
-    loadModel: () => import("@carRentalModule/database/schemas/vehicleCategory/vehicleCategory").then((m) => m.default),
+    loadModel: () =>
+        import("@carRentalModule/database/schemas/vehicleCategory/vehicleCategory").then(
+            (m) => m.default,
+        ),
 });
 
 export const moduleBootstrap = {

@@ -4,6 +4,7 @@ import {
     RENTAL_CONTACT_NAME_MAX,
     RENTAL_CONTACT_PHONE_MAX,
     RENTAL_NOTES_MAX,
+    RENTAL_PROMO_CODE_INPUT_MAX,
 } from "armonia/src/modules/carRental/api/carRental/private/rentalReservation/rentalReservation.constants";
 
 const API_URL = "/api/carRental/rentalReservation";
@@ -27,6 +28,19 @@ export const rentalReservationSheetView: ViewConfig = {
                     render: "#SheetGrid",
                     props: {columns: 3},
                     children: [
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "needsTransfer"},
+                            field: {
+                                name: "needsTransfer",
+                                widget: "#DisplayCard",
+                                label: "needsTransfer",
+                                widgetProps: {
+                                    icon: "#IconTruckDelivery",
+                                    type: "boolean",
+                                },
+                            },
+                        },
                         {
                             render: "#DisplayCard",
                             permissions: {read: "status"},
@@ -358,6 +372,246 @@ export const rentalReservationSheetView: ViewConfig = {
         },
         {
             render: "#SheetGroup",
+            props: {title: "drivers"},
+            permissions: {read: "drivers"},
+            children: [
+                {
+                    render: "#SheetEmbeddedItemsList",
+                    permissions: {read: "drivers"},
+                    field: {
+                        name: "drivers",
+                        widget: "#SheetEmbeddedItemsList",
+                        widgetProps: {
+                            cardColumns: 2,
+                            fields: [
+                                {
+                                    name: "role",
+                                    type: "text",
+                                    languageKeyCategory: "driverRole",
+                                    labelKey: "role",
+                                    className: "text-sm font-medium",
+                                },
+                                {
+                                    name: "firstName",
+                                    type: "text",
+                                    labelKey: "firstName",
+                                    className: "text-sm",
+                                },
+                                {
+                                    name: "lastName",
+                                    type: "text",
+                                    labelKey: "lastName",
+                                    className: "text-sm",
+                                },
+                                {
+                                    name: "birthDate",
+                                    type: "text",
+                                    labelKey: "birthDate",
+                                    className: "text-sm",
+                                },
+                                {
+                                    name: "licenseNumber",
+                                    type: "text",
+                                    labelKey: "licenseNumber",
+                                    className: "text-sm",
+                                },
+                                {
+                                    name: "licenseCountry",
+                                    type: "text",
+                                    labelKey: "licenseCountry",
+                                    className: "text-sm",
+                                },
+                                {
+                                    name: "licenseExpiresAt",
+                                    type: "text",
+                                    labelKey: "licenseExpiresAt",
+                                    className: "text-sm",
+                                },
+                            ],
+                            compactSummaryFields: ["firstName", "lastName"],
+                            compactSummaryJoinSeparator: " ",
+                        },
+                    },
+                },
+            ],
+        },
+        {
+            render: "#SheetGroup",
+            props: {title: "deposit", defaultOpen: false},
+            dependent: "deposit",
+            children: [
+                {
+                    render: "#SheetGrid",
+                    props: {columns: 2},
+                    children: [
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "deposit"},
+                            field: {
+                                name: "deposit.method",
+                                widget: "#DisplayCard",
+                                label: "deposit_method",
+                                widgetProps: {
+                                    icon: "#IconCreditCard",
+                                    type: "enum",
+                                    languageKeyCategory: "depositMethodValues",
+                                },
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "deposit"},
+                            field: {
+                                name: "deposit.status",
+                                widget: "#DisplayCard",
+                                label: "deposit_status",
+                                widgetProps: {
+                                    icon: "#IconStatusChange",
+                                    type: "enum",
+                                    languageKeyCategory: "depositStatusValues",
+                                },
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "deposit"},
+                            field: {
+                                name: "deposit.amount",
+                                widget: "#DisplayCard",
+                                label: "deposit_amount",
+                                widgetProps: {
+                                    icon: "#IconShieldLock",
+                                    type: "number",
+                                },
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "deposit"},
+                            field: {
+                                name: "deposit.capturedAmount",
+                                widget: "#DisplayCard",
+                                label: "deposit_capturedAmount",
+                                widgetProps: {
+                                    icon: "#IconCash",
+                                    type: "number",
+                                },
+                            },
+                        },
+                    ],
+                },
+            ],
+        },
+        {
+            render: "#SheetGroup",
+            props: {title: "inspection", defaultOpen: false},
+            dependent: "handover",
+            children: [
+                {
+                    render: "#SheetGrid",
+                    props: {columns: 2},
+                    children: [
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "handover"},
+                            field: {
+                                name: "handover.odometerKm",
+                                widget: "#DisplayCard",
+                                label: "handover_odometerKm",
+                                widgetProps: {
+                                    icon: "#IconGauge",
+                                    type: "number",
+                                },
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "handover"},
+                            field: {
+                                name: "handover.fuelLevel",
+                                widget: "#DisplayCard",
+                                label: "handover_fuelLevel",
+                                widgetProps: {
+                                    icon: "#IconGasStation",
+                                    type: "enum",
+                                    languageKeyCategory: "fuelValues",
+                                },
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "returnInfo"},
+                            field: {
+                                name: "returnInfo.odometerKm",
+                                widget: "#DisplayCard",
+                                label: "returnInfo_odometerKm",
+                                widgetProps: {
+                                    icon: "#IconGauge",
+                                    type: "number",
+                                },
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "returnInfo"},
+                            field: {
+                                name: "returnInfo.fuelLevel",
+                                widget: "#DisplayCard",
+                                label: "returnInfo_fuelLevel",
+                                widgetProps: {
+                                    icon: "#IconGasStation",
+                                    type: "enum",
+                                    languageKeyCategory: "fuelValues",
+                                },
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "agreement"},
+                            field: {
+                                name: "agreement.signerName",
+                                widget: "#DisplayCard",
+                                label: "agreement_signerName",
+                                widgetProps: {icon: "#IconSignature"},
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "agreement"},
+                            field: {
+                                name: "agreement.signedAt",
+                                widget: "#DisplayCard",
+                                label: "agreement_signedAt",
+                                widgetProps: {
+                                    icon: "#IconCalendarCheck",
+                                    type: "dateTime",
+                                },
+                            },
+                        },
+                    ],
+                },
+                {
+                    render: "#SheetMediaFilesStrip",
+                    permissions: {read: "handover"},
+                    field: {
+                        name: "handover.photos",
+                        widget: "#SheetMediaFilesStrip",
+                        widgetProps: {canDownload: true, canRemove: false},
+                    },
+                },
+                {
+                    render: "#SheetMediaFilesStrip",
+                    permissions: {read: "returnInfo"},
+                    field: {
+                        name: "returnInfo.photos",
+                        widget: "#SheetMediaFilesStrip",
+                        widgetProps: {canDownload: true, canRemove: false},
+                    },
+                },
+            ],
+        },
+        {
+            render: "#SheetGroup",
             props: {title: "timeline", defaultOpen: false},
             permissions: {read: "timeline"},
             children: [
@@ -681,6 +935,62 @@ export const rentalReservationCreateFormView: ViewConfig = {
                         },
                     ],
                 },
+            },
+        },
+        {
+            render: "#Field",
+            field: {
+                name: "businessAccount",
+                widget: "#ApiSelect",
+                label: "form.businessAccountLabel",
+                placeholder: "form.businessAccountPlaceholder",
+                widgetProps: {
+                    apiUrl: "/api/carRental/rentalBusinessAccount/select",
+                    method: "POST",
+                    pageSize: 50,
+                    normalizeEmptyToUndefined: true,
+                },
+            },
+        },
+        {
+            render: "#Field",
+            field: {
+                name: "paymentChoice",
+                widget: "#SimpleSelect",
+                label: "form.paymentChoiceLabel",
+                placeholder: "form.paymentChoicePlaceholder",
+                widgetProps: {
+                    options: [
+                        {
+                            value: "pay_at_pickup",
+                            label: "form.paymentChoice.pay_at_pickup",
+                        },
+                        {value: "online", label: "form.paymentChoice.online"},
+                        {
+                            value: "on_account",
+                            label: "form.paymentChoice.on_account",
+                        },
+                    ],
+                    className: "grow w-full",
+                },
+            },
+        },
+        {
+            render: "#Field",
+            field: {
+                name: "crossBorder",
+                widget: "#Switch",
+                label: "form.crossBorderLabel",
+            },
+        },
+        {
+            render: "#Field",
+            field: {
+                name: "promoCode",
+                widget: "#Input",
+                label: "form.promoCodeLabel",
+                placeholder: "form.promoCodePlaceholder",
+                widgetProps: {maxLength: RENTAL_PROMO_CODE_INPUT_MAX},
             },
         },
         {

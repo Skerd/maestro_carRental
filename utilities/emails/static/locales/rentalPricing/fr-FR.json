@@ -1,0 +1,17 @@
+{
+  "youngDriver": "Jeune conducteur : {name}",
+  "additionalDriver": "Conducteur supplémentaire : {name}",
+  "oneWay": "Frais d'aller simple",
+  "promo": "Code promo {code}",
+  "account": "Remise compte",
+  "crossBorder": "Frais transfrontaliers",
+  "extraKm": "Kilomètres supplémentaires ({km} km)",
+  "fuel": "Carburant ({quarters}/4 de réservoir manquant)",
+  "refuelService": "Service de remplissage",
+  "lateReturn": "Retour tardif ({hours} h)",
+  "cleaning": "Nettoyage",
+  "smoking": "Frais fumeur",
+  "damage": "Dommage : {description}",
+  "fine": "Amende {reference}",
+  "fineAdmin": "Frais de traitement de l'amende"
+}

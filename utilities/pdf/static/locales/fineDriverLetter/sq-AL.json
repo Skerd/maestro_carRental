@@ -1,0 +1,19 @@
+{
+  "subject": "Identifikimi i shoferit për njoftimin {reference}",
+  "intro": "Në kohën e shkeljes më poshtë, automjeti ynë ishte me qira. Personi përgjegjës për automjetin ishte:",
+  "reference": "Njoftimi",
+  "offenceAt": "Data dhe ora",
+  "place": "Vendi",
+  "vehicle": "Automjeti",
+  "driverTitle": "Shoferi",
+  "name": "Emri",
+  "birthDate": "Data e lindjes",
+  "licence": "Patenta",
+  "email": "Email",
+  "phone": "Telefoni",
+  "booking": "Kontrata e qirasë",
+  "period": "Periudha e qirasë",
+  "noBooking": "Sipas regjistrave tanë, automjeti nuk ishte me qira në kohën e shkeljes.",
+  "declaration": "Konfirmojmë që këto të dhëna përputhen me regjistrat tanë të qirasë. Ju lutemi t'ia drejtoni njoftimin shoferit të mësipërm.",
+  "date": "Data"
+}

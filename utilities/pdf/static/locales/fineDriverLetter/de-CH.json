@@ -1,0 +1,19 @@
+{
+  "subject": "Bekanntgabe der fahrzeugführenden Person zur Busse {reference}",
+  "intro": "Zum unten genannten Verstoss war unser Fahrzeug vermietet. Für das Fahrzeug verantwortlich war zu diesem Zeitpunkt:",
+  "reference": "Busse",
+  "offenceAt": "Datum und Zeit",
+  "place": "Ort",
+  "vehicle": "Fahrzeug",
+  "driverTitle": "Fahrzeugführende Person",
+  "name": "Name",
+  "birthDate": "Geburtsdatum",
+  "licence": "Führerausweis",
+  "email": "E-Mail",
+  "phone": "Telefon",
+  "booking": "Mietvertrag",
+  "period": "Mietdauer",
+  "noBooking": "Gemäss unseren Unterlagen war das Fahrzeug zur Tatzeit nicht vermietet.",
+  "declaration": "Wir bestätigen, dass diese Angaben unseren Mietunterlagen entsprechen. Bitte richten Sie die Busse an die oben genannte Person.",
+  "date": "Datum"
+}

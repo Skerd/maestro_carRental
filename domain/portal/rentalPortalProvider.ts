@@ -105,7 +105,7 @@ async function availableInCompany(companyId: ObjectId, trip: RentalPortalTripTyp
         const cars = await Promise.all(categories.map(async (category): Promise<AvailableCar | null> => {
             const free = await freeVehiclesInCategory({companyId, categoryId: category._id, start: resolved.pickupAt, end, now});
             if (free.length === 0) return null;
-            const total = quoteTrip(config, category, [], resolved).grandTotal;
+            const total = quoteTrip(config, category, [], resolved, {languageCode: params.languageCode}).grandTotal;
             return {company: companyId, category, total, currency: currency.abbreviation, city: location.address?.city?.name, tripQuery};
         }));
         const available = cars.filter((car): car is AvailableCar => car !== null);

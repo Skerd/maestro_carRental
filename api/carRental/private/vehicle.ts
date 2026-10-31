@@ -1,5 +1,6 @@
 import {ObjectId} from "mongodb";
 import {createCrudRouter} from "@coreModule/api/crudRouterFactory";
+import {VehicleActions} from "@carRentalModule/database/schemas/vehicle/vehicle.actions";
 import {buildCreateDataFromSchemaDef, buildUpdateDataFromSchemaDef} from "@coreModule/api/buildUpdateDataFromSchemaDef";
 import {restoreUnlessKeyTaken} from "@coreModule/api/restoreUnlessKeyTaken";
 import {mediaUploadMW} from "@coreModule/utilities/middlewares/mediaUploadMW";
@@ -31,6 +32,7 @@ const mediaUpload = mediaUploadMW({
 export const basePath = "/api/carRental/vehicle";
 
 export const {router} = createCrudRouter({
+    actions: VehicleActions,
     collectionName: "vehicles",
     model: Vehicle,
     service: vehicleService,

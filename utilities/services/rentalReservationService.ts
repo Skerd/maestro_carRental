@@ -6,14 +6,46 @@ import type {serverLogger} from "@coreModule/loggers/serverLog";
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import type {RentalPaymentChoice} from "armonia/src/modules/carRental/api/carRental/private/rentalReservation/rentalReservation.constants";
 import type {ICarRentalConfig} from "@carRentalModule/database/schemas/carRentalConfig/carRentalConfig";
-import VehicleCategory, {type IVehicleCategory} from "@carRentalModule/database/schemas/vehicleCategory/vehicleCategory";
+import VehicleCategory, {
+    type IVehicleCategory,
+} from "@carRentalModule/database/schemas/vehicleCategory/vehicleCategory";
 import Vehicle from "@carRentalModule/database/schemas/vehicle/vehicle";
-import RentalExtra, {type IRentalExtra} from "@carRentalModule/database/schemas/rentalExtra/rentalExtra";
-import RentalReservation, {type IRentalReservation} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation";
+import RentalExtra, {
+    type IRentalExtra,
+} from "@carRentalModule/database/schemas/rentalExtra/rentalExtra";
+import RentalReservation, {
+    type IRentalDriver,
+    type IRentalReservation,
+} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation";
 import {rentalReservationService} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation.service";
 import type {CreateInput} from "@coreModule/database/services/baseCrudService";
-import {computeRentalQuote, type RentalQuoteResult} from "./rentalQuote";
-import {busyUntil, busyVehicleIds, freeVehiclesInCategory, lockVehicle} from "./rentalAvailability";
+import {localDateOf} from "@coreModule/utilities/time/timeWindows";
+import type {IRentalPromoCode} from "@carRentalModule/database/schemas/rentalPromoCode/rentalPromoCode";
+import {
+    applyDiscount,
+    computeRentalQuote,
+    rentalDaysBetween,
+    totalsFor,
+    type QuoteDiscount,
+    type QuoteFee,
+    type RentalQuoteResult,
+} from "./rentalQuote";
+import {assertCustomerAllowed} from "./rentalDeny";
+import {assertDriverList, driverFees} from "./rentalDrivers";
+import {
+    assertPromoApplies,
+    consumePromoCode,
+    findPromoCode,
+    promoDiscount,
+} from "./rentalPromo";
+import {rentalPricingLabel} from "./rentalPricingLabels";
+import {
+    busyUntil,
+    busyVehicleIds,
+    freeVehiclesInCategory,
+    lockVehicle,
+    needsTransferFor,
+} from "./rentalAvailability";
 import {formatPostalAddress} from "@coreModule/utilities/helpers/postalAddress";
 import type {RentalTrip} from "./rentalTrip";
 
@@ -23,7 +55,12 @@ const PRICE_TOLERANCE = 0.005;
 
 export type RentalExtraSelection = {extra: string; quantity: number};
 
-type Ctx = {session: ClientSession; logger: serverLogger; languageCode: string; auditUserId?: string | ObjectId};
+type Ctx = {
+    session: ClientSession;
+    logger: serverLogger;
+    languageCode: string;
+    auditUserId?: string | ObjectId;
+};
 
 /** The category a booking is for: live, and public when booked online. */
 export async function loadBookableCategory(
@@ -33,13 +70,19 @@ export async function loadBookableCategory(
 ): Promise<IVehicleCategory> {
     const category = ObjectId.isValid(categoryId)
         ? await VehicleCategory.findOne({
-            _id: new ObjectId(categoryId),
-            company: companyId,
-            deletedAt: null,
-            ...(ctx.online ? {isPublic: true} : {}),
-        }).session(ctx.session ?? null)
+              _id: new ObjectId(categoryId),
+              company: companyId,
+              deletedAt: null,
+              ...(ctx.online ? {isPublic: true} : {}),
+          }).session(ctx.session ?? null)
         : null;
-    if (!category) throw apiValidationException("vehicle_category_not_found", "", null, ctx.languageCode);
+    if (!category)
+        throw apiValidationException(
+            "vehicle_category_not_found",
+            "",
+            null,
+            ctx.languageCode,
+        );
     return category;
 }
 
@@ -52,35 +95,209 @@ export async function loadSelectedExtras(
     if (!selections.length) return [];
     const ids = selections.map((selection) => selection.extra);
     const extras = ids.every((id) => ObjectId.isValid(id))
-        ? await RentalExtra.find({_id: {$in: ids.map((id) => new ObjectId(id))}, company: companyId, isActive: true, deletedAt: null})
-            .session(ctx.session ?? null)
+        ? await RentalExtra.find({
+              _id: {$in: ids.map((id) => new ObjectId(id))},
+              company: companyId,
+              isActive: true,
+              deletedAt: null,
+          }).session(ctx.session ?? null)
         : [];
     const byId = new Map(extras.map((extra) => [String(extra._id), extra]));
-    return selections.map(({extra: id, quantity}) => {
+    const selected = selections.map(({extra: id, quantity}) => {
         const extra = byId.get(id);
-        if (!extra) throw apiValidationException("rental_extra_not_found", "", null, ctx.languageCode);
+        if (!extra)
+            throw apiValidationException(
+                "rental_extra_not_found",
+                "",
+                null,
+                ctx.languageCode,
+            );
         if (quantity > extra.maxQuantity) {
-            throw apiValidationException("rental_extra_quantity_exceeded", "", null, ctx.languageCode, [String(extra.maxQuantity), extra.name]);
+            throw apiValidationException(
+                "rental_extra_quantity_exceeded",
+                "",
+                null,
+                ctx.languageCode,
+                [String(extra.maxQuantity), extra.name],
+            );
         }
         return {extra, quantity};
     });
+    if (
+        selected.filter(
+            ({extra, quantity}) => extra.kind === "protection" && quantity > 0,
+        ).length > 1 ||
+        selected.some(
+            ({extra, quantity}) => extra.kind === "protection" && quantity > 1,
+        )
+    ) {
+        throw apiValidationException(
+            "rental_protection_one_only",
+            "",
+            null,
+            ctx.languageCode,
+        );
+    }
+    return selected;
 }
 
-/** The quote for a trip, from current prices and settings. */
+/**
+ * The promo code a customer typed, checked against the trip; `undefined` when none
+ * was given. `email` enables the per-customer limit.
+ */
+export async function loadApplicablePromo(
+    companyId: ObjectId,
+    code: string | undefined,
+    input: {
+        config: ICarRentalConfig;
+        category: IVehicleCategory;
+        trip: Pick<RentalTrip, "pickupAt" | "returnAt" | "pickupLocation">;
+        email?: string;
+        now?: Date;
+    },
+    ctx: {languageCode: string; session?: ClientSession},
+): Promise<IRentalPromoCode | undefined> {
+    if (!code?.trim()) return undefined;
+    const promo = await findPromoCode(companyId, code, ctx);
+    const {timezone} = input.trip.pickupLocation;
+    await assertPromoApplies(
+        promo,
+        {
+            today: localDateOf(input.now ?? new Date(), timezone),
+            pickupDate: localDateOf(input.trip.pickupAt, timezone),
+            rentalDays: rentalDaysBetween(
+                input.trip.pickupAt,
+                input.trip.returnAt,
+                input.config.lateGraceMinutes,
+            ),
+            categoryId: input.category._id,
+            email: input.email,
+        },
+        ctx,
+    );
+    return promo;
+}
+
+export type TripPricingOptions = {
+    /** Language of the fee and discount line labels. */
+    languageCode: string;
+    /** Who drives: priced with the young-driver and additional-driver fees. */
+    drivers?: Pick<
+        IRentalDriver,
+        "role" | "firstName" | "lastName" | "birthDate"
+    >[];
+    /** Already checked with `loadApplicablePromo`. */
+    promo?: IRentalPromoCode;
+    /** The customer is taking the car out of the country. Refused when the category does not allow it. */
+    crossBorder?: boolean;
+    /** A business account's discount, applied after the promo code and capped to the rental lines. */
+    accountDiscount?: QuoteDiscount;
+    /** Replaces the rental-day lines with one line of this amount. Subscriptions bill a fixed period price. */
+    rentalPrice?: number;
+};
+
+/**
+ * The quote for a trip, from current prices and settings: rental days, extras, a
+ * promo discount, driver fees and the one-way fee when the car is returned at
+ * another location. A protection package replaces the category deposit.
+ */
 export function quoteTrip(
     config: ICarRentalConfig,
     category: IVehicleCategory,
     extras: {extra: IRentalExtra; quantity: number}[],
-    trip: Pick<RentalTrip, "pickupAt" | "returnAt" | "pickupLocation">,
+    trip: Pick<
+        RentalTrip,
+        "pickupAt" | "returnAt" | "pickupLocation" | "returnLocation"
+    >,
+    options: TripPricingOptions,
 ): RentalQuoteResult {
-    return computeRentalQuote({
+    const {languageCode} = options;
+    const pickupDate = localDateOf(trip.pickupAt, trip.pickupLocation.timezone);
+    const fees: QuoteFee[] = driverFees(
+        options.drivers ?? [],
+        config,
+        pickupDate,
+        languageCode,
+    );
+    if (String(trip.returnLocation._id) !== String(trip.pickupLocation._id)) {
+        const amount = trip.returnLocation.oneWayFee ?? config.oneWayFee ?? 0;
+        fees.push({
+            label: rentalPricingLabel(languageCode, "oneWay"),
+            code: "one_way",
+            amount,
+            perDay: false,
+        });
+    }
+    if (options.crossBorder) {
+        if (category.crossBorderAllowed === false) {
+            throw apiValidationException(
+                "rental_cross_border_not_allowed",
+                "",
+                null,
+                languageCode,
+            );
+        }
+        const amount = category.crossBorderFee ?? 0;
+        fees.push({
+            label: rentalPricingLabel(languageCode, "crossBorder"),
+            code: "cross_border",
+            amount,
+            perDay: false,
+        });
+    }
+    const protection = extras.find(
+        ({extra}) => extra.kind === "protection",
+    )?.extra;
+    let quote = computeRentalQuote({
         category,
-        extras: extras.map(({extra, quantity}) => ({name: extra.name, pricing: extra.pricing, price: extra.price, quantity})),
+        extras: extras.map(({extra, quantity}) => ({
+            name: extra.name,
+            pricing: extra.pricing,
+            price: extra.price,
+            quantity,
+        })),
         pickupAt: trip.pickupAt,
         returnAt: trip.returnAt,
         timeZone: trip.pickupLocation.timezone,
-        settings: {vatRate: config.vatRate, pricesIncludeVat: config.pricesIncludeVat, lateGraceMinutes: config.lateGraceMinutes},
+        settings: {
+            vatRate: config.vatRate,
+            pricesIncludeVat: config.pricesIncludeVat,
+            lateGraceMinutes: config.lateGraceMinutes,
+        },
+        fees,
+        discount: options.promo
+            ? promoDiscount(options.promo, languageCode)
+            : undefined,
+        depositAmount: protection?.depositAmount,
     });
+    if (options.rentalPrice !== undefined) {
+        const kept = quote.lines.filter(
+            (line) => line.kind !== "rental" && line.kind !== "discount",
+        );
+        const lines = [
+            {
+                label: category.name,
+                kind: "rental" as const,
+                quantity: 1,
+                unitPrice: options.rentalPrice,
+                total: options.rentalPrice,
+            },
+            ...kept,
+        ];
+        quote = {
+            ...quote,
+            lines,
+            ...totalsFor(lines, quote.vatRate, quote.pricesIncludeVat),
+        };
+        if (options.promo)
+            quote = applyDiscount(
+                quote,
+                promoDiscount(options.promo, languageCode),
+            );
+    }
+    if (options.accountDiscount)
+        quote = applyDiscount(quote, options.accountDiscount);
+    return quote;
 }
 
 /**
@@ -90,15 +307,32 @@ export function quoteTrip(
 export function resolvePaymentChoice(
     config: ICarRentalConfig,
     requested: RentalPaymentChoice,
-    ctx: {onlinePaymentAvailable: boolean; grandTotal: number; languageCode: string},
+    ctx: {
+        onlinePaymentAvailable: boolean;
+        grandTotal: number;
+        languageCode: string;
+    },
 ): RentalPaymentChoice {
     const choice: RentalPaymentChoice =
-        config.paymentPolicy === "pay_at_pickup" ? "pay_at_pickup"
-            : config.paymentPolicy === "prepay_online" ? "online"
-                : requested;
-    if (choice === "online" && (!ctx.onlinePaymentAvailable || ctx.grandTotal <= 0)) {
-        if (config.paymentPolicy === "prepay_online" || requested === "online") {
-            throw apiValidationException("rental_online_payment_unavailable", "", null, ctx.languageCode);
+        config.paymentPolicy === "pay_at_pickup"
+            ? "pay_at_pickup"
+            : config.paymentPolicy === "prepay_online"
+              ? "online"
+              : requested;
+    if (
+        choice === "online" &&
+        (!ctx.onlinePaymentAvailable || ctx.grandTotal <= 0)
+    ) {
+        if (
+            config.paymentPolicy === "prepay_online" ||
+            requested === "online"
+        ) {
+            throw apiValidationException(
+                "rental_online_payment_unavailable",
+                "",
+                null,
+                ctx.languageCode,
+            );
         }
         return "pay_at_pickup";
     }
@@ -116,33 +350,101 @@ function reservationNumber(now: Date): string {
  * `lockVehicle` for why the lock makes double booking impossible.
  */
 export async function allocateVehicle(
-    input: {companyId: ObjectId; categoryId: ObjectId; vehicleId?: string; pickupAt: Date; blockedUntil: Date; preferLocationId: ObjectId; excludeReservationId?: ObjectId; now: Date},
+    input: {
+        companyId: ObjectId;
+        categoryId: ObjectId;
+        vehicleId?: string;
+        pickupAt: Date;
+        blockedUntil: Date;
+        preferLocationId: ObjectId;
+        excludeReservationId?: ObjectId;
+        now: Date;
+    },
     ctx: Ctx,
 ): Promise<ObjectId> {
-    const {companyId, categoryId, vehicleId, pickupAt, blockedUntil, preferLocationId, excludeReservationId, now} = input;
-    const window = {companyId, start: pickupAt, end: blockedUntil, now, excludeReservationId, session: ctx.session};
+    const {
+        companyId,
+        categoryId,
+        vehicleId,
+        pickupAt,
+        blockedUntil,
+        preferLocationId,
+        excludeReservationId,
+        now,
+    } = input;
+    const window = {
+        companyId,
+        start: pickupAt,
+        end: blockedUntil,
+        now,
+        excludeReservationId,
+        session: ctx.session,
+    };
 
     if (vehicleId) {
         const vehicle = ObjectId.isValid(vehicleId)
-            ? await Vehicle.findOne({_id: new ObjectId(vehicleId), company: companyId, deletedAt: null}).select("_id category").session(ctx.session)
+            ? await Vehicle.findOne({
+                  _id: new ObjectId(vehicleId),
+                  company: companyId,
+                  deletedAt: null,
+              })
+                  .select("_id category")
+                  .session(ctx.session)
             : null;
-        if (!vehicle) throw apiValidationException("vehicle_not_found", "", null, ctx.languageCode);
+        if (!vehicle)
+            throw apiValidationException(
+                "vehicle_not_found",
+                "",
+                null,
+                ctx.languageCode,
+            );
         if (String(vehicle.category) !== String(categoryId)) {
-            throw apiValidationException("rental_vehicle_wrong_category", "", null, ctx.languageCode);
+            throw apiValidationException(
+                "rental_vehicle_wrong_category",
+                "",
+                null,
+                ctx.languageCode,
+            );
         }
-        await lockVehicle(vehicle._id, {companyId, session: ctx.session, languageCode: ctx.languageCode});
-        const busy = await busyVehicleIds({...window, vehicleIds: [vehicle._id]});
-        if (busy.size) throw apiValidationException("vehicle_unavailable", "", null, ctx.languageCode);
+        await lockVehicle(vehicle._id, {
+            companyId,
+            session: ctx.session,
+            languageCode: ctx.languageCode,
+        });
+        const busy = await busyVehicleIds({
+            ...window,
+            vehicleIds: [vehicle._id],
+        });
+        if (busy.size)
+            throw apiValidationException(
+                "vehicle_unavailable",
+                "",
+                null,
+                ctx.languageCode,
+            );
         return vehicle._id;
     }
 
-    for (const candidate of await freeVehiclesInCategory({...window, categoryId, preferLocationId})) {
-        await lockVehicle(candidate, {companyId, session: ctx.session, languageCode: ctx.languageCode});
+    for (const candidate of await freeVehiclesInCategory({
+        ...window,
+        categoryId,
+        preferLocationId,
+    })) {
+        await lockVehicle(candidate, {
+            companyId,
+            session: ctx.session,
+            languageCode: ctx.languageCode,
+        });
         // Re-checked under the lock: the list above was read before it was taken.
         const busy = await busyVehicleIds({...window, vehicleIds: [candidate]});
         if (!busy.size) return candidate;
     }
-    throw apiValidationException("rental_category_unavailable", "", null, ctx.languageCode);
+    throw apiValidationException(
+        "rental_category_unavailable",
+        "",
+        null,
+        ctx.languageCode,
+    );
 }
 
 export type CreateRentalReservationInput = {
@@ -152,36 +454,114 @@ export type CreateRentalReservationInput = {
     vehicleId?: string;
     trip: RentalTrip;
     extras: {extra: IRentalExtra; quantity: number}[];
-    contact: {firstName: string; lastName: string; email: string; phone: string};
+    contact: {
+        firstName: string;
+        lastName: string;
+        email: string;
+        phone: string;
+    };
+    /** Who may drive. Online bookings name the main driver with a birth date; staff may add licences now or at the counter. */
+    drivers?: IRentalDriver[];
+    /** Already checked with `loadApplicablePromo`; counted when the booking is made. */
+    promo?: IRentalPromoCode;
     customerId?: ObjectId;
     notes?: string;
     idempotencyKey: string;
     source: "online" | "staff";
     paymentChoice: RentalPaymentChoice;
+    /** Set when the booking is billed to a business account. */
+    businessAccountId?: ObjectId;
+    /** Percent off the rental lines, from that account. */
+    accountDiscountPercent?: number;
+    /** The customer is taking the car out of the country. */
+    crossBorder?: boolean;
+    /** Replaces the category's rental price. Used by a subscription's period price. */
+    rentalPrice?: number;
     /** The total the customer was shown; omitted for staff bookings. */
     expectedTotal?: number;
     now?: Date;
 };
 
 /**
- * Prices the trip, allocates (and locks) a vehicle and returns the reservation
- * document to insert, inside the caller's transaction. Pay-at-pickup bookings are
- * confirmed at once; online ones are `held` until the payment arrives or
- * `holdMinutes` pass.
+ * Prices the trip, allocates (and locks) a vehicle, counts the promo code's use
+ * and returns the reservation document to insert, inside the caller's
+ * transaction. Pay-at-pickup bookings are confirmed at once; online ones are
+ * `held` until the payment arrives or `holdMinutes` pass.
  */
 export async function buildRentalReservation(
     input: CreateRentalReservationInput,
     ctx: Ctx,
 ): Promise<CreateInput<IRentalReservation>> {
-    const {companyId, config, category, trip, extras, contact, idempotencyKey, source, paymentChoice} = input;
+    const {
+        companyId,
+        config,
+        category,
+        trip,
+        extras,
+        contact,
+        idempotencyKey,
+        source,
+        paymentChoice,
+    } = input;
     const now = input.now ?? new Date();
 
-    const quote = quoteTrip(config, category, extras, trip);
-    if (input.expectedTotal !== undefined && Math.abs(input.expectedTotal - quote.grandTotal) > PRICE_TOLERANCE) {
-        throw apiValidationException("rental_price_changed", "", null, ctx.languageCode);
+    const drivers = input.drivers ?? [];
+    if (drivers.length) {
+        assertDriverList(
+            drivers,
+            {
+                pickupDate: localDateOf(
+                    trip.pickupAt,
+                    trip.pickupLocation.timezone,
+                ),
+                minDriverAge: category.minDriverAge,
+            },
+            ctx.languageCode,
+        );
+    }
+    await assertCustomerAllowed(
+        companyId,
+        {
+            email: contact.email,
+            licenseNumbers: drivers
+                .map((driver) => driver.licenseNumber)
+                .filter((license): license is string => Boolean(license)),
+        },
+        ctx,
+    );
+    const accountDiscount: QuoteDiscount | undefined =
+        input.accountDiscountPercent
+            ? {
+                  label: rentalPricingLabel(ctx.languageCode, "account"),
+                  type: "percent",
+                  value: input.accountDiscountPercent,
+                  code: "account",
+              }
+            : undefined;
+    const quote = quoteTrip(config, category, extras, trip, {
+        languageCode: ctx.languageCode,
+        drivers,
+        promo: input.promo,
+        crossBorder: input.crossBorder,
+        accountDiscount,
+        rentalPrice: input.rentalPrice,
+    });
+    if (
+        input.expectedTotal !== undefined &&
+        Math.abs(input.expectedTotal - quote.grandTotal) > PRICE_TOLERANCE
+    ) {
+        throw apiValidationException(
+            "rental_price_changed",
+            "",
+            null,
+            ctx.languageCode,
+        );
     }
 
-    const blockedUntil = busyUntil(trip.returnAt, config.turnaroundBufferMinutes);
+    const blockedUntil = busyUntil(
+        trip.returnAt,
+        config.turnaroundBufferMinutes,
+    );
     const vehicleId = await allocateVehicle(
         {
             companyId,
@@ -195,6 +575,14 @@ export async function buildRentalReservation(
         ctx,
     );
 
+    if (input.promo) await consumePromoCode(input.promo, ctx);
+    const needsTransfer = await needsTransferFor(
+        vehicleId,
+        {locationId: trip.pickupLocation._id, at: trip.pickupAt},
+        companyId,
+        ctx.session,
+    );
+
     const held = paymentChoice === "online";
     return {
         company: companyId,
@@ -203,21 +591,40 @@ export async function buildRentalReservation(
         source,
         category: category._id,
         vehicle: vehicleId,
+        needsTransfer,
         pickupLocation: trip.pickupLocation._id,
         returnLocation: trip.returnLocation._id,
         pickupAt: trip.pickupAt,
         returnAt: trip.returnAt,
         blockedUntil,
-        ...(held ? {holdExpiresAt: new Date(now.getTime() + config.holdMinutes * MINUTE)} : {}),
+        ...(held
+            ? {
+                  holdExpiresAt: new Date(
+                      now.getTime() + config.holdMinutes * MINUTE,
+                  ),
+              }
+            : {}),
         ...(input.customerId ? {customer: input.customerId} : {}),
         contact,
+        drivers,
+        ...(input.promo
+            ? {promoCode: {promo: input.promo._id, code: input.promo.code}}
+            : {}),
+        ...(input.businessAccountId
+            ? {businessAccount: input.businessAccountId}
+            : {}),
+        crossBorder: input.crossBorder === true,
         extras: extras.map(({extra, quantity}) => ({
             extra: extra._id,
             name: extra.name,
             pricing: extra.pricing,
             unitPrice: extra.price,
             quantity,
-            total: quote.lines.find((line) => line.kind === "extra" && line.label === extra.name)?.total ?? 0,
+            total:
+                quote.lines.find(
+                    (line) =>
+                        line.kind === "extra" && line.label === extra.name,
+                )?.total ?? 0,
         })),
         pricing: {...quote, currency: nestedEntityToRef(config.currency)},
         snapshot: {
@@ -257,7 +664,10 @@ export async function createRentalReservation(
     input: CreateRentalReservationInput,
     ctx: Ctx,
 ): Promise<{reservation: IRentalReservation; created: boolean}> {
-    const existing = await RentalReservation.findOne({company: input.companyId, idempotencyKey: input.idempotencyKey}).session(ctx.session);
+    const existing = await RentalReservation.findOne({
+        company: input.companyId,
+        idempotencyKey: input.idempotencyKey,
+    }).session(ctx.session);
     if (existing) return {reservation: existing, created: false};
 
     const data = await buildRentalReservation(input, ctx);

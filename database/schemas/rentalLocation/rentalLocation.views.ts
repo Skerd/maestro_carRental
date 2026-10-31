@@ -108,6 +108,19 @@ export const rentalLocationSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            permissions: {read: "oneWayFee"},
+                            field: {
+                                name: "oneWayFee",
+                                widget: "#DisplayCard",
+                                label: "oneWayFee",
+                                widgetProps: {
+                                    icon: "#IconRoute",
+                                    type: "number",
+                                },
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
                             permissions: {read: "isActive"},
                             field: {
                                 name: "isActive",
@@ -329,6 +342,16 @@ const rentalLocationCreateFormNodes: ViewConfig["nodes"] = [
                     name: "returnAllowed",
                     widget: "#Switch",
                     label: "form.returnAllowedLabel",
+                },
+            },
+            {
+                render: "#Field",
+                field: {
+                    name: "oneWayFee",
+                    widget: "#Input",
+                    label: "form.oneWayFeeLabel",
+                    placeholder: "form.oneWayFeePlaceholder",
+                    widgetProps: {type: "number", min: 0, step: "any"},
                 },
             },
         ],
@@ -614,8 +637,8 @@ const rentalLocationEditFormNodes: ViewConfig["nodes"] = [
         render: "#FormGrid",
         props: {columns: 2},
         permissions: {
-            readAny: ["pickupAllowed", "returnAllowed"],
-            writeAny: ["pickupAllowed", "returnAllowed"],
+            readAny: ["pickupAllowed", "returnAllowed", "oneWayFee"],
+            writeAny: ["pickupAllowed", "returnAllowed", "oneWayFee"],
         },
         children: [
             {
@@ -634,6 +657,17 @@ const rentalLocationEditFormNodes: ViewConfig["nodes"] = [
                     name: "returnAllowed",
                     widget: "#Switch",
                     label: "form.returnAllowedLabel",
+                },
+            },
+            {
+                render: "#Field",
+                permissions: {read: "oneWayFee", write: "oneWayFee"},
+                field: {
+                    name: "oneWayFee",
+                    widget: "#Input",
+                    label: "form.oneWayFeeLabel",
+                    placeholder: "form.oneWayFeePlaceholder",
+                    widgetProps: {type: "number", min: 0, step: "any"},
                 },
             },
         ],

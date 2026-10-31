@@ -25,6 +25,8 @@ import {
     RENTAL_TERMS_TEXT_MAX,
     RENTAL_TERMS_VERSION_MAX,
     RENTAL_TURNAROUND_MINUTES,
+    RENTAL_FEE_AMOUNT,
+    RENTAL_YOUNG_DRIVER_AGE,
     type RentalPaymentPolicy,
 } from "armonia/src/modules/carRental/api/carRental/private/carRentalConfig/carRentalConfig.schema-def";
 import {applyCarRentalConfigIndexes} from "./carRentalConfig.indexes";
@@ -51,6 +53,17 @@ export interface ICarRentalConfig extends Document, IOwnershipPluginFields, ISof
     termsVersion?: string;
     termsText?: string;
     notifyUsers: IUser[];
+    /** Fees and charges; unset means not charged. */
+    youngDriverUnderAge?: number;
+    youngDriverDailyFee?: number;
+    additionalDriverDailyFee?: number;
+    oneWayFee?: number;
+    fuelPricePerQuarter?: number;
+    refuelServiceFee?: number;
+    lateFeePerHour?: number;
+    cleaningFee?: number;
+    smokingFee?: number;
+    fineAdminFee?: number;
 }
 
 const CarRentalConfigSchema = new Schema<ICarRentalConfig>(
@@ -90,6 +103,16 @@ const CarRentalConfigSchema = new Schema<ICarRentalConfig>(
             refAllowlist: SimpleBlankUserSnippet,
             dynamicTableConfiguration: {refDisplayKey: ["name", "surname"]},
         },
+        youngDriverUnderAge: {type: SchemaTypes.Number, ...RENTAL_YOUNG_DRIVER_AGE},
+        youngDriverDailyFee: {type: SchemaTypes.Number, ...RENTAL_FEE_AMOUNT},
+        additionalDriverDailyFee: {type: SchemaTypes.Number, ...RENTAL_FEE_AMOUNT},
+        oneWayFee: {type: SchemaTypes.Number, ...RENTAL_FEE_AMOUNT},
+        fuelPricePerQuarter: {type: SchemaTypes.Number, ...RENTAL_FEE_AMOUNT},
+        refuelServiceFee: {type: SchemaTypes.Number, ...RENTAL_FEE_AMOUNT},
+        lateFeePerHour: {type: SchemaTypes.Number, ...RENTAL_FEE_AMOUNT},
+        cleaningFee: {type: SchemaTypes.Number, ...RENTAL_FEE_AMOUNT},
+        smokingFee: {type: SchemaTypes.Number, ...RENTAL_FEE_AMOUNT},
+        fineAdminFee: {type: SchemaTypes.Number, ...RENTAL_FEE_AMOUNT},
     },
     {accessMode: "loose"},
 );

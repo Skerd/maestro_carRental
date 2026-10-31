@@ -6,10 +6,13 @@ export function rentalExtraToDTO(extra: IRentalExtra): RentalExtra {
     return {
         _id: extra._id.toString(),
         name: extra.name,
+        kind: extra.kind,
         description: extra.description,
         pricing: extra.pricing,
         price: extra.price,
         maxQuantity: extra.maxQuantity,
+        excessAmount: extra.excessAmount,
+        depositAmount: extra.depositAmount,
         isActive: extra.isActive,
         sortOrder: extra.sortOrder,
         ...mapSoftDeleteToDTO(extra),

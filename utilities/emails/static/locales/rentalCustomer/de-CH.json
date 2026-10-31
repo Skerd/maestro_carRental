@@ -26,5 +26,20 @@
   "footerNote": "Sie erhalten diese E-Mail, weil mit dieser Adresse bei {companyName} ein Auto gebucht wurde.",
   "preheaderConfirmed": "Ihre Miete ist bestätigt. Hier die Einzelheiten.",
   "preheaderCancelled": "Ihre Miete wurde storniert.",
-  "preheaderReminder": "Ihre Fahrzeugabholung steht bevor."
+  "preheaderReminder": "Ihre Fahrzeugabholung steht bevor.",
+  "headingHandedOver": "Gute Fahrt",
+  "subjectHandedOver": "Ihr Mietvertrag zur Buchung {number} — {companyName}",
+  "introHandedOver": "Sie haben Ihr Fahrzeug abgeholt. Ihr Mietvertrag ist angehängt.",
+  "closingHandedOver": "Führen Sie den Vertrag während der Fahrt mit. Rufen Sie den Schalter an, falls etwas passiert.",
+  "preheaderHandedOver": "Ihr Mietvertrag ist angehängt.",
+  "headingReturned": "Danke für die Rückgabe",
+  "subjectReturned": "Buchung {number} abgeschlossen — {companyName}",
+  "introReturned": "Ihre Miete ist abgeschlossen. Hier ist das Schlusstotal.",
+  "closingReturned": "Wir freuen uns auf Ihren nächsten Besuch.",
+  "preheaderReturned": "Ihre Miete ist abgeschlossen.",
+  "headingCharged": "Ihrer Buchung wurde ein Betrag belastet",
+  "subjectCharged": "Neue Belastung zur Buchung {number} — {companyName}",
+  "introCharged": "Wir haben Ihrer Buchung einen Betrag hinzugefügt: {note}",
+  "closingCharged": "Antworten Sie auf diese E-Mail, wenn Sie Fragen zu dieser Belastung haben.",
+  "preheaderCharged": "Ihrer Buchung wurde ein Betrag belastet."
 }

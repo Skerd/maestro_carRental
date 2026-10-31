@@ -1,0 +1,17 @@
+{
+  "youngDriver": "Young driver: {name}",
+  "additionalDriver": "Additional driver: {name}",
+  "oneWay": "One-way fee",
+  "promo": "Promo code {code}",
+  "account": "Account discount",
+  "crossBorder": "Cross-border fee",
+  "extraKm": "Extra km ({km} km)",
+  "fuel": "Fuel ({quarters}/4 tank missing)",
+  "refuelService": "Refuelling service",
+  "lateReturn": "Late return ({hours} h)",
+  "cleaning": "Cleaning",
+  "smoking": "Smoking fee",
+  "damage": "Damage: {description}",
+  "fine": "Traffic fine {reference}",
+  "fineAdmin": "Fine handling fee"
+}

@@ -1,0 +1,19 @@
+{
+  "subject": "Comunicazione del conducente per il verbale {reference}",
+  "intro": "Al momento dell'infrazione indicata, il nostro veicolo era a noleggio. La persona responsabile del veicolo era:",
+  "reference": "Verbale",
+  "offenceAt": "Data e ora",
+  "place": "Luogo",
+  "vehicle": "Veicolo",
+  "driverTitle": "Conducente",
+  "name": "Nome",
+  "birthDate": "Data di nascita",
+  "licence": "Patente di guida",
+  "email": "E-mail",
+  "phone": "Telefono",
+  "booking": "Contratto di noleggio",
+  "period": "Periodo di noleggio",
+  "noBooking": "Dai nostri registri il veicolo non risulta noleggiato al momento dell'infrazione.",
+  "declaration": "Confermiamo che questi dati corrispondono ai nostri registri di noleggio. Vi preghiamo di intestare il verbale al conducente indicato.",
+  "date": "Data"
+}

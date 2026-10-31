@@ -4,7 +4,11 @@ import ownershipPlugin from "@coreModule/database/plugins/ownershipPlugin";
 import auditPlugin from "@coreModule/database/plugins/auditPlugin";
 import softDeletePlugin from "@coreModule/database/plugins/softDeletePlugin";
 import lifeCyclePlugin from "@coreModule/database/plugins/lifeCyclePlugin";
-import {ILifeCyclePluginFields, IOwnershipPluginFields, ISoftDeletePluginFields} from "@coreModule/database/types/plugin-fields";
+import {
+    ILifeCyclePluginFields,
+    IOwnershipPluginFields,
+    ISoftDeletePluginFields,
+} from "@coreModule/database/types/plugin-fields";
 import {addModelData} from "@coreModule/database/collections";
 import {validateSchemaDefAgainstMongoose} from "@coreModule/database/utilities/validateSchemaDefAgainstMongoose";
 import {IMedia} from "@coreModule/database/schemas/media/media";
@@ -16,10 +20,12 @@ import {
     VEHICLE_MODEL_MAX,
     VEHICLE_NOTES_MAX,
     VEHICLE_PLATE_MAX,
+    VEHICLE_READINESS,
     VEHICLE_STATUSES,
     VEHICLE_VIN_MAX,
     VEHICLE_YEAR,
     VehicleSchemaDef,
+    type VehicleReadiness,
     type VehicleStatus,
 } from "armonia/src/modules/carRental/api/carRental/private/vehicle/vehicle.schema-def";
 import type {IVehicleCategory} from "../vehicleCategory/vehicleCategory";
@@ -29,9 +35,17 @@ import {RentalLocationSimpleSnippet} from "../rentalLocation/rentalLocation.snip
 import {applyVehicleIndexes} from "./vehicle.indexes";
 import {vehicleViews} from "./vehicle.views";
 
-const NoWritePermission = {self: {write: "no-permission"}, others: {write: "no-permission"}};
+const NoWritePermission = {
+    self: {write: "no-permission"},
+    others: {write: "no-permission"},
+};
 
-export interface IVehicle extends Document, IOwnershipPluginFields, ISoftDeletePluginFields, ILifeCyclePluginFields {
+export interface IVehicle
+    extends
+        Document,
+        IOwnershipPluginFields,
+        ISoftDeletePluginFields,
+        ILifeCyclePluginFields {
     category: IVehicleCategory;
     make: string;
     model: string;
@@ -40,6 +54,9 @@ export interface IVehicle extends Document, IOwnershipPluginFields, ISoftDeleteP
     vin?: string;
     color?: string;
     homeLocation: IRentalLocation;
+    /** Where the car is now: its return location after a one-way rental, or a transfer's destination. Unset means at home. */
+    currentLocation?: IRentalLocation;
+    readiness: VehicleReadiness;
     status: VehicleStatus;
     odometerKm?: number;
     notes?: string;
@@ -47,6 +64,11 @@ export interface IVehicle extends Document, IOwnershipPluginFields, ISoftDeleteP
     videos: IMedia[];
     acquiredAt?: Date;
     purchasePrice?: number;
+    /** Identifier of the GPS tracker fitted to this car. Staff type it; the pings fill in the position. */
+    trackerId?: string;
+    lastLatitude?: number;
+    lastLongitude?: number;
+    lastReportedAt?: Date;
     /** Copied from the latest completed VehicleMaintenance record by `syncVehicleServiceDue`. */
     nextServiceDueAt?: Date;
     nextServiceDueKm?: number;
@@ -69,12 +91,41 @@ const VehicleSchema = new Schema<IVehicle>(
             refAllowlist: VehicleCategorySimpleSnippet,
             dynamicTableConfiguration: {refDisplayKey: ["name"]},
         },
-        make: {type: SchemaTypes.String, required: true, trim: true, minlength: 1, maxlength: VEHICLE_MAKE_MAX},
-        model: {type: SchemaTypes.String, required: true, trim: true, minlength: 1, maxlength: VEHICLE_MODEL_MAX},
+        make: {
+            type: SchemaTypes.String,
+            required: true,
+            trim: true,
+            minlength: 1,
+            maxlength: VEHICLE_MAKE_MAX,
+        },
+        model: {
+            type: SchemaTypes.String,
+            required: true,
+            trim: true,
+            minlength: 1,
+            maxlength: VEHICLE_MODEL_MAX,
+        },
         year: {type: SchemaTypes.Number, ...VEHICLE_YEAR},
-        plate: {type: SchemaTypes.String, required: true, trim: true, uppercase: true, minlength: 1, maxlength: VEHICLE_PLATE_MAX},
-        vin: {type: SchemaTypes.String, trim: true, uppercase: true, maxlength: VEHICLE_VIN_MAX, dynamicTableConfiguration: {hideColumn: true}},
-        color: {type: SchemaTypes.String, trim: true, maxlength: VEHICLE_COLOR_MAX},
+        plate: {
+            type: SchemaTypes.String,
+            required: true,
+            trim: true,
+            uppercase: true,
+            minlength: 1,
+            maxlength: VEHICLE_PLATE_MAX,
+        },
+        vin: {
+            type: SchemaTypes.String,
+            trim: true,
+            uppercase: true,
+            maxlength: VEHICLE_VIN_MAX,
+            dynamicTableConfiguration: {hideColumn: true},
+        },
+        color: {
+            type: SchemaTypes.String,
+            trim: true,
+            maxlength: VEHICLE_COLOR_MAX,
+        },
         homeLocation: {
             type: SchemaTypes.ObjectId,
             ref: "RentalLocation",
@@ -82,31 +133,109 @@ const VehicleSchema = new Schema<IVehicle>(
             refAllowlist: RentalLocationSimpleSnippet,
             dynamicTableConfiguration: {refDisplayKey: ["name"]},
         },
+        readiness: {
+            type: SchemaTypes.String,
+            enum: VEHICLE_READINESS,
+            default: "ready",
+            permissions: {
+                self: {write: "no-permission"},
+                others: {write: "no-permission"},
+            },
+            dynamicTableConfiguration: {
+                enumTones: {
+                    ready: "success",
+                    needs_cleaning: "warning",
+                    needs_check: "danger",
+                },
+            },
+        },
+        currentLocation: {
+            type: SchemaTypes.ObjectId,
+            ref: "RentalLocation",
+            refAllowlist: RentalLocationSimpleSnippet,
+            permissions: {
+                self: {write: "no-permission"},
+                others: {write: "no-permission"},
+            },
+            dynamicTableConfiguration: {refDisplayKey: ["name"]},
+        },
         status: {
             type: SchemaTypes.String,
             enum: VEHICLE_STATUSES,
             required: true,
             default: "active",
-            dynamicTableConfiguration: {enumTones: {active: "success", maintenance: "warning", retired: "neutral"}},
+            dynamicTableConfiguration: {
+                enumTones: {
+                    active: "success",
+                    maintenance: "warning",
+                    retired: "neutral",
+                },
+            },
         },
         odometerKm: {type: SchemaTypes.Number, min: 0},
-        notes: {type: SchemaTypes.String, maxlength: VEHICLE_NOTES_MAX, dynamicTableConfiguration: {hideColumn: true}},
+        notes: {
+            type: SchemaTypes.String,
+            maxlength: VEHICLE_NOTES_MAX,
+            dynamicTableConfiguration: {hideColumn: true},
+        },
         images: {
             type: [{type: SchemaTypes.ObjectId, ref: "Media"}],
             default: [],
             refAllowlist: MediaSimpleSnippet,
-            dynamicTableConfiguration: {sortable: false, filterable: false, hideColumn: true},
+            dynamicTableConfiguration: {
+                sortable: false,
+                filterable: false,
+                hideColumn: true,
+            },
         },
         videos: {
             type: [{type: SchemaTypes.ObjectId, ref: "Media"}],
             default: [],
             refAllowlist: MediaSimpleSnippet,
-            dynamicTableConfiguration: {sortable: false, filterable: false, hideColumn: true},
+            dynamicTableConfiguration: {
+                sortable: false,
+                filterable: false,
+                hideColumn: true,
+            },
         },
-        acquiredAt: {type: SchemaTypes.Date, dynamicTableConfiguration: {cellType: COLUMN_TYPE.DATE, hideColumn: true}},
-        purchasePrice: {type: SchemaTypes.Number, min: 0, dynamicTableConfiguration: {hideColumn: true}},
-        nextServiceDueAt: {type: SchemaTypes.Date, permissions: NoWritePermission, dynamicTableConfiguration: {cellType: COLUMN_TYPE.DATE}},
-        nextServiceDueKm: {type: SchemaTypes.Number, permissions: NoWritePermission},
+        acquiredAt: {
+            type: SchemaTypes.Date,
+            dynamicTableConfiguration: {
+                cellType: COLUMN_TYPE.DATE,
+                hideColumn: true,
+            },
+        },
+        purchasePrice: {
+            type: SchemaTypes.Number,
+            min: 0,
+            dynamicTableConfiguration: {hideColumn: true},
+        },
+        trackerId: {type: SchemaTypes.String, trim: true, maxlength: 64},
+        lastLatitude: {
+            type: SchemaTypes.Number,
+            min: -90,
+            max: 90,
+            permissions: NoWritePermission,
+        },
+        lastLongitude: {
+            type: SchemaTypes.Number,
+            min: -180,
+            max: 180,
+            permissions: NoWritePermission,
+        },
+        lastReportedAt: {
+            type: SchemaTypes.Date,
+            permissions: NoWritePermission,
+        },
+        nextServiceDueAt: {
+            type: SchemaTypes.Date,
+            permissions: NoWritePermission,
+            dynamicTableConfiguration: {cellType: COLUMN_TYPE.DATE},
+        },
+        nextServiceDueKm: {
+            type: SchemaTypes.Number,
+            permissions: NoWritePermission,
+        },
         serviceReminderSentAt: {
             type: SchemaTypes.Date,
             permissions: NoWritePermission,

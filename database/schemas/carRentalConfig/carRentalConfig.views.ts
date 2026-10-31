@@ -26,7 +26,10 @@ export const carRentalConfigEditFormView: ViewConfig = {
     nodes: [
         {
             render: "#TitleWithCollapse",
-            props: {title: "form.bookingSectionTitle", skipRenderWhenFormExtraNotTruthy: "sectionBooking"},
+            props: {
+                title: "form.bookingSectionTitle",
+                skipRenderWhenFormExtraNotTruthy: "sectionBooking",
+            },
             permissions: {
                 readAny: [
                     "publicBookingEnabled",
@@ -211,7 +214,10 @@ export const carRentalConfigEditFormView: ViewConfig = {
         },
         {
             render: "#TitleWithCollapse",
-            props: {title: "form.paymentSectionTitle", skipRenderWhenFormExtraNotTruthy: "sectionPayment"},
+            props: {
+                title: "form.paymentSectionTitle",
+                skipRenderWhenFormExtraNotTruthy: "sectionPayment",
+            },
             permissions: {
                 readAny: [
                     "paymentPolicy",
@@ -330,7 +336,10 @@ export const carRentalConfigEditFormView: ViewConfig = {
         },
         {
             render: "#TitleWithCollapse",
-            props: {title: "form.termsSectionTitle", skipRenderWhenFormExtraNotTruthy: "sectionTerms"},
+            props: {
+                title: "form.termsSectionTitle",
+                skipRenderWhenFormExtraNotTruthy: "sectionTerms",
+            },
             permissions: {
                 readAny: ["termsVersion", "termsText"],
                 writeAny: ["termsVersion", "termsText"],
@@ -381,7 +390,231 @@ export const carRentalConfigEditFormView: ViewConfig = {
         },
         {
             render: "#TitleWithCollapse",
-            props: {title: "form.notificationsSectionTitle", skipRenderWhenFormExtraNotTruthy: "sectionAlerts"},
+            props: {
+                title: "form.feesSectionTitle",
+                skipRenderWhenFormExtraNotTruthy: "sectionFees",
+            },
+            permissions: {
+                readAny: [
+                    "youngDriverUnderAge",
+                    "youngDriverDailyFee",
+                    "additionalDriverDailyFee",
+                    "oneWayFee",
+                    "fuelPricePerQuarter",
+                    "refuelServiceFee",
+                    "lateFeePerHour",
+                    "cleaningFee",
+                    "smokingFee",
+                    "fineAdminFee",
+                ],
+                writeAny: [
+                    "youngDriverUnderAge",
+                    "youngDriverDailyFee",
+                    "additionalDriverDailyFee",
+                    "oneWayFee",
+                    "fuelPricePerQuarter",
+                    "refuelServiceFee",
+                    "lateFeePerHour",
+                    "cleaningFee",
+                    "smokingFee",
+                    "fineAdminFee",
+                ],
+            },
+            children: [
+                {
+                    render: "#FormGrid",
+                    props: {columns: 3},
+                    children: [
+                        {
+                            render: "#Field",
+                            permissions: {
+                                read: "youngDriverUnderAge",
+                                write: "youngDriverUnderAge",
+                            },
+                            field: {
+                                name: "youngDriverUnderAge",
+                                widget: "#Input",
+                                label: "form.youngDriverUnderAgeLabel",
+                                placeholder:
+                                    "form.youngDriverUnderAgePlaceholder",
+                                widgetProps: {type: "number", min: 18, max: 30},
+                            },
+                        },
+                        {
+                            render: "#Field",
+                            permissions: {
+                                read: "youngDriverDailyFee",
+                                write: "youngDriverDailyFee",
+                            },
+                            field: {
+                                name: "youngDriverDailyFee",
+                                widget: "#Input",
+                                label: "form.youngDriverDailyFeeLabel",
+                                placeholder:
+                                    "form.youngDriverDailyFeePlaceholder",
+                                widgetProps: {
+                                    type: "number",
+                                    min: 0,
+                                    max: 100000,
+                                },
+                            },
+                        },
+                        {
+                            render: "#Field",
+                            permissions: {
+                                read: "additionalDriverDailyFee",
+                                write: "additionalDriverDailyFee",
+                            },
+                            field: {
+                                name: "additionalDriverDailyFee",
+                                widget: "#Input",
+                                label: "form.additionalDriverDailyFeeLabel",
+                                placeholder:
+                                    "form.additionalDriverDailyFeePlaceholder",
+                                widgetProps: {
+                                    type: "number",
+                                    min: 0,
+                                    max: 100000,
+                                },
+                            },
+                        },
+                        {
+                            render: "#Field",
+                            permissions: {
+                                read: "oneWayFee",
+                                write: "oneWayFee",
+                            },
+                            field: {
+                                name: "oneWayFee",
+                                widget: "#Input",
+                                label: "form.oneWayFeeLabel",
+                                placeholder: "form.oneWayFeePlaceholder",
+                                widgetProps: {
+                                    type: "number",
+                                    min: 0,
+                                    max: 100000,
+                                },
+                            },
+                        },
+                        {
+                            render: "#Field",
+                            permissions: {
+                                read: "fuelPricePerQuarter",
+                                write: "fuelPricePerQuarter",
+                            },
+                            field: {
+                                name: "fuelPricePerQuarter",
+                                widget: "#Input",
+                                label: "form.fuelPricePerQuarterLabel",
+                                placeholder:
+                                    "form.fuelPricePerQuarterPlaceholder",
+                                widgetProps: {
+                                    type: "number",
+                                    min: 0,
+                                    max: 100000,
+                                },
+                            },
+                        },
+                        {
+                            render: "#Field",
+                            permissions: {
+                                read: "refuelServiceFee",
+                                write: "refuelServiceFee",
+                            },
+                            field: {
+                                name: "refuelServiceFee",
+                                widget: "#Input",
+                                label: "form.refuelServiceFeeLabel",
+                                placeholder: "form.refuelServiceFeePlaceholder",
+                                widgetProps: {
+                                    type: "number",
+                                    min: 0,
+                                    max: 100000,
+                                },
+                            },
+                        },
+                        {
+                            render: "#Field",
+                            permissions: {
+                                read: "lateFeePerHour",
+                                write: "lateFeePerHour",
+                            },
+                            field: {
+                                name: "lateFeePerHour",
+                                widget: "#Input",
+                                label: "form.lateFeePerHourLabel",
+                                placeholder: "form.lateFeePerHourPlaceholder",
+                                widgetProps: {
+                                    type: "number",
+                                    min: 0,
+                                    max: 100000,
+                                },
+                            },
+                        },
+                        {
+                            render: "#Field",
+                            permissions: {
+                                read: "cleaningFee",
+                                write: "cleaningFee",
+                            },
+                            field: {
+                                name: "cleaningFee",
+                                widget: "#Input",
+                                label: "form.cleaningFeeLabel",
+                                placeholder: "form.cleaningFeePlaceholder",
+                                widgetProps: {
+                                    type: "number",
+                                    min: 0,
+                                    max: 100000,
+                                },
+                            },
+                        },
+                        {
+                            render: "#Field",
+                            permissions: {
+                                read: "smokingFee",
+                                write: "smokingFee",
+                            },
+                            field: {
+                                name: "smokingFee",
+                                widget: "#Input",
+                                label: "form.smokingFeeLabel",
+                                placeholder: "form.smokingFeePlaceholder",
+                                widgetProps: {
+                                    type: "number",
+                                    min: 0,
+                                    max: 100000,
+                                },
+                            },
+                        },
+                        {
+                            render: "#Field",
+                            permissions: {
+                                read: "fineAdminFee",
+                                write: "fineAdminFee",
+                            },
+                            field: {
+                                name: "fineAdminFee",
+                                widget: "#Input",
+                                label: "form.fineAdminFeeLabel",
+                                placeholder: "form.fineAdminFeePlaceholder",
+                                widgetProps: {
+                                    type: "number",
+                                    min: 0,
+                                    max: 100000,
+                                },
+                            },
+                        },
+                    ],
+                },
+            ],
+        },
+        {
+            render: "#TitleWithCollapse",
+            props: {
+                title: "form.notificationsSectionTitle",
+                skipRenderWhenFormExtraNotTruthy: "sectionAlerts",
+            },
             permissions: {readAny: ["notifyUsers"], writeAny: ["notifyUsers"]},
             children: [
                 {

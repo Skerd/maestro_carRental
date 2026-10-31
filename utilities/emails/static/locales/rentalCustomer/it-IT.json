@@ -26,5 +26,20 @@
   "footerNote": "Ricevi questa e-mail perché con questo indirizzo è stata prenotata un'auto presso {companyName}.",
   "preheaderConfirmed": "Il tuo noleggio è confermato. Ecco i dettagli.",
   "preheaderCancelled": "Il tuo noleggio è stato annullato.",
-  "preheaderReminder": "Il ritiro della tua auto si avvicina."
+  "preheaderReminder": "Il ritiro della tua auto si avvicina.",
+  "headingHandedOver": "Buon viaggio",
+  "subjectHandedOver": "Il tuo contratto di noleggio per la prenotazione {number} — {companyName}",
+  "introHandedOver": "Hai ritirato il veicolo. In allegato trovi il contratto di noleggio.",
+  "closingHandedOver": "Tieni il contratto con te durante il noleggio. Chiama l'agenzia in caso di problemi.",
+  "preheaderHandedOver": "In allegato il tuo contratto di noleggio.",
+  "headingReturned": "Grazie per aver riconsegnato il veicolo",
+  "subjectReturned": "Prenotazione {number} completata — {companyName}",
+  "introReturned": "Il noleggio è concluso. Ecco il totale finale.",
+  "closingReturned": "Speriamo di rivederti presto.",
+  "preheaderReturned": "Il noleggio è concluso.",
+  "headingCharged": "È stato aggiunto un addebito alla tua prenotazione",
+  "subjectCharged": "Nuovo addebito sulla prenotazione {number} — {companyName}",
+  "introCharged": "Abbiamo aggiunto un addebito alla tua prenotazione: {note}",
+  "closingCharged": "Rispondi a questa e-mail se hai domande su questo addebito.",
+  "preheaderCharged": "È stato aggiunto un addebito alla tua prenotazione."
 }

@@ -12,6 +12,7 @@ import {vehicleDamagesToSelect} from "@carRentalModule/utilities/mappers/vehicle
 import RentalReservation from "@carRentalModule/database/schemas/rentalReservation/rentalReservation";
 import {assertCompanyVehicle} from "@carRentalModule/utilities/services/vehicleRecords";
 import {mediaUploadMW} from "@coreModule/utilities/middlewares/mediaUploadMW";
+import {VehicleDamageActions} from "@carRentalModule/database/schemas/vehicleDamage/vehicleDamage.actions";
 import {VEHICLE_DAMAGE_PHOTOS_MAX, VehicleDamageSchemaDef} from "armonia/src/modules/carRental/api/carRental/private/vehicleDamage/vehicleDamage.schema-def";
 
 const photosUpload = mediaUploadMW({
@@ -50,6 +51,7 @@ export const {router} = createCrudRouter({
     toSelect: vehicleDamagesToSelect,
     selectSearchField: "description",
     selectProjection: "_id area severity reportedAt",
+    actions: VehicleDamageActions,
     defaultSort: {reportedAt: -1},
     createMiddleware: [photosUpload],
     editMiddleware: [photosUpload],

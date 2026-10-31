@@ -6,27 +6,42 @@ import ownershipPlugin from "@coreModule/database/plugins/ownershipPlugin";
 import auditPlugin from "@coreModule/database/plugins/auditPlugin";
 import softDeletePlugin from "@coreModule/database/plugins/softDeletePlugin";
 import lifeCyclePlugin from "@coreModule/database/plugins/lifeCyclePlugin";
-import {ILifeCyclePluginFields, IOwnershipPluginFields, ISoftDeletePluginFields} from "@coreModule/database/types/plugin-fields";
+import {
+    ILifeCyclePluginFields,
+    IOwnershipPluginFields,
+    ISoftDeletePluginFields,
+} from "@coreModule/database/types/plugin-fields";
 import {addModelData} from "@coreModule/database/collections";
 import {COLUMN_TYPE} from "armonia/src/modules/core/database/filter/typeOperators";
 import {CurrencySimpleSnippet} from "@coreModule/database/schemas/currency/currency.snippets";
 import {SimpleBlankUserSnippet} from "@coreModule/database/schemas/user/user.snippets";
+import {IMedia} from "@coreModule/database/schemas/media/media";
+import {MediaSimpleSnippet} from "@coreModule/database/schemas/media/media.snippets";
 import {
     RENTAL_CANCELLED_BY,
+    RENTAL_DEPOSIT_METHODS,
+    RENTAL_DEPOSIT_STATUSES,
+    RENTAL_DRIVER_ROLES,
     RENTAL_FUEL_LEVELS,
+    RENTAL_ID_DOCUMENT_TYPES,
     RENTAL_PAYMENT_CHOICES,
     RENTAL_PAYMENT_STATUSES,
+    RENTAL_PRICE_LINE_CODES,
     RENTAL_PRICE_LINE_KINDS,
     RENTAL_RESERVATION_SOURCES,
     RENTAL_RESERVATION_STATUSES,
     RENTAL_TIMELINE_EVENTS,
     type RentalPaymentChoice,
     type RentalPaymentStatus,
+    type RentalPriceLineCode,
     type RentalPriceLineKind,
     type RentalReservationStatus,
     type RentalTimelineEvent,
 } from "armonia/src/modules/carRental/api/carRental/private/rentalReservation/rentalReservation.constants";
-import {RENTAL_EXTRA_PRICINGS, type RentalExtraPricing} from "armonia/src/modules/carRental/api/carRental/private/rentalExtra/rentalExtra.schema-def";
+import {
+    RENTAL_EXTRA_PRICINGS,
+    type RentalExtraPricing,
+} from "armonia/src/modules/carRental/api/carRental/private/rentalExtra/rentalExtra.schema-def";
 import type {IVehicleCategory} from "../vehicleCategory/vehicleCategory";
 import type {IVehicle} from "../vehicle/vehicle";
 import type {IRentalLocation} from "../rentalLocation/rentalLocation";
@@ -39,9 +54,19 @@ import {applyRentalReservationIndexes} from "./rentalReservation.indexes";
 import {rentalReservationViews} from "./rentalReservation.views";
 
 /** Server-managed: written only by the reservation service and its actions. */
-const NoWritePermission = {self: {write: "no-permission"}, others: {write: "no-permission"}};
+const NoWritePermission = {
+    self: {write: "no-permission"},
+    others: {write: "no-permission"},
+};
 
-export type IRentalPriceLine = {label: string; kind: RentalPriceLineKind; quantity: number; unitPrice: number; total: number};
+export type IRentalPriceLine = {
+    label: string;
+    kind: RentalPriceLineKind;
+    code?: RentalPriceLineCode;
+    quantity: number;
+    unitPrice: number;
+    total: number;
+};
 
 export type IRentalPricing = {
     rentalDays: number;
@@ -83,9 +108,56 @@ export type IRentalVehicleCheck = {
     odometerKm: number;
     fuelLevel: (typeof RENTAL_FUEL_LEVELS)[number];
     notes?: string;
+    photos: (IMedia | Types.ObjectId)[];
 };
 
-export interface IRentalReservation extends Document, IOwnershipPluginFields, ISoftDeletePluginFields, ILifeCyclePluginFields {
+/**
+ * The deposit taken at pickup. A card hold is a manual-capture payment intent; a
+ * saved card keeps the gateway customer and card for later off-session charges.
+ */
+export type IRentalDeposit = {
+    method: (typeof RENTAL_DEPOSIT_METHODS)[number];
+    status: (typeof RENTAL_DEPOSIT_STATUSES)[number];
+    amount: number;
+    capturedAmount: number;
+    intentId?: string;
+    setupIntentId?: string;
+    stripeCustomerId?: string;
+    paymentMethodId?: string;
+    heldAt?: Date;
+    settledAt?: Date;
+};
+
+/** What the customer signed at handover. The PDF is generated on request. */
+export type IRentalAgreement = {
+    signedAt?: Date;
+    signerName?: string;
+    signature?: IMedia | Types.ObjectId;
+    termsVersion?: string;
+};
+
+/** Dates are local calendar dates (`YYYY-MM-DD`), as written on the licence. */
+export type IRentalDriver = {
+    role: (typeof RENTAL_DRIVER_ROLES)[number];
+    firstName: string;
+    lastName: string;
+    birthDate: string;
+    licenseNumber?: string;
+    licenseCountry?: string;
+    licenseIssuedAt?: string;
+    licenseExpiresAt?: string;
+    idDocumentType?: (typeof RENTAL_ID_DOCUMENT_TYPES)[number];
+    idDocumentNumber?: string;
+    /** Licence and identity scans the customer uploaded from the manage page. Absent on drivers saved before this field existed. */
+    documents?: Types.ObjectId[];
+};
+
+export interface IRentalReservation
+    extends
+        Document,
+        IOwnershipPluginFields,
+        ISoftDeletePluginFields,
+        ILifeCyclePluginFields {
     number: string;
     status: RentalReservationStatus;
     source: (typeof RENTAL_RESERVATION_SOURCES)[number];
@@ -100,20 +172,48 @@ export interface IRentalReservation extends Document, IOwnershipPluginFields, IS
     blockedUntil: Date;
     holdExpiresAt?: Date;
     customer?: IUser;
-    contact: {firstName: string; lastName: string; email: string; phone: string};
+    contact: {
+        firstName: string;
+        lastName: string;
+        email: string;
+        phone: string;
+    };
+    drivers: IRentalDriver[];
     extras: IRentalReservationExtra[];
+    /** The promo code the booking was made with; its use is counted on the code. */
+    promoCode?: {promo: Types.ObjectId; code: string};
     pricing: IRentalPricing;
     snapshot: IRentalReservationSnapshot;
-    policy: {freeCancellationHours: number; cancellationFeePercent: number; termsVersion?: string};
+    policy: {
+        freeCancellationHours: number;
+        cancellationFeePercent: number;
+        termsVersion?: string;
+    };
     paymentChoice: RentalPaymentChoice;
     paymentStatus: RentalPaymentStatus;
     amountPaid: number;
     stripePaymentIntentId?: string;
+    /** Later online payments (the balance, an extension). The first intent stays in `stripePaymentIntentId`. */
+    balanceIntentIds: string[];
+    businessAccount?: Types.ObjectId;
+    /** The customer is taking the car out of the country. */
+    crossBorder: boolean;
     notes?: string;
     idempotencyKey: string;
-    handover?: IRentalVehicleCheck;
+    handover?: IRentalVehicleCheck & {acknowledgedDamages: Types.ObjectId[]};
     returnInfo?: IRentalVehicleCheck & {damageNoted: boolean};
-    timeline: {event: RentalTimelineEvent; at: Date; by?: Types.ObjectId; note?: string}[];
+    agreement?: IRentalAgreement;
+    deposit?: IRentalDeposit;
+    /** The assigned car will not be at the pickup location at pickup time; staff must move it there. */
+    needsTransfer: boolean;
+    /** How many price lines are on an invoice already; later charges are invoiced from here on. */
+    invoicedLineCount: number;
+    timeline: {
+        event: RentalTimelineEvent;
+        at: Date;
+        by?: Types.ObjectId;
+        note?: string;
+    }[];
     cancelledAt?: Date;
     cancelledBy?: (typeof RENTAL_CANCELLED_BY)[number];
     cancellationReason?: string;
@@ -126,7 +226,12 @@ export interface IRentalReservation extends Document, IOwnershipPluginFields, IS
 const priceLineSchema = {
     _id: false,
     label: {type: SchemaTypes.String, required: true},
-    kind: {type: SchemaTypes.String, enum: RENTAL_PRICE_LINE_KINDS, required: true},
+    kind: {
+        type: SchemaTypes.String,
+        enum: RENTAL_PRICE_LINE_KINDS,
+        required: true,
+    },
+    code: {type: SchemaTypes.String, enum: RENTAL_PRICE_LINE_CODES},
     quantity: {type: SchemaTypes.Number, required: true},
     unitPrice: {type: SchemaTypes.Number, required: true},
     total: {type: SchemaTypes.Number, required: true},
@@ -136,13 +241,27 @@ const vehicleCheckSchema = {
     at: {type: SchemaTypes.Date, required: true},
     by: {type: SchemaTypes.ObjectId, ref: "User"},
     odometerKm: {type: SchemaTypes.Number, required: true, min: 0},
-    fuelLevel: {type: SchemaTypes.String, enum: RENTAL_FUEL_LEVELS, required: true},
+    fuelLevel: {
+        type: SchemaTypes.String,
+        enum: RENTAL_FUEL_LEVELS,
+        required: true,
+    },
     notes: {type: SchemaTypes.String},
+    photos: {
+        type: [{type: SchemaTypes.ObjectId, ref: "Media"}],
+        default: [],
+        refAllowlist: MediaSimpleSnippet,
+    },
 };
 
 const RentalReservationSchema = new Schema<IRentalReservation>(
     {
-        number: {type: SchemaTypes.String, required: true, immutable: true, permissions: NoWritePermission},
+        number: {
+            type: SchemaTypes.String,
+            required: true,
+            immutable: true,
+            permissions: NoWritePermission,
+        },
         status: {
             type: SchemaTypes.String,
             enum: RENTAL_RESERVATION_STATUSES,
@@ -161,7 +280,13 @@ const RentalReservationSchema = new Schema<IRentalReservation>(
                 },
             },
         },
-        source: {type: SchemaTypes.String, enum: RENTAL_RESERVATION_SOURCES, required: true, immutable: true, permissions: NoWritePermission},
+        source: {
+            type: SchemaTypes.String,
+            enum: RENTAL_RESERVATION_SOURCES,
+            required: true,
+            immutable: true,
+            permissions: NoWritePermission,
+        },
         category: {
             type: SchemaTypes.ObjectId,
             ref: "VehicleCategory",
@@ -177,7 +302,9 @@ const RentalReservationSchema = new Schema<IRentalReservation>(
             required: true,
             refAllowlist: VehicleSimpleSnippet,
             permissions: NoWritePermission,
-            dynamicTableConfiguration: {refDisplayKey: ["plate", "make", "model"]},
+            dynamicTableConfiguration: {
+                refDisplayKey: ["plate", "make", "model"],
+            },
         },
         pickupLocation: {
             type: SchemaTypes.ObjectId,
@@ -197,10 +324,32 @@ const RentalReservationSchema = new Schema<IRentalReservation>(
             permissions: NoWritePermission,
             dynamicTableConfiguration: {refDisplayKey: ["name"]},
         },
-        pickupAt: {type: SchemaTypes.Date, required: true, permissions: NoWritePermission, dynamicTableConfiguration: {cellType: COLUMN_TYPE.DATETIME}},
-        returnAt: {type: SchemaTypes.Date, required: true, permissions: NoWritePermission, dynamicTableConfiguration: {cellType: COLUMN_TYPE.DATETIME}},
-        blockedUntil: {type: SchemaTypes.Date, required: true, permissions: NoWritePermission, dynamicTableConfiguration: {hideColumn: true}},
-        holdExpiresAt: {type: SchemaTypes.Date, permissions: NoWritePermission, dynamicTableConfiguration: {hideColumn: true, cellType: COLUMN_TYPE.DATETIME}},
+        pickupAt: {
+            type: SchemaTypes.Date,
+            required: true,
+            permissions: NoWritePermission,
+            dynamicTableConfiguration: {cellType: COLUMN_TYPE.DATETIME},
+        },
+        returnAt: {
+            type: SchemaTypes.Date,
+            required: true,
+            permissions: NoWritePermission,
+            dynamicTableConfiguration: {cellType: COLUMN_TYPE.DATETIME},
+        },
+        blockedUntil: {
+            type: SchemaTypes.Date,
+            required: true,
+            permissions: NoWritePermission,
+            dynamicTableConfiguration: {hideColumn: true},
+        },
+        holdExpiresAt: {
+            type: SchemaTypes.Date,
+            permissions: NoWritePermission,
+            dynamicTableConfiguration: {
+                hideColumn: true,
+                cellType: COLUMN_TYPE.DATETIME,
+            },
+        },
         customer: {
             type: SchemaTypes.ObjectId,
             ref: "User",
@@ -211,44 +360,149 @@ const RentalReservationSchema = new Schema<IRentalReservation>(
         },
         contact: {
             type: {
-                firstName: {type: SchemaTypes.String, required: true, trim: true},
-                lastName: {type: SchemaTypes.String, required: true, trim: true},
-                email: {type: SchemaTypes.String, required: true, trim: true, lowercase: true},
+                firstName: {
+                    type: SchemaTypes.String,
+                    required: true,
+                    trim: true,
+                },
+                lastName: {
+                    type: SchemaTypes.String,
+                    required: true,
+                    trim: true,
+                },
+                email: {
+                    type: SchemaTypes.String,
+                    required: true,
+                    trim: true,
+                    lowercase: true,
+                },
                 phone: {type: SchemaTypes.String, required: true, trim: true},
             },
             required: true,
             permissions: NoWritePermission,
-            dynamicTableConfiguration: {filterable: false, sortable: false, hideColumn: true},
+            dynamicTableConfiguration: {
+                filterable: false,
+                sortable: false,
+                hideColumn: true,
+            },
+        },
+        drivers: {
+            type: [
+                {
+                    _id: false,
+                    role: {
+                        type: SchemaTypes.String,
+                        enum: RENTAL_DRIVER_ROLES,
+                        required: true,
+                    },
+                    firstName: {
+                        type: SchemaTypes.String,
+                        required: true,
+                        trim: true,
+                    },
+                    lastName: {
+                        type: SchemaTypes.String,
+                        required: true,
+                        trim: true,
+                    },
+                    birthDate: {type: SchemaTypes.String, required: true},
+                    licenseNumber: {type: SchemaTypes.String, trim: true},
+                    licenseCountry: {type: SchemaTypes.String, trim: true},
+                    licenseIssuedAt: {type: SchemaTypes.String},
+                    licenseExpiresAt: {type: SchemaTypes.String},
+                    idDocumentType: {
+                        type: SchemaTypes.String,
+                        enum: RENTAL_ID_DOCUMENT_TYPES,
+                    },
+                    idDocumentNumber: {type: SchemaTypes.String, trim: true},
+                    documents: {
+                        type: [{type: SchemaTypes.ObjectId, ref: "Media"}],
+                        default: [],
+                    },
+                },
+            ],
+            default: [],
+            // Changed only through the saveDrivers action.
+            permissions: NoWritePermission,
+            dynamicTableConfiguration: {
+                filterable: false,
+                sortable: false,
+                hideColumn: true,
+            },
         },
         extras: {
-            type: [{
-                _id: false,
-                extra: {type: SchemaTypes.ObjectId, ref: "RentalExtra", refAllowlist: RentalExtraSimpleSnippet},
-                name: {type: SchemaTypes.String, required: true},
-                pricing: {type: SchemaTypes.String, enum: RENTAL_EXTRA_PRICINGS, required: true},
-                unitPrice: {type: SchemaTypes.Number, required: true},
-                quantity: {type: SchemaTypes.Number, required: true},
-                total: {type: SchemaTypes.Number, required: true},
-            }],
+            type: [
+                {
+                    _id: false,
+                    extra: {
+                        type: SchemaTypes.ObjectId,
+                        ref: "RentalExtra",
+                        refAllowlist: RentalExtraSimpleSnippet,
+                    },
+                    name: {type: SchemaTypes.String, required: true},
+                    pricing: {
+                        type: SchemaTypes.String,
+                        enum: RENTAL_EXTRA_PRICINGS,
+                        required: true,
+                    },
+                    unitPrice: {type: SchemaTypes.Number, required: true},
+                    quantity: {type: SchemaTypes.Number, required: true},
+                    total: {type: SchemaTypes.Number, required: true},
+                },
+            ],
             default: [],
             permissions: NoWritePermission,
-            dynamicTableConfiguration: {filterable: false, sortable: false, hideColumn: true},
+            dynamicTableConfiguration: {
+                filterable: false,
+                sortable: false,
+                hideColumn: true,
+            },
+        },
+        promoCode: {
+            type: {
+                promo: {
+                    type: SchemaTypes.ObjectId,
+                    ref: "RentalPromoCode",
+                    required: true,
+                },
+                code: {type: SchemaTypes.String, required: true},
+            },
+            required: false,
+            permissions: NoWritePermission,
+            dynamicTableConfiguration: {
+                filterable: false,
+                sortable: false,
+                hideColumn: true,
+            },
         },
         pricing: {
             type: {
                 rentalDays: {type: SchemaTypes.Number, required: true},
-                currency: {type: SchemaTypes.ObjectId, ref: "Currency", required: true, refAllowlist: CurrencySimpleSnippet},
+                currency: {
+                    type: SchemaTypes.ObjectId,
+                    ref: "Currency",
+                    required: true,
+                    refAllowlist: CurrencySimpleSnippet,
+                },
                 lines: {type: [priceLineSchema], default: []},
                 subtotal: {type: SchemaTypes.Number, required: true},
                 vatRate: {type: SchemaTypes.Number, required: true},
                 vatAmount: {type: SchemaTypes.Number, required: true},
                 pricesIncludeVat: {type: SchemaTypes.Boolean, required: true},
                 grandTotal: {type: SchemaTypes.Number, required: true},
-                depositAmount: {type: SchemaTypes.Number, required: true, default: 0},
+                depositAmount: {
+                    type: SchemaTypes.Number,
+                    required: true,
+                    default: 0,
+                },
             },
             required: true,
             permissions: NoWritePermission,
-            dynamicTableConfiguration: {filterable: false, sortable: false, hideColumn: true},
+            dynamicTableConfiguration: {
+                filterable: false,
+                sortable: false,
+                hideColumn: true,
+            },
         },
         snapshot: {
             type: {
@@ -265,19 +519,53 @@ const RentalReservationSchema = new Schema<IRentalReservation>(
             },
             required: true,
             permissions: NoWritePermission,
-            dynamicTableConfiguration: {filterable: false, sortable: false, hideColumn: true},
+            dynamicTableConfiguration: {
+                filterable: false,
+                sortable: false,
+                hideColumn: true,
+            },
         },
         policy: {
             type: {
-                freeCancellationHours: {type: SchemaTypes.Number, required: true},
-                cancellationFeePercent: {type: SchemaTypes.Number, required: true},
+                freeCancellationHours: {
+                    type: SchemaTypes.Number,
+                    required: true,
+                },
+                cancellationFeePercent: {
+                    type: SchemaTypes.Number,
+                    required: true,
+                },
                 termsVersion: {type: SchemaTypes.String},
             },
             required: true,
             permissions: NoWritePermission,
-            dynamicTableConfiguration: {filterable: false, sortable: false, hideColumn: true},
+            dynamicTableConfiguration: {
+                filterable: false,
+                sortable: false,
+                hideColumn: true,
+            },
         },
-        paymentChoice: {type: SchemaTypes.String, enum: RENTAL_PAYMENT_CHOICES, required: true, permissions: NoWritePermission},
+        paymentChoice: {
+            type: SchemaTypes.String,
+            enum: RENTAL_PAYMENT_CHOICES,
+            required: true,
+            permissions: NoWritePermission,
+        },
+        balanceIntentIds: {
+            type: [SchemaTypes.String],
+            default: [],
+            permissions: NoWritePermission,
+        },
+        businessAccount: {
+            type: SchemaTypes.ObjectId,
+            ref: "RentalBusinessAccount",
+            permissions: NoWritePermission,
+        },
+        crossBorder: {
+            type: SchemaTypes.Boolean,
+            default: false,
+            permissions: NoWritePermission,
+        },
         paymentStatus: {
             type: SchemaTypes.String,
             enum: RENTAL_PAYMENT_STATUSES,
@@ -285,44 +573,182 @@ const RentalReservationSchema = new Schema<IRentalReservation>(
             default: "unpaid",
             permissions: NoWritePermission,
             dynamicTableConfiguration: {
-                enumTones: {unpaid: "warning", pending: "info", paid: "success", partially_refunded: "warning", refunded: "neutral", failed: "danger"},
+                enumTones: {
+                    unpaid: "warning",
+                    pending: "info",
+                    paid: "success",
+                    partially_refunded: "warning",
+                    refunded: "neutral",
+                    failed: "danger",
+                },
             },
         },
         // Writable by permission only: recording a payment gates on write:amountPaid.
         amountPaid: {type: SchemaTypes.Number, default: 0},
-        stripePaymentIntentId: {type: SchemaTypes.String, permissions: NoWritePermission, dynamicTableConfiguration: {hideColumn: true}},
-        notes: {type: SchemaTypes.String, dynamicTableConfiguration: {hideColumn: true}},
-        idempotencyKey: {type: SchemaTypes.String, required: true, immutable: true, permissions: NoWritePermission, dynamicTableConfiguration: {hideColumn: true, filterable: false}},
+        stripePaymentIntentId: {
+            type: SchemaTypes.String,
+            permissions: NoWritePermission,
+            dynamicTableConfiguration: {hideColumn: true},
+        },
+        notes: {
+            type: SchemaTypes.String,
+            dynamicTableConfiguration: {hideColumn: true},
+        },
+        idempotencyKey: {
+            type: SchemaTypes.String,
+            required: true,
+            immutable: true,
+            permissions: NoWritePermission,
+            dynamicTableConfiguration: {hideColumn: true, filterable: false},
+        },
         handover: {
-            type: vehicleCheckSchema,
+            type: {
+                ...vehicleCheckSchema,
+                acknowledgedDamages: {
+                    type: [{type: SchemaTypes.ObjectId, ref: "VehicleDamage"}],
+                    default: [],
+                },
+            },
             required: false,
             permissions: NoWritePermission,
-            dynamicTableConfiguration: {filterable: false, sortable: false, hideColumn: true},
+            dynamicTableConfiguration: {
+                filterable: false,
+                sortable: false,
+                hideColumn: true,
+            },
         },
         returnInfo: {
-            type: {...vehicleCheckSchema, damageNoted: {type: SchemaTypes.Boolean, default: false}},
+            type: {
+                ...vehicleCheckSchema,
+                damageNoted: {type: SchemaTypes.Boolean, default: false},
+            },
             required: false,
             permissions: NoWritePermission,
-            dynamicTableConfiguration: {filterable: false, sortable: false, hideColumn: true},
+            dynamicTableConfiguration: {
+                filterable: false,
+                sortable: false,
+                hideColumn: true,
+            },
+        },
+        deposit: {
+            type: {
+                method: {
+                    type: SchemaTypes.String,
+                    enum: RENTAL_DEPOSIT_METHODS,
+                    required: true,
+                },
+                status: {
+                    type: SchemaTypes.String,
+                    enum: RENTAL_DEPOSIT_STATUSES,
+                    required: true,
+                },
+                amount: {type: SchemaTypes.Number, required: true, min: 0},
+                capturedAmount: {type: SchemaTypes.Number, default: 0},
+                intentId: {type: SchemaTypes.String},
+                setupIntentId: {type: SchemaTypes.String},
+                stripeCustomerId: {type: SchemaTypes.String},
+                paymentMethodId: {type: SchemaTypes.String},
+                heldAt: {type: SchemaTypes.Date},
+                settledAt: {type: SchemaTypes.Date},
+            },
+            required: false,
+            permissions: NoWritePermission,
+            dynamicTableConfiguration: {
+                filterable: false,
+                sortable: false,
+                hideColumn: true,
+            },
+        },
+        agreement: {
+            type: {
+                signedAt: {type: SchemaTypes.Date},
+                signerName: {type: SchemaTypes.String, trim: true},
+                signature: {
+                    type: SchemaTypes.ObjectId,
+                    ref: "Media",
+                    refAllowlist: MediaSimpleSnippet,
+                },
+                termsVersion: {type: SchemaTypes.String},
+            },
+            required: false,
+            permissions: NoWritePermission,
+            dynamicTableConfiguration: {
+                filterable: false,
+                sortable: false,
+                hideColumn: true,
+            },
         },
         timeline: {
-            type: [{
-                _id: false,
-                event: {type: SchemaTypes.String, enum: RENTAL_TIMELINE_EVENTS, required: true},
-                at: {type: SchemaTypes.Date, required: true},
-                by: {type: SchemaTypes.ObjectId, ref: "User"},
-                note: {type: SchemaTypes.String},
-            }],
+            type: [
+                {
+                    _id: false,
+                    event: {
+                        type: SchemaTypes.String,
+                        enum: RENTAL_TIMELINE_EVENTS,
+                        required: true,
+                    },
+                    at: {type: SchemaTypes.Date, required: true},
+                    by: {type: SchemaTypes.ObjectId, ref: "User"},
+                    note: {type: SchemaTypes.String},
+                },
+            ],
             default: [],
             permissions: NoWritePermission,
-            dynamicTableConfiguration: {filterable: false, sortable: false, hideColumn: true},
+            dynamicTableConfiguration: {
+                filterable: false,
+                sortable: false,
+                hideColumn: true,
+            },
         },
-        cancelledAt: {type: SchemaTypes.Date, permissions: NoWritePermission, dynamicTableConfiguration: {hideColumn: true, cellType: COLUMN_TYPE.DATETIME}},
-        cancelledBy: {type: SchemaTypes.String, enum: RENTAL_CANCELLED_BY, permissions: NoWritePermission, dynamicTableConfiguration: {hideColumn: true}},
-        cancellationReason: {type: SchemaTypes.String, permissions: NoWritePermission, dynamicTableConfiguration: {hideColumn: true}},
-        manageTokenVersion: {type: SchemaTypes.Number, default: 1, permissions: NoWritePermission, dynamicTableConfiguration: {hideColumn: true, filterable: false}},
-        confirmationSentAt: {type: SchemaTypes.Date, permissions: NoWritePermission, dynamicTableConfiguration: {hideColumn: true}},
-        pickupReminderSentAt: {type: SchemaTypes.Date, permissions: NoWritePermission, dynamicTableConfiguration: {hideColumn: true}},
+        cancelledAt: {
+            type: SchemaTypes.Date,
+            permissions: NoWritePermission,
+            dynamicTableConfiguration: {
+                hideColumn: true,
+                cellType: COLUMN_TYPE.DATETIME,
+            },
+        },
+        cancelledBy: {
+            type: SchemaTypes.String,
+            enum: RENTAL_CANCELLED_BY,
+            permissions: NoWritePermission,
+            dynamicTableConfiguration: {hideColumn: true},
+        },
+        cancellationReason: {
+            type: SchemaTypes.String,
+            permissions: NoWritePermission,
+            dynamicTableConfiguration: {hideColumn: true},
+        },
+        manageTokenVersion: {
+            type: SchemaTypes.Number,
+            default: 1,
+            permissions: NoWritePermission,
+            dynamicTableConfiguration: {hideColumn: true, filterable: false},
+        },
+        needsTransfer: {
+            type: SchemaTypes.Boolean,
+            default: false,
+            permissions: NoWritePermission,
+            dynamicTableConfiguration: {
+                enumTones: {true: "warning", false: "neutral"},
+            },
+        },
+        invoicedLineCount: {
+            type: SchemaTypes.Number,
+            default: 0,
+            permissions: NoWritePermission,
+            dynamicTableConfiguration: {hideColumn: true, filterable: false},
+        },
+        confirmationSentAt: {
+            type: SchemaTypes.Date,
+            permissions: NoWritePermission,
+            dynamicTableConfiguration: {hideColumn: true},
+        },
+        pickupReminderSentAt: {
+            type: SchemaTypes.Date,
+            permissions: NoWritePermission,
+            dynamicTableConfiguration: {hideColumn: true},
+        },
     },
     {accessMode: "loose"},
 );
@@ -332,7 +758,10 @@ auditPlugin(RentalReservationSchema);
 softDeletePlugin(RentalReservationSchema);
 lifeCyclePlugin(RentalReservationSchema);
 applyRentalReservationIndexes(RentalReservationSchema);
-const RentalReservation = model<IRentalReservation>("RentalReservation", RentalReservationSchema);
+const RentalReservation = model<IRentalReservation>(
+    "RentalReservation",
+    RentalReservationSchema,
+);
 normalizeSchemaPermissions(RentalReservation);
 export default RentalReservation;
 

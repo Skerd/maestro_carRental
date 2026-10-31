@@ -1,0 +1,17 @@
+{
+  "youngDriver": "Conducente giovane: {name}",
+  "additionalDriver": "Conducente aggiuntivo: {name}",
+  "oneWay": "Supplemento sola andata",
+  "promo": "Codice promozionale {code}",
+  "account": "Sconto conto",
+  "crossBorder": "Supplemento estero",
+  "extraKm": "Km extra ({km} km)",
+  "fuel": "Carburante ({quarters}/4 di serbatoio mancante)",
+  "refuelService": "Servizio di rifornimento",
+  "lateReturn": "Riconsegna in ritardo ({hours} h)",
+  "cleaning": "Pulizia",
+  "smoking": "Penale fumo",
+  "damage": "Danno: {description}",
+  "fine": "Multa {reference}",
+  "fineAdmin": "Spese di gestione della multa"
+}

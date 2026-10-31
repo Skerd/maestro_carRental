@@ -1,0 +1,19 @@
+{
+  "subject": "Désignation du conducteur pour l'avis {reference}",
+  "intro": "Au moment de l'infraction ci-dessous, notre véhicule était loué. La personne responsable du véhicule était :",
+  "reference": "Avis",
+  "offenceAt": "Date et heure",
+  "place": "Lieu",
+  "vehicle": "Véhicule",
+  "driverTitle": "Conducteur",
+  "name": "Nom",
+  "birthDate": "Date de naissance",
+  "licence": "Permis de conduire",
+  "email": "E-mail",
+  "phone": "Téléphone",
+  "booking": "Contrat de location",
+  "period": "Période de location",
+  "noBooking": "Selon nos registres, ce véhicule n'était pas loué au moment de l'infraction.",
+  "declaration": "Nous confirmons que ces informations correspondent à nos registres de location. Merci d'adresser l'avis au conducteur indiqué ci-dessus.",
+  "date": "Date"
+}

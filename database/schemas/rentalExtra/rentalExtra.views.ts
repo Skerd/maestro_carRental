@@ -28,6 +28,20 @@ export const rentalExtraSheetView: ViewConfig = {
                     children: [
                         {
                             render: "#DisplayCard",
+                            permissions: {read: "kind"},
+                            field: {
+                                name: "kind",
+                                widget: "#DisplayCard",
+                                label: "kind",
+                                widgetProps: {
+                                    icon: "#IconShieldCheck",
+                                    type: "enum",
+                                    languageKeyCategory: "kindValues",
+                                },
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
                             permissions: {read: "price"},
                             field: {
                                 name: "price",
@@ -65,6 +79,32 @@ export const rentalExtraSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            permissions: {read: "excessAmount"},
+                            field: {
+                                name: "excessAmount",
+                                widget: "#DisplayCard",
+                                label: "excessAmount",
+                                widgetProps: {
+                                    icon: "#IconShieldLock",
+                                    type: "number",
+                                },
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "depositAmount"},
+                            field: {
+                                name: "depositAmount",
+                                widget: "#DisplayCard",
+                                label: "depositAmount",
+                                widgetProps: {
+                                    icon: "#IconCashBanknote",
+                                    type: "number",
+                                },
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
                             permissions: {read: "isActive"},
                             field: {
                                 name: "isActive",
@@ -94,6 +134,11 @@ export const rentalExtraSheetView: ViewConfig = {
     ],
 };
 
+const kindOptions = [
+    {value: "extra", label: "form.kind.extra"},
+    {value: "protection", label: "form.kind.protection"},
+];
+
 const pricingOptions = [
     {value: "per_day", label: "form.pricing.per_day"},
     {value: "per_rental", label: "form.pricing.per_rental"},
@@ -113,6 +158,20 @@ const rentalExtraCreateFormNodes: ViewConfig["nodes"] = [
                     placeholder: "form.namePlaceholder",
                     required: true,
                     widgetProps: {maxLength: RENTAL_EXTRA_NAME_MAX},
+                },
+            },
+            {
+                render: "#Field",
+                field: {
+                    name: "kind",
+                    widget: "#SimpleSelect",
+                    label: "form.kindLabel",
+                    placeholder: "form.kindPlaceholder",
+                    required: true,
+                    widgetProps: {
+                        options: kindOptions,
+                        className: "grow w-full",
+                    },
                 },
             },
             {
@@ -154,6 +213,26 @@ const rentalExtraCreateFormNodes: ViewConfig["nodes"] = [
             {
                 render: "#Field",
                 field: {
+                    name: "excessAmount",
+                    widget: "#Input",
+                    label: "form.excessAmountLabel",
+                    placeholder: "form.excessAmountPlaceholder",
+                    widgetProps: {type: "number", min: 0, step: "any"},
+                },
+            },
+            {
+                render: "#Field",
+                field: {
+                    name: "depositAmount",
+                    widget: "#Input",
+                    label: "form.depositAmountLabel",
+                    placeholder: "form.depositAmountPlaceholder",
+                    widgetProps: {type: "number", min: 0, step: "any"},
+                },
+            },
+            {
+                render: "#Field",
+                field: {
                     name: "sortOrder",
                     widget: "#Input",
                     label: "form.sortOrderLabel",
@@ -180,8 +259,26 @@ const rentalExtraEditFormNodes: ViewConfig["nodes"] = [
         render: "#FormGrid",
         props: {columns: 2},
         permissions: {
-            readAny: ["name", "pricing", "price", "maxQuantity", "sortOrder"],
-            writeAny: ["name", "pricing", "price", "maxQuantity", "sortOrder"],
+            readAny: [
+                "name",
+                "kind",
+                "pricing",
+                "price",
+                "maxQuantity",
+                "excessAmount",
+                "depositAmount",
+                "sortOrder",
+            ],
+            writeAny: [
+                "name",
+                "kind",
+                "pricing",
+                "price",
+                "maxQuantity",
+                "excessAmount",
+                "depositAmount",
+                "sortOrder",
+            ],
         },
         children: [
             {
@@ -194,6 +291,21 @@ const rentalExtraEditFormNodes: ViewConfig["nodes"] = [
                     placeholder: "form.namePlaceholder",
                     required: true,
                     widgetProps: {maxLength: RENTAL_EXTRA_NAME_MAX},
+                },
+            },
+            {
+                render: "#Field",
+                permissions: {read: "kind", write: "kind"},
+                field: {
+                    name: "kind",
+                    widget: "#SimpleSelect",
+                    label: "form.kindLabel",
+                    placeholder: "form.kindPlaceholder",
+                    required: true,
+                    widgetProps: {
+                        options: kindOptions,
+                        className: "grow w-full",
+                    },
                 },
             },
             {
@@ -233,6 +345,28 @@ const rentalExtraEditFormNodes: ViewConfig["nodes"] = [
                     placeholder: "form.maxQuantityPlaceholder",
                     required: true,
                     widgetProps: {type: "number", min: 1, max: 10},
+                },
+            },
+            {
+                render: "#Field",
+                permissions: {read: "excessAmount", write: "excessAmount"},
+                field: {
+                    name: "excessAmount",
+                    widget: "#Input",
+                    label: "form.excessAmountLabel",
+                    placeholder: "form.excessAmountPlaceholder",
+                    widgetProps: {type: "number", min: 0, step: "any"},
+                },
+            },
+            {
+                render: "#Field",
+                permissions: {read: "depositAmount", write: "depositAmount"},
+                field: {
+                    name: "depositAmount",
+                    widget: "#Input",
+                    label: "form.depositAmountLabel",
+                    placeholder: "form.depositAmountPlaceholder",
+                    widgetProps: {type: "number", min: 0, step: "any"},
                 },
             },
             {

@@ -2,6 +2,7 @@ import {registerCronHandler} from "@coreModule/cronjobs/registry/handlerRegistry
 import {runRentalHoldExpiry} from "@carRentalModule/utilities/cronJobs/rentalHoldExpiryJob";
 import {runRentalPickupReminders} from "@carRentalModule/utilities/cronJobs/rentalPickupReminderJob";
 import {runFleetReminders} from "@carRentalModule/utilities/cronJobs/fleetReminderJob";
+import {runRentalSubscriptions} from "@carRentalModule/utilities/cronJobs/rentalSubscriptionJob";
 
 export function registerCarRentalCronHandlers(): void {
     registerCronHandler({
@@ -36,6 +37,18 @@ export function registerCarRentalCronHandlers(): void {
         defaultJob: {
             name: "Fleet expiry and service reminders",
             cronExpression: "0 0 7 * * *",
+            priority: 10,
+        },
+    });
+
+    registerCronHandler({
+        code: "carRental.subscriptions",
+        handler: async (ctx) => {
+            await runRentalSubscriptions(ctx.company, ctx.logger);
+        },
+        defaultJob: {
+            name: "Rental subscriptions",
+            cronExpression: "0 20 * * * *",
             priority: 10,
         },
     });

@@ -17,24 +17,27 @@ function formatLocal(date: Date, timeZone: string, languageCode: string): string
     return new Intl.DateTimeFormat(languageCode, {timeZone, dateStyle: "medium", timeStyle: "short"}).format(date);
 }
 
-async function formatTotal(reservation: IRentalReservation, languageCode: string): Promise<string> {
+/** An amount in the booking's currency, for the customer's emails. */
+export async function formatAmount(reservation: IRentalReservation, amount: number, languageCode: string): Promise<string> {
     const currency = await Currency.findById(nestedEntityToRef(reservation.pricing.currency)).select("abbreviation");
     try {
-        return new Intl.NumberFormat(languageCode, {style: "currency", currency: currency?.abbreviation ?? "EUR"}).format(reservation.pricing.grandTotal);
+        return new Intl.NumberFormat(languageCode, {style: "currency", currency: currency?.abbreviation ?? "EUR"}).format(amount);
     } catch {
-        return `${reservation.pricing.grandTotal} ${currency?.abbreviation ?? ""}`.trim();
+        return `${amount} ${currency?.abbreviation ?? ""}`.trim();
     }
 }
 
 /**
  * Emails the customer about their booking once the caller's transaction has
- * committed (right away without one). Uses the booking's contact email, which
+ * committed (right away without one). Attachments are built only when the
+ * email is really sent. Uses the booking's contact email, which
  * a guest gave and a signed-in customer confirmed, with a fresh manage link.
  */
 export async function notifyRentalCustomer(
     kind: RentalCustomerEmailKind,
     reservation: IRentalReservation,
     ctx: {session?: ClientSession | null; languageCode: string},
+    options: {note?: string; attachments?: () => Promise<{filename: string; content: Buffer}[]>} = {},
 ): Promise<void> {
     await runAfterCommit(ctx.session, async () => {
         const companyId = nestedEntityToRef(reservation.company);
@@ -54,7 +57,7 @@ export async function notifyRentalCustomer(
             pickupLocation: [snapshot.pickupLocationName, snapshot.pickupAddress].filter(Boolean).join(", "),
             returnAt: formatLocal(reservation.returnAt, snapshot.timezone, ctx.languageCode),
             returnLocation: [snapshot.returnLocationName, snapshot.returnAddress].filter(Boolean).join(", "),
-            total: await formatTotal(reservation, ctx.languageCode),
+            total: await formatAmount(reservation, reservation.pricing.grandTotal, ctx.languageCode),
             manageToken: generateRecordAccessToken({
                 purpose: RENTAL_RESERVATION_LINK_PURPOSE,
                 companyId: companyId,
@@ -62,6 +65,8 @@ export async function notifyRentalCustomer(
                 version: reservation.manageTokenVersion,
             }),
             manageUrl: companySiteUrl(company, "/car-rental/manage"),
+            note: options.note,
+            attachments: options.attachments,
         });
     });
 }

@@ -1,0 +1,19 @@
+{
+  "subject": "Driver identification for notice {reference}",
+  "intro": "For the offence below, our vehicle was rented out. The person responsible for the vehicle at that time was:",
+  "reference": "Notice",
+  "offenceAt": "Date and time",
+  "place": "Place",
+  "vehicle": "Vehicle",
+  "driverTitle": "Driver",
+  "name": "Name",
+  "birthDate": "Date of birth",
+  "licence": "Driving licence",
+  "email": "Email",
+  "phone": "Phone",
+  "booking": "Rental agreement",
+  "period": "Rental period",
+  "noBooking": "Our records show no rental of this vehicle at the time of the offence.",
+  "declaration": "We confirm that these details match our rental records. Please address the notice to the driver named above.",
+  "date": "Date"
+}

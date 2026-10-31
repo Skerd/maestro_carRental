@@ -11,8 +11,13 @@ const FLEET = [
     "Vehicledocuments",
     "Vehiclemaintenances",
     "Vehicledamages",
+    "Rentalpromocodes",
+    "Vehiclefines",
+    "Vehicletransfers",
+    "Rentalbusinessaccounts",
+    "Rentaldenyentrys",
 ];
-const RESERVATIONS = ["Rentalreservations"];
+const RESERVATIONS = ["Rentalreservations", "Rentalreviews", "Rentalsubscriptions"];
 const SETTINGS = ["Carrentalconfigs"];
 
 function rentalRole(
@@ -41,13 +46,13 @@ export const carRentalDefaultRoles: DefaultRoleDefinition[] = [
         "rental_manager",
         "Runs the rental business: settings, locations, fleet, prices, extras and every reservation.",
         [...SETTINGS, ...FLEET, ...RESERVATIONS],
-        ["Paymenttransactions"],
+        ["Paymenttransactions", "Invoices"],
     ),
     rentalRole(
         "Rental Agent",
         "rental_agent",
         "Works the counter: books, hands over and takes back cars, records payments and damage, blocks cars for maintenance. Cannot change prices or settings.",
         [...RESERVATIONS, "Vehicleblocks", "Vehicledamages"],
-        ["Vehicles", "Vehiclecategories", "Rentalextras", "Rentallocations", "Vehicleinsurances", "Vehicledocuments", "Vehiclemaintenances", ...SETTINGS],
+        ["Invoices", "Vehicles", "Vehiclecategories", "Rentalextras", "Rentallocations", "Vehicleinsurances", "Vehicledocuments", "Vehiclemaintenances", "Rentalbusinessaccounts", ...SETTINGS],
     ),
 ];

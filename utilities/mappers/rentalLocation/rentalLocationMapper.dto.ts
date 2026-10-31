@@ -26,6 +26,7 @@ export function rentalLocationToDTO(location: IRentalLocation): RentalLocation {
         closures: (location.closures ?? []).map(({date, reason}) => ({date, reason})),
         pickupAllowed: location.pickupAllowed,
         returnAllowed: location.returnAllowed,
+        oneWayFee: location.oneWayFee,
         isActive: location.isActive,
         ...mapSoftDeleteToDTO(location),
         ...mapOwnershipToDTO(location),

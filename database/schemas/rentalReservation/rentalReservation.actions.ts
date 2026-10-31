@@ -3,78 +3,108 @@ import {action} from "@coreModule/api/actionDecorator";
 import {getModelCollectedData} from "@coreModule/database/collections";
 import SchemaGuard from "@coreModule/database/security/schemaGuard";
 import type {TransactionRequiredParams} from "@coreModule/utilities/middlewares/transactionUtils";
-import type {UserContext} from "@coreModule/utilities/types/types";
 import {roundMoney} from "@coreModule/utilities/helpers/money";
-import {localToUtc} from "@coreModule/utilities/time/timeWindows";
+import {localDateOf} from "@coreModule/utilities/time/timeWindows";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import {validateSingleForm} from "armonia/src/modules/core/utilities/zod/shared.validator";
-import type {RentalReservation as RentalReservationDto} from "armonia/src/modules/carRental/api/carRental/private/rentalReservation/rentalReservation.dto";
+import type {
+    RentalReservation as RentalReservationDto,
+    RentalDepositResponse,
+    RentalOpenDamage,
+    RentalReturnChargesPreview,
+} from "armonia/src/modules/carRental/api/carRental/private/rentalReservation/rentalReservation.dto";
 import {
     cancelRentalReservationFormSchema,
     extendRentalReservationFormSchema,
     handoverRentalReservationFormSchema,
+    previewReturnChargesFormSchema,
     reassignRentalVehicleFormSchema,
     recordRentalPaymentFormSchema,
     returnRentalReservationFormSchema,
+    saveRentalDriversFormSchema,
+    settleRentalDepositFormSchema,
+    takeRentalDepositFormSchema,
 } from "armonia/src/modules/carRental/api/carRental/private/rentalReservation/rentalReservation.form.validators";
 import type {
     CancelRentalReservationFormType,
     ExtendRentalReservationFormType,
     HandoverRentalReservationFormType,
+    PreviewReturnChargesFormType,
     ReassignRentalVehicleFormType,
     RecordRentalPaymentFormType,
     ReturnRentalReservationFormType,
+    SaveRentalDriversFormType,
+    SettleRentalDepositFormType,
+    TakeRentalDepositFormType,
 } from "armonia/src/modules/carRental/api/carRental/private/rentalReservation/rentalReservation.schema-def";
 import Vehicle from "../vehicle/vehicle";
+import VehicleDamage from "../vehicleDamage/vehicleDamage";
+import type {VehicleReadiness} from "armonia/src/modules/carRental/api/carRental/private/vehicle/vehicle.schema-def";
+import {
+    mapMedia,
+    nestedEntityToRef,
+} from "@coreModule/utilities/mappers/common.mapper";
 import VehicleCategory from "../vehicleCategory/vehicleCategory";
 import RentalLocation from "../rentalLocation/rentalLocation";
 import RentalReservation, {type IRentalReservation} from "./rentalReservation";
 import {carRentalConfigService} from "../carRentalConfig/carRentalConfig.service";
 import {rentalReservationToDTO} from "@carRentalModule/utilities/mappers/rentalReservation/rentalReservationMapper.dto";
-import {busyUntil, busyVehicleIds, lockVehicle} from "@carRentalModule/utilities/services/rentalAvailability";
-import {computeRentalQuote, totalsFor} from "@carRentalModule/utilities/services/rentalQuote";
+import {
+    busyVehicleIds,
+    lockVehicle,
+    needsTransferFor,
+} from "@carRentalModule/utilities/services/rentalAvailability";
 import {
     assertStatus,
     cancelRentalReservation,
+    extendRentalReservation,
     handOverRentalReservation,
     markRentalNoShow,
     returnRentalReservation,
 } from "@carRentalModule/utilities/services/rentalLifecycle";
-import {paymentStatusFor, recordCounterPayment} from "@carRentalModule/utilities/services/rentalPayments";
-import {isLocationOpenAt} from "@carRentalModule/utilities/services/rentalTrip";
+import {recordCounterPayment} from "@carRentalModule/utilities/services/rentalPayments";
+import {
+    applyDriverFees,
+    assertDriverList,
+} from "@carRentalModule/utilities/services/rentalDrivers";
+import {suggestReturnCharges} from "@carRentalModule/utilities/services/rentalReturnCharges";
+import {assertReservationWrite} from "@carRentalModule/utilities/services/rentalAccess";
+import {
+    refreshDeposit,
+    settleDeposit,
+    takeDeposit,
+} from "@carRentalModule/utilities/services/rentalDeposit";
+import {PAYMENTS} from "@financeModule/environment";
 
 const MINUTE = 60 * 1000;
 
 type ActionParams<F> = TransactionRequiredParams & F;
 
-/**
- * Actions get no permission check from the CRUD router: each one requires write
- * access to the field it changes (`status` for lifecycle moves, `amountPaid` for
- * payments), which role packs grant to agents and managers.
- */
-function assertWrite(field: "status" | "amountPaid", actionUserCtx: UserContext, languageCode: string): void {
-    const writeFields = SchemaGuard.sanitizeFields(
-        RentalReservation,
-        getModelCollectedData("rentalreservations").writeFields!,
-        "write",
-        actionUserCtx,
-        languageCode,
-    );
-    if (!writeFields[field]) {
-        throw apiValidationException("user_permissions_not_sufficient", "", null, languageCode);
-    }
-}
-
-async function loadReservation(params: TransactionRequiredParams & {_id: string}): Promise<IRentalReservation> {
+async function loadReservation(
+    params: TransactionRequiredParams & {_id: string},
+): Promise<IRentalReservation> {
     const {_id, company, session, languageCode} = params;
     const reservation = ObjectId.isValid(_id)
-        ? await RentalReservation.findOne({_id: new ObjectId(_id), company: company._id, deletedAt: null}).session(session)
+        ? await RentalReservation.findOne({
+              _id: new ObjectId(_id),
+              company: company._id,
+              deletedAt: null,
+          }).session(session)
         : null;
-    if (!reservation) throw apiValidationException("rental_reservation_not_found", "", null, languageCode);
+    if (!reservation)
+        throw apiValidationException(
+            "rental_reservation_not_found",
+            "",
+            null,
+            languageCode,
+        );
     return reservation;
 }
 
-async function toDto(reservation: IRentalReservation, params: TransactionRequiredParams): Promise<RentalReservationDto> {
+async function toDto(
+    reservation: IRentalReservation,
+    params: TransactionRequiredParams,
+): Promise<RentalReservationDto> {
     const {session, actionUserCtx, languageCode} = params;
     const readFields = SchemaGuard.sanitizeFields(
         RentalReservation,
@@ -83,88 +113,489 @@ async function toDto(reservation: IRentalReservation, params: TransactionRequire
         actionUserCtx,
         languageCode,
     );
-    const populate = SchemaGuard.generatePopulate(readFields, RentalReservation.schema);
-    const fresh = await RentalReservation.findById(reservation._id).populate(populate.populate).session(session);
+    const populate = SchemaGuard.generatePopulate(
+        readFields,
+        RentalReservation.schema,
+    );
+    const fresh = await RentalReservation.findById(reservation._id)
+        .populate(populate.populate)
+        .session(session);
     return rentalReservationToDTO(fresh ?? reservation);
 }
 
 function ctxOf(params: TransactionRequiredParams) {
-    return {session: params.session, logger: params.logger, languageCode: params.languageCode, auditUserId: params.actionUserCtx.userId};
+    return {
+        session: params.session,
+        logger: params.logger,
+        languageCode: params.languageCode,
+        auditUserId: params.actionUserCtx.userId,
+    };
 }
 
 export class RentalReservationActions {
     /** Money taken at the counter (cash or card terminal). */
-    @action({auth: "private", transaction: true, rateLimit: {windowMs: 60000, max: 30}, schema: recordRentalPaymentFormSchema})
-    async recordPayment(params: ActionParams<RecordRentalPaymentFormType>): Promise<RentalReservationDto> {
-        assertWrite("amountPaid", params.actionUserCtx, params.languageCode);
+    @action({
+        auth: "private",
+        transaction: true,
+        rateLimit: {windowMs: 60000, max: 30},
+        schema: recordRentalPaymentFormSchema,
+    })
+    async recordPayment(
+        params: ActionParams<RecordRentalPaymentFormType>,
+    ): Promise<RentalReservationDto> {
+        assertReservationWrite(
+            "amountPaid",
+            params.actionUserCtx,
+            params.languageCode,
+        );
         const reservation = await loadReservation(params);
-        assertStatus(reservation, ["confirmed", "in_progress", "completed"], params.languageCode);
-        await recordCounterPayment(reservation, params.amount, params.note, ctxOf(params));
+        assertStatus(
+            reservation,
+            ["confirmed", "in_progress", "completed"],
+            params.languageCode,
+        );
+        await recordCounterPayment(
+            reservation,
+            params.amount,
+            params.note,
+            ctxOf(params),
+        );
         await reservation.save({session: params.session});
         return toDto(reservation, params);
     }
 
-    /** The customer drives off: odometer and fuel are recorded and the car is on the road. */
-    @action({auth: "private", transaction: true, rateLimit: {windowMs: 60000, max: 30}, schema: handoverRentalReservationFormSchema})
-    async handover(params: ActionParams<HandoverRentalReservationFormType>): Promise<RentalReservationDto> {
-        assertWrite("status", params.actionUserCtx, params.languageCode);
+    /** Replaces who may drive and re-prices the driver fees. Licence details can be completed later, up to the handover. */
+    @action({
+        auth: "private",
+        transaction: true,
+        rateLimit: {windowMs: 60000, max: 30},
+        schema: saveRentalDriversFormSchema,
+    })
+    async saveDrivers(
+        params: ActionParams<SaveRentalDriversFormType>,
+    ): Promise<RentalReservationDto> {
+        assertReservationWrite(
+            "status",
+            params.actionUserCtx,
+            params.languageCode,
+        );
         const reservation = await loadReservation(params);
-        const {odometerKm, fuelLevel, notes} = params;
-        await handOverRentalReservation(reservation, {odometerKm, fuelLevel, notes, by: new ObjectId(params.actionUserCtx.userId)}, ctxOf(params));
+        assertStatus(
+            reservation,
+            ["held", "confirmed", "in_progress"],
+            params.languageCode,
+        );
+        const [category, config] = await Promise.all([
+            VehicleCategory.findOne({
+                _id: reservation.category,
+                company: params.company._id,
+            })
+                .select("minDriverAge")
+                .session(params.session),
+            carRentalConfigService.getOrCreateForCompany(
+                params.company._id,
+                ctxOf(params),
+            ),
+        ]);
+        const pickupDate = localDateOf(
+            reservation.pickupAt,
+            reservation.snapshot.timezone,
+        );
+        assertDriverList(
+            params.drivers,
+            {pickupDate, minDriverAge: category?.minDriverAge},
+            params.languageCode,
+        );
+
+        reservation.drivers = params.drivers;
+        applyDriverFees(reservation, config, params.languageCode);
+        reservation.timeline.push({
+            event: "drivers_updated",
+            at: new Date(),
+            by: new ObjectId(params.actionUserCtx.userId),
+        });
+        await reservation.save({session: params.session});
         return toDto(reservation, params);
     }
 
-    /** The car is back. Extra charges (fuel, km, damage) are added to what the customer owes. */
-    @action({auth: "private", transaction: true, rateLimit: {windowMs: 60000, max: 30}, schema: returnRentalReservationFormSchema})
-    async returnVehicle(params: ActionParams<ReturnRentalReservationFormType>): Promise<RentalReservationDto> {
-        assertWrite("status", params.actionUserCtx, params.languageCode);
+    /** The car's open damage reports for the customer to acknowledge at handover, and whether the car is ready. */
+    @action({
+        auth: "private",
+        transaction: true,
+        rateLimit: {windowMs: 60000, max: 60},
+        schema: validateSingleForm,
+    })
+    async openDamages(
+        params: ActionParams<{_id: string}>,
+    ): Promise<{data: RentalOpenDamage[]; readiness?: VehicleReadiness}> {
+        assertReservationWrite(
+            "status",
+            params.actionUserCtx,
+            params.languageCode,
+        );
         const reservation = await loadReservation(params);
-        const {odometerKm, fuelLevel, notes, damageNoted, extraCharges} = params;
+        const vehicle = await Vehicle.findOne({
+            _id: reservation.vehicle,
+            company: params.company._id,
+        })
+            .select("readiness")
+            .session(params.session);
+        const damages = await VehicleDamage.find({
+            company: params.company._id,
+            vehicle: reservation.vehicle,
+            status: {$in: ["open", "in_repair"]},
+            deletedAt: null,
+        })
+            .sort({reportedAt: -1})
+            .populate("photos")
+            .session(params.session);
+        return {
+            data: damages.map((damage) => ({
+                _id: damage._id.toString(),
+                area: damage.area,
+                severity: damage.severity,
+                description: damage.description,
+                photos: damage.photos
+                    ?.map(mapMedia)
+                    .filter((media) => media !== undefined),
+            })),
+            readiness: vehicle?.readiness,
+        };
+    }
+
+    /**
+     * Takes the deposit at pickup: cash, or the customer's card (a hold for short
+     * rentals, a saved card for long ones). A card answers with the form's secret.
+     */
+    @action({
+        auth: "private",
+        transaction: true,
+        rateLimit: {windowMs: 60000, max: 30},
+        schema: takeRentalDepositFormSchema,
+    })
+    async takeDeposit(
+        params: ActionParams<TakeRentalDepositFormType>,
+    ): Promise<{data: RentalDepositResponse}> {
+        assertReservationWrite(
+            "amountPaid",
+            params.actionUserCtx,
+            params.languageCode,
+        );
+        const reservation = await loadReservation(params);
+        assertStatus(
+            reservation,
+            ["confirmed", "in_progress"],
+            params.languageCode,
+        );
+        const form = await takeDeposit(
+            reservation,
+            {choice: params.method, amount: params.amount},
+            ctxOf(params),
+        );
+        return {
+            data: {
+                reservation: await toDto(reservation, params),
+                payment: form
+                    ? {
+                          ...form,
+                          publishableKey: PAYMENTS.STRIPE_PUBLISHABLE_KEY ?? "",
+                      }
+                    : undefined,
+            },
+        };
+    }
+
+    /** Checks with the gateway whether the customer has confirmed the card. */
+    @action({
+        auth: "private",
+        transaction: true,
+        rateLimit: {windowMs: 60000, max: 60},
+        schema: validateSingleForm,
+    })
+    async refreshDeposit(
+        params: ActionParams<{_id: string}>,
+    ): Promise<RentalReservationDto> {
+        assertReservationWrite(
+            "amountPaid",
+            params.actionUserCtx,
+            params.languageCode,
+        );
+        const reservation = await loadReservation(params);
+        await refreshDeposit(reservation, ctxOf(params));
+        return toDto(reservation, params);
+    }
+
+    /** Keeps part of the deposit for what is still owed and releases the rest. */
+    @action({
+        auth: "private",
+        transaction: true,
+        rateLimit: {windowMs: 60000, max: 30},
+        schema: settleRentalDepositFormSchema,
+    })
+    async settleDeposit(
+        params: ActionParams<SettleRentalDepositFormType>,
+    ): Promise<RentalReservationDto> {
+        assertReservationWrite(
+            "amountPaid",
+            params.actionUserCtx,
+            params.languageCode,
+        );
+        const reservation = await loadReservation(params);
+        assertStatus(
+            reservation,
+            ["in_progress", "completed"],
+            params.languageCode,
+        );
+        await settleDeposit(
+            reservation,
+            params.keepAmount,
+            {by: new ObjectId(params.actionUserCtx.userId)},
+            ctxOf(params),
+        );
+        return toDto(reservation, params);
+    }
+
+    /** The customer drives off: odometer and fuel are recorded and the car is on the road. */
+    @action({
+        auth: "private",
+        transaction: true,
+        rateLimit: {windowMs: 60000, max: 30},
+        schema: handoverRentalReservationFormSchema,
+    })
+    async handover(
+        params: ActionParams<HandoverRentalReservationFormType>,
+    ): Promise<RentalReservationDto> {
+        assertReservationWrite(
+            "status",
+            params.actionUserCtx,
+            params.languageCode,
+        );
+        const reservation = await loadReservation(params);
+        const {
+            odometerKm,
+            fuelLevel,
+            notes,
+            photos,
+            acknowledgedDamages,
+            signature,
+            signerName,
+        } = params;
+        await handOverRentalReservation(
+            reservation,
+            {
+                odometerKm,
+                fuelLevel,
+                notes,
+                photos,
+                acknowledgedDamages,
+                signature,
+                signerName,
+                by: new ObjectId(params.actionUserCtx.userId),
+            },
+            ctxOf(params),
+        );
+        return toDto(reservation, params);
+    }
+
+    /** What returning now with these readings would add: km, fuel and lateness, plus the preset fees. Changes nothing. */
+    @action({
+        auth: "private",
+        transaction: true,
+        rateLimit: {windowMs: 60000, max: 120},
+        schema: previewReturnChargesFormSchema,
+    })
+    async previewReturnCharges(
+        params: ActionParams<PreviewReturnChargesFormType>,
+    ): Promise<{data: RentalReturnChargesPreview}> {
+        assertReservationWrite(
+            "status",
+            params.actionUserCtx,
+            params.languageCode,
+        );
+        const reservation = await loadReservation(params);
+        assertStatus(reservation, ["in_progress"], params.languageCode);
+        const [config, category] = await Promise.all([
+            carRentalConfigService.getOrCreateForCompany(
+                params.company._id,
+                ctxOf(params),
+            ),
+            VehicleCategory.findOne({
+                _id: reservation.category,
+                company: params.company._id,
+            })
+                .select("dailyRate")
+                .session(params.session),
+        ]);
+        const reading = {
+            odometerKm: params.odometerKm,
+            fuelLevel: params.fuelLevel,
+            returnedAt: new Date(),
+        };
+        return {
+            data: suggestReturnCharges(
+                reservation,
+                reading,
+                config,
+                category?.dailyRate,
+                params.languageCode,
+            ),
+        };
+    }
+
+    /** The car is back. Extra charges (fuel, km, damage) are added to what the customer owes. */
+    @action({
+        auth: "private",
+        transaction: true,
+        rateLimit: {windowMs: 60000, max: 30},
+        schema: returnRentalReservationFormSchema,
+    })
+    async returnVehicle(
+        params: ActionParams<ReturnRentalReservationFormType>,
+    ): Promise<RentalReservationDto> {
+        assertReservationWrite(
+            "status",
+            params.actionUserCtx,
+            params.languageCode,
+        );
+        const reservation = await loadReservation(params);
+        const {
+            odometerKm,
+            fuelLevel,
+            notes,
+            damageNoted,
+            extraCharges,
+            photos,
+            newDamages,
+        } = params;
         await returnRentalReservation(
             reservation,
-            {odometerKm, fuelLevel, notes, damageNoted, extraCharges, by: new ObjectId(params.actionUserCtx.userId)},
+            {
+                odometerKm,
+                fuelLevel,
+                notes,
+                damageNoted,
+                extraCharges,
+                photos,
+                newDamages,
+                by: new ObjectId(params.actionUserCtx.userId),
+            },
             ctxOf(params),
         );
         return toDto(reservation, params);
     }
 
     /** Staff cancellation. The policy fee applies only when asked; any remaining payment is refunded. */
-    @action({auth: "private", transaction: true, rateLimit: {windowMs: 60000, max: 30}, schema: cancelRentalReservationFormSchema})
-    async cancel(params: ActionParams<CancelRentalReservationFormType>): Promise<RentalReservationDto> {
-        assertWrite("status", params.actionUserCtx, params.languageCode);
+    @action({
+        auth: "private",
+        transaction: true,
+        rateLimit: {windowMs: 60000, max: 30},
+        schema: cancelRentalReservationFormSchema,
+    })
+    async cancel(
+        params: ActionParams<CancelRentalReservationFormType>,
+    ): Promise<RentalReservationDto> {
+        assertReservationWrite(
+            "status",
+            params.actionUserCtx,
+            params.languageCode,
+        );
         const reservation = await loadReservation(params);
-        await cancelRentalReservation(reservation, {by: "staff", reason: params.reason, applyFee: params.applyCancellationFee ?? false}, ctxOf(params));
+        await cancelRentalReservation(
+            reservation,
+            {
+                by: "staff",
+                reason: params.reason,
+                applyFee: params.applyCancellationFee ?? false,
+            },
+            ctxOf(params),
+        );
         return toDto(reservation, params);
     }
 
     /** The customer never came. Allowed once the pickup time plus the grace period has passed. */
-    @action({auth: "private", transaction: true, rateLimit: {windowMs: 60000, max: 30}, schema: validateSingleForm})
-    async noShow(params: ActionParams<{_id: string}>): Promise<RentalReservationDto> {
-        assertWrite("status", params.actionUserCtx, params.languageCode);
+    @action({
+        auth: "private",
+        transaction: true,
+        rateLimit: {windowMs: 60000, max: 30},
+        schema: validateSingleForm,
+    })
+    async noShow(
+        params: ActionParams<{_id: string}>,
+    ): Promise<RentalReservationDto> {
+        assertReservationWrite(
+            "status",
+            params.actionUserCtx,
+            params.languageCode,
+        );
         const reservation = await loadReservation(params);
         assertStatus(reservation, ["confirmed"], params.languageCode);
-        const config = await carRentalConfigService.getOrCreateForCompany(params.company._id, ctxOf(params));
+        const config = await carRentalConfigService.getOrCreateForCompany(
+            params.company._id,
+            ctxOf(params),
+        );
         const now = new Date();
-        if (now.getTime() < reservation.pickupAt.getTime() + config.lateGraceMinutes * MINUTE) {
-            throw apiValidationException("rental_no_show_too_early", "", null, params.languageCode);
+        if (
+            now.getTime() <
+            reservation.pickupAt.getTime() + config.lateGraceMinutes * MINUTE
+        ) {
+            throw apiValidationException(
+                "rental_no_show_too_early",
+                "",
+                null,
+                params.languageCode,
+            );
         }
-        await markRentalNoShow(reservation, {by: new ObjectId(params.actionUserCtx.userId), now}, ctxOf(params));
+        await markRentalNoShow(
+            reservation,
+            {by: new ObjectId(params.actionUserCtx.userId), now},
+            ctxOf(params),
+        );
         return toDto(reservation, params);
     }
 
     /** Moves the booking to another car of the same category that is free for its whole window. */
-    @action({auth: "private", transaction: true, rateLimit: {windowMs: 60000, max: 30}, schema: reassignRentalVehicleFormSchema})
-    async reassignVehicle(params: ActionParams<ReassignRentalVehicleFormType>): Promise<RentalReservationDto> {
-        assertWrite("status", params.actionUserCtx, params.languageCode);
+    @action({
+        auth: "private",
+        transaction: true,
+        rateLimit: {windowMs: 60000, max: 30},
+        schema: reassignRentalVehicleFormSchema,
+    })
+    async reassignVehicle(
+        params: ActionParams<ReassignRentalVehicleFormType>,
+    ): Promise<RentalReservationDto> {
+        assertReservationWrite(
+            "status",
+            params.actionUserCtx,
+            params.languageCode,
+        );
         const reservation = await loadReservation(params);
         assertStatus(reservation, ["held", "confirmed"], params.languageCode);
         const companyId = params.company._id;
-        const target = await Vehicle.findOne({_id: new ObjectId(params.vehicle), company: companyId, deletedAt: null}).session(params.session);
-        if (!target) throw apiValidationException("vehicle_not_found", "", null, params.languageCode);
+        const target = await Vehicle.findOne({
+            _id: new ObjectId(params.vehicle),
+            company: companyId,
+            deletedAt: null,
+        }).session(params.session);
+        if (!target)
+            throw apiValidationException(
+                "vehicle_not_found",
+                "",
+                null,
+                params.languageCode,
+            );
         if (String(target.category) !== String(reservation.category)) {
-            throw apiValidationException("rental_vehicle_wrong_category", "", null, params.languageCode);
+            throw apiValidationException(
+                "rental_vehicle_wrong_category",
+                "",
+                null,
+                params.languageCode,
+            );
         }
-        await lockVehicle(target._id, {companyId, session: params.session, languageCode: params.languageCode});
+        await lockVehicle(target._id, {
+            companyId,
+            session: params.session,
+            languageCode: params.languageCode,
+        });
         const busy = await busyVehicleIds({
             companyId,
             vehicleIds: [target._id],
@@ -174,10 +605,30 @@ export class RentalReservationActions {
             excludeReservationId: reservation._id,
             session: params.session,
         });
-        if (busy.size) throw apiValidationException("vehicle_unavailable", "", null, params.languageCode);
+        if (busy.size)
+            throw apiValidationException(
+                "vehicle_unavailable",
+                "",
+                null,
+                params.languageCode,
+            );
 
         reservation.vehicle = target._id;
-        reservation.timeline.push({event: "vehicle_reassigned", at: new Date(), by: new ObjectId(params.actionUserCtx.userId), note: target.plate});
+        reservation.needsTransfer = await needsTransferFor(
+            target._id,
+            {
+                locationId: nestedEntityToRef(reservation.pickupLocation)!,
+                at: reservation.pickupAt,
+            },
+            companyId,
+            params.session,
+        );
+        reservation.timeline.push({
+            event: "vehicle_reassigned",
+            at: new Date(),
+            by: new ObjectId(params.actionUserCtx.userId),
+            note: target.plate,
+        });
         await reservation.save({session: params.session});
         return toDto(reservation, params);
     }
@@ -186,63 +637,30 @@ export class RentalReservationActions {
      * Keeps the car longer. The extra days are charged at today's prices: the
      * difference between today's price for the longer and the original trip.
      */
-    @action({auth: "private", transaction: true, rateLimit: {windowMs: 60000, max: 30}, schema: extendRentalReservationFormSchema})
-    async extend(params: ActionParams<ExtendRentalReservationFormType>): Promise<RentalReservationDto> {
-        assertWrite("status", params.actionUserCtx, params.languageCode);
+    @action({
+        auth: "private",
+        transaction: true,
+        rateLimit: {windowMs: 60000, max: 30},
+        schema: extendRentalReservationFormSchema,
+    })
+    async extend(
+        params: ActionParams<ExtendRentalReservationFormType>,
+    ): Promise<RentalReservationDto> {
+        assertReservationWrite(
+            "status",
+            params.actionUserCtx,
+            params.languageCode,
+        );
         const reservation = await loadReservation(params);
-        assertStatus(reservation, ["confirmed", "in_progress"], params.languageCode);
-        const companyId = params.company._id;
-        const ctx = ctxOf(params);
-
-        const [config, returnLocation, category] = await Promise.all([
-            carRentalConfigService.getOrCreateForCompany(companyId, ctx),
-            RentalLocation.findOne({_id: reservation.returnLocation, company: companyId}).session(params.session),
-            VehicleCategory.findOne({_id: reservation.category, company: companyId}).session(params.session),
-        ]);
-        if (!returnLocation || !category) throw apiValidationException("rental_reservation_not_found", "", null, params.languageCode);
-
-        const newReturnAt = localToUtc(params.returnDate, params.returnTime, returnLocation.timezone);
-        if (!newReturnAt) throw apiValidationException("rental_invalid_return_time", "", null, params.languageCode);
-        if (newReturnAt <= reservation.returnAt) throw apiValidationException("rental_return_before_pickup", "", null, params.languageCode);
-        if (!isLocationOpenAt(returnLocation, newReturnAt)) {
-            throw apiValidationException("rental_location_closed_at_return", "", null, params.languageCode, [returnLocation.name]);
-        }
-
-        const newBlockedUntil = busyUntil(newReturnAt, config.turnaroundBufferMinutes);
-        const vehicleId = new ObjectId(String(reservation.vehicle));
-        await lockVehicle(vehicleId, {companyId, session: params.session, languageCode: params.languageCode, requireActive: false});
-        const busy = await busyVehicleIds({
-            companyId,
-            vehicleIds: [vehicleId],
-            start: reservation.pickupAt,
-            end: newBlockedUntil,
-            now: new Date(),
-            excludeReservationId: reservation._id,
-            session: params.session,
-        });
-        if (busy.size) throw apiValidationException("vehicle_unavailable", "", null, params.languageCode);
-
-        const quoteFor = (returnAt: Date) => computeRentalQuote({
-            category,
-            extras: reservation.extras.map(({name, pricing, unitPrice, quantity}) => ({name, pricing, price: unitPrice, quantity})),
-            pickupAt: reservation.pickupAt,
-            returnAt,
-            timeZone: reservation.snapshot.timezone,
-            settings: {vatRate: reservation.pricing.vatRate, pricesIncludeVat: reservation.pricing.pricesIncludeVat, lateGraceMinutes: config.lateGraceMinutes},
-        });
-        const longer = quoteFor(newReturnAt);
-        const original = quoteFor(reservation.returnAt);
-        const extension = roundMoney(Math.max(0, longer.subtotal - original.subtotal));
-        if (extension > 0) {
-            reservation.pricing.lines.push({label: category.name, kind: "extension", quantity: 1, unitPrice: extension, total: extension});
-        }
-        reservation.pricing.rentalDays = longer.rentalDays;
-        Object.assign(reservation.pricing, totalsFor(reservation.pricing.lines, reservation.pricing.vatRate, reservation.pricing.pricesIncludeVat));
-        reservation.paymentStatus = paymentStatusFor(reservation, false);
-        reservation.returnAt = newReturnAt;
-        reservation.blockedUntil = newBlockedUntil;
-        reservation.timeline.push({event: "extended", at: new Date(), by: new ObjectId(params.actionUserCtx.userId), note: newReturnAt.toISOString()});
-        await reservation.save({session: params.session});
+        await extendRentalReservation(
+            reservation,
+            {
+                returnDate: params.returnDate,
+                returnTime: params.returnTime,
+                by: new ObjectId(params.actionUserCtx.userId),
+            },
+            ctxOf(params),
+        );
         return toDto(reservation, params);
     }
 }

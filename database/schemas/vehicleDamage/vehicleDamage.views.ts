@@ -148,6 +148,32 @@ export const vehicleDamageSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            permissions: {read: "chargedAmount"},
+                            field: {
+                                name: "chargedAmount",
+                                widget: "#DisplayCard",
+                                label: "chargedAmount",
+                                widgetProps: {
+                                    icon: "#IconReceipt",
+                                    type: "number",
+                                },
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "chargedAt"},
+                            field: {
+                                name: "chargedAt",
+                                widget: "#DisplayCard",
+                                label: "chargedAt",
+                                widgetProps: {
+                                    icon: "#IconCalendarCheck",
+                                    type: "date",
+                                },
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
                             permissions: {read: "repairedAt"},
                             field: {
                                 name: "repairedAt",

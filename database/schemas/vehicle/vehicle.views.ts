@@ -256,6 +256,59 @@ export const vehicleSheetView: ViewConfig = {
                                 },
                             },
                         },
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "trackerId"},
+                            field: {
+                                name: "trackerId",
+                                widget: "#DisplayCard",
+                                label: "trackerId",
+                                widgetProps: {
+                                    icon: "#IconMapPin",
+                                    type: "text",
+                                },
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "lastLatitude"},
+                            field: {
+                                name: "lastLatitude",
+                                widget: "#DisplayCard",
+                                label: "lastLatitude",
+                                widgetProps: {
+                                    icon: "#IconMapPin",
+                                    type: "number",
+                                },
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "lastLongitude"},
+                            field: {
+                                name: "lastLongitude",
+                                widget: "#DisplayCard",
+                                label: "lastLongitude",
+                                widgetProps: {
+                                    icon: "#IconMapPin",
+                                    type: "number",
+                                },
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "lastReportedAt"},
+                            field: {
+                                name: "lastReportedAt",
+                                widget: "#DisplayCard",
+                                label: "lastReportedAt",
+                                widgetProps: {
+                                    icon: "#IconCalendar",
+                                    format: "date",
+                                    type: "date",
+                                },
+                            },
+                        },
                     ],
                 },
             ],
@@ -411,6 +464,16 @@ const vehicleCreateFormNodes: ViewConfig["nodes"] = [
                     label: "form.purchasePriceLabel",
                     placeholder: "form.purchasePricePlaceholder",
                     widgetProps: {type: "number", min: 0, step: "0.01"},
+                },
+            },
+            {
+                render: "#Field",
+                field: {
+                    name: "trackerId",
+                    widget: "#Input",
+                    label: "form.trackerIdLabel",
+                    placeholder: "form.trackerIdPlaceholder",
+                    widgetProps: {maxLength: 64},
                 },
             },
         ],
@@ -642,6 +705,17 @@ const vehicleEditFormNodes: ViewConfig["nodes"] = [
                     label: "form.purchasePriceLabel",
                     placeholder: "form.purchasePricePlaceholder",
                     widgetProps: {type: "number", min: 0, step: "0.01"},
+                },
+            },
+            {
+                render: "#Field",
+                permissions: {read: "trackerId", write: "trackerId"},
+                field: {
+                    name: "trackerId",
+                    widget: "#Input",
+                    label: "form.trackerIdLabel",
+                    placeholder: "form.trackerIdPlaceholder",
+                    widgetProps: {maxLength: 64},
                 },
             },
         ],

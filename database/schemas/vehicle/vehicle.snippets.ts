@@ -8,5 +8,6 @@ export const VehicleSimpleSnippet = defineSnippet<IVehicle, VehicleSimple>()({
         make: {},
         model: {},
         plate: {},
+        readiness: {},
     },
 });

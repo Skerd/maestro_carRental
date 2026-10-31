@@ -244,6 +244,32 @@ export const vehicleCategorySheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            permissions: {read: "crossBorderAllowed"},
+                            field: {
+                                name: "crossBorderAllowed",
+                                widget: "#DisplayCard",
+                                label: "crossBorderAllowed",
+                                widgetProps: {
+                                    icon: "#IconWorld",
+                                    type: "boolean",
+                                },
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "crossBorderFee"},
+                            field: {
+                                name: "crossBorderFee",
+                                widget: "#DisplayCard",
+                                label: "crossBorderFee",
+                                widgetProps: {
+                                    icon: "#IconCash",
+                                    type: "number",
+                                },
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
                             permissions: {read: "mileagePolicy"},
                             field: {
                                 name: "mileagePolicy",
@@ -549,6 +575,24 @@ const vehicleCategoryCreateFormNodes: ViewConfig["nodes"] = [
                             widget: "#Input",
                             label: "form.depositAmountLabel",
                             placeholder: "form.depositAmountPlaceholder",
+                            widgetProps: {type: "number", min: 0, step: "any"},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "crossBorderAllowed",
+                            widget: "#Switch",
+                            label: "form.crossBorderAllowedLabel",
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "crossBorderFee",
+                            widget: "#Input",
+                            label: "form.crossBorderFeeLabel",
+                            placeholder: "form.crossBorderFeePlaceholder",
                             widgetProps: {type: "number", min: 0, step: "any"},
                         },
                     },
@@ -959,6 +1003,32 @@ const vehicleCategoryEditFormNodes: ViewConfig["nodes"] = [
                             widget: "#Input",
                             label: "form.depositAmountLabel",
                             placeholder: "form.depositAmountPlaceholder",
+                            widgetProps: {type: "number", min: 0, step: "any"},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {
+                            read: "crossBorderAllowed",
+                            write: "crossBorderAllowed",
+                        },
+                        field: {
+                            name: "crossBorderAllowed",
+                            widget: "#Switch",
+                            label: "form.crossBorderAllowedLabel",
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {
+                            read: "crossBorderFee",
+                            write: "crossBorderFee",
+                        },
+                        field: {
+                            name: "crossBorderFee",
+                            widget: "#Input",
+                            label: "form.crossBorderFeeLabel",
+                            placeholder: "form.crossBorderFeePlaceholder",
                             widgetProps: {type: "number", min: 0, step: "any"},
                         },
                     },

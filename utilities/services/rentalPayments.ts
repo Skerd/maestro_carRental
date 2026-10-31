@@ -7,24 +7,48 @@ import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import Currency from "@coreModule/database/schemas/currency/currency";
 import {paymentTransactionService} from "@financeModule/database/schemas/paymentTransaction/paymentTransaction.service";
 import {getPaymentAdapter} from "@financeModule/utilities/services/payment/paymentService";
-import {recordManualCharge, refundSourceCharges, type PaymentSource} from "@financeModule/utilities/services/payment/sourcePayments";
+import {
+    recordManualCharge,
+    refundSourceCharges,
+    type PaymentSource,
+} from "@financeModule/utilities/services/payment/sourcePayments";
 import type {IRentalReservation} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation";
 
-type Ctx = {session: ClientSession; logger: serverLogger; languageCode: string; auditUserId?: string | ObjectId};
+type Ctx = {
+    session: ClientSession;
+    logger: serverLogger;
+    languageCode: string;
+    auditUserId?: string | ObjectId;
+};
 
 /** Money still owed on a reservation. */
-export function amountDue(reservation: Pick<IRentalReservation, "pricing" | "amountPaid">): number {
-    return roundMoney(Math.max(0, reservation.pricing.grandTotal - reservation.amountPaid));
+export function amountDue(
+    reservation: Pick<IRentalReservation, "pricing" | "amountPaid">,
+): number {
+    return roundMoney(
+        Math.max(0, reservation.pricing.grandTotal - reservation.amountPaid),
+    );
 }
 
 /** Payment status that follows from what was paid and refunded; never set it any other way. */
-export function paymentStatusFor(reservation: Pick<IRentalReservation, "pricing" | "amountPaid">, refunded: boolean): IRentalReservation["paymentStatus"] {
-    if (refunded) return reservation.amountPaid > 0 ? "partially_refunded" : "refunded";
+export function paymentStatusFor(
+    reservation: Pick<IRentalReservation, "pricing" | "amountPaid">,
+    refunded: boolean,
+): IRentalReservation["paymentStatus"] {
+    if (refunded)
+        return reservation.amountPaid > 0 ? "partially_refunded" : "refunded";
     return amountDue(reservation) <= 0 ? "paid" : "unpaid";
 }
 
-export async function currencyCodeOf(reservation: IRentalReservation, session: ClientSession): Promise<string> {
-    const currency = await Currency.findById(nestedEntityToRef(reservation.pricing.currency)).select("abbreviation").session(session);
+export async function currencyCodeOf(
+    reservation: IRentalReservation,
+    session: ClientSession,
+): Promise<string> {
+    const currency = await Currency.findById(
+        nestedEntityToRef(reservation.pricing.currency),
+    )
+        .select("abbreviation")
+        .session(session);
     return (currency?.abbreviation ?? "eur").toLowerCase();
 }
 
@@ -33,10 +57,18 @@ export async function currencyCodeOf(reservation: IRentalReservation, session: C
  * the reservation (so a replayed request reuses it) and a pending ledger row the
  * webhook settles. Returns the client secret the public site confirms with.
  */
-export async function startOnlinePayment(reservation: IRentalReservation, ctx: Ctx): Promise<{clientSecret: string}> {
+export async function startOnlinePayment(
+    reservation: IRentalReservation,
+    ctx: Ctx,
+): Promise<{clientSecret: string}> {
     const adapter = getPaymentAdapter("stripe");
     if (!adapter?.isEnabled()) {
-        throw apiValidationException("rental_online_payment_unavailable", "", null, ctx.languageCode);
+        throw apiValidationException(
+            "rental_online_payment_unavailable",
+            "",
+            null,
+            ctx.languageCode,
+        );
     }
     const companyId = nestedEntityToRef(reservation.company);
     const intent = await adapter.createPaymentIntent({
@@ -67,8 +99,68 @@ export async function startOnlinePayment(reservation: IRentalReservation, ctx: C
     return {clientSecret: intent.clientSecret ?? ""};
 }
 
+/**
+ * Charges whatever is still owed, after an extension or from the manage page.
+ * The intent id is kept beside the original one, so a late webhook for the first
+ * payment still finds the booking.
+ */
+export async function startBalancePayment(
+    reservation: IRentalReservation,
+    ctx: Ctx,
+): Promise<{clientSecret: string}> {
+    const due = amountDue(reservation);
+    if (due <= 0)
+        throw apiValidationException(
+            "rental_nothing_to_pay",
+            "",
+            null,
+            ctx.languageCode,
+        );
+    const adapter = getPaymentAdapter("stripe");
+    if (!adapter?.isEnabled()) {
+        throw apiValidationException(
+            "rental_online_payment_unavailable",
+            "",
+            null,
+            ctx.languageCode,
+        );
+    }
+    const companyId = nestedEntityToRef(reservation.company);
+    const intent = await adapter.createPaymentIntent({
+        amount: due,
+        currencyCode: await currencyCodeOf(reservation, ctx.session),
+        metadata: {
+            sourceType: "rentalReservation",
+            reservationId: reservation._id.toString(),
+            companyId: String(companyId),
+        },
+        idempotencyKey: `rental-bal-${reservation._id.toString()}-${reservation.amountPaid}`,
+    });
+    await paymentTransactionService.createPending(
+        {
+            sourceType: "rentalReservation",
+            sourceId: reservation._id,
+            gateway: "stripe",
+            amount: due,
+            currency: nestedEntityToRef(reservation.pricing.currency),
+            gatewayTransactionId: intent.id,
+            company: companyId,
+        },
+        ctx,
+    );
+    reservation.balanceIntentIds = [
+        ...(reservation.balanceIntentIds ?? []),
+        intent.id,
+    ];
+    await reservation.save({session: ctx.session});
+    return {clientSecret: intent.clientSecret ?? ""};
+}
+
 /** The reservation as a ledger source, for the shared manual-charge and refund moves. */
-async function rentalSource(reservation: IRentalReservation, session: ClientSession): Promise<PaymentSource> {
+async function rentalSource(
+    reservation: IRentalReservation,
+    session: ClientSession,
+): Promise<PaymentSource> {
     return {
         sourceType: "rentalReservation",
         sourceId: reservation._id,
@@ -88,12 +180,27 @@ export async function recordCounterPayment(
 ): Promise<void> {
     const due = amountDue(reservation);
     if (amount > due + 0.005) {
-        throw apiValidationException("rental_payment_exceeds_due", "", null, ctx.languageCode, [String(due)]);
+        throw apiValidationException(
+            "rental_payment_exceeds_due",
+            "",
+            null,
+            ctx.languageCode,
+            [String(due)],
+        );
     }
-    await recordManualCharge(await rentalSource(reservation, ctx.session), amount, note, ctx);
+    await recordManualCharge(
+        await rentalSource(reservation, ctx.session),
+        amount,
+        note,
+        ctx,
+    );
     reservation.amountPaid = roundMoney(reservation.amountPaid + amount);
     reservation.paymentStatus = paymentStatusFor(reservation, false);
-    reservation.timeline.push({event: "payment_received", at: now, note: note ?? `manual ${roundMoney(amount)}`});
+    reservation.timeline.push({
+        event: "payment_received",
+        at: now,
+        note: note ?? `manual ${roundMoney(amount)}`,
+    });
 }
 
 /**
@@ -101,16 +208,30 @@ export async function recordCounterPayment(
  * back through the gateway; counter payments are recorded as manual refunds the
  * staff pay out. Returns the amount refunded.
  */
-export async function refundRentalPayments(reservation: IRentalReservation, amount: number, reason: string, ctx: Ctx): Promise<number> {
+export async function refundRentalPayments(
+    reservation: IRentalReservation,
+    amount: number,
+    reason: string,
+    ctx: Ctx,
+): Promise<number> {
     const refunded = await refundSourceCharges(
         await rentalSource(reservation, ctx.session),
-        {amount, paid: reservation.amountPaid, reason, idempotencyPrefix: `rental-refund-${reservation._id.toString()}`},
+        {
+            amount,
+            paid: reservation.amountPaid,
+            reason,
+            idempotencyPrefix: `rental-refund-${reservation._id.toString()}`,
+        },
         ctx,
     );
     if (refunded > 0) {
         reservation.amountPaid = roundMoney(reservation.amountPaid - refunded);
         reservation.paymentStatus = paymentStatusFor(reservation, true);
-        reservation.timeline.push({event: "refunded", at: new Date(), note: `${refunded}`});
+        reservation.timeline.push({
+            event: "refunded",
+            at: new Date(),
+            note: `${refunded}`,
+        });
     }
     return refunded;
 }

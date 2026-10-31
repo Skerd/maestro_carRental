@@ -26,5 +26,20 @@
   "footerNote": "E morët këtë email sepse me këtë adresë u rezervua një makinë te {companyName}.",
   "preheaderConfirmed": "Qiraja juaj është konfirmuar. Ja detajet.",
   "preheaderCancelled": "Qiraja juaj është anuluar.",
-  "preheaderReminder": "Marrja e makinës suaj po afron."
+  "preheaderReminder": "Marrja e makinës suaj po afron.",
+  "headingHandedOver": "Udhëtim të mbarë",
+  "subjectHandedOver": "Kontrata juaj e qirasë për rezervimin {number} — {companyName}",
+  "introHandedOver": "E morët makinën. Kontrata e qirasë është bashkëngjitur.",
+  "closingHandedOver": "Mbajeni kontratën me vete gjatë udhëtimit. Telefononi zyrën nëse ndodh diçka.",
+  "preheaderHandedOver": "Kontrata juaj e qirasë është bashkëngjitur.",
+  "headingReturned": "Faleminderit që e kthyet makinën",
+  "subjectReturned": "Rezervimi {number} përfundoi — {companyName}",
+  "introReturned": "Qiraja juaj përfundoi. Ja totali përfundimtar.",
+  "closingReturned": "Shpresojmë t'ju shohim përsëri.",
+  "preheaderReturned": "Qiraja juaj përfundoi.",
+  "headingCharged": "U shtua një pagesë në rezervimin tuaj",
+  "subjectCharged": "Pagesë e re në rezervimin {number} — {companyName}",
+  "introCharged": "Shtuam një pagesë në rezervimin tuaj: {note}",
+  "closingCharged": "Përgjigjuni këtij emaili nëse keni pyetje për këtë pagesë.",
+  "preheaderCharged": "U shtua një pagesë në rezervimin tuaj."
 }

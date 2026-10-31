@@ -1,0 +1,17 @@
+{
+  "youngDriver": "Shofer i ri: {name}",
+  "additionalDriver": "Shofer shtesë: {name}",
+  "oneWay": "Tarifa e kthimit diku tjetër",
+  "promo": "Kodi promocional {code}",
+  "account": "Zbritje llogarie",
+  "crossBorder": "Tarifa jashtë vendit",
+  "extraKm": "Km shtesë ({km} km)",
+  "fuel": "Karburant ({quarters}/4 rezervuar mungon)",
+  "refuelService": "Shërbimi i furnizimit me karburant",
+  "lateReturn": "Kthim me vonesë ({hours} orë)",
+  "cleaning": "Pastrim",
+  "smoking": "Tarifa e duhanit",
+  "damage": "Dëmtim: {description}",
+  "fine": "Gjobë {reference}",
+  "fineAdmin": "Tarifa e trajtimit të gjobës"
+}

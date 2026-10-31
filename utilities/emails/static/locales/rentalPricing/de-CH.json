@@ -1,0 +1,17 @@
+{
+  "youngDriver": "Junglenker/in: {name}",
+  "additionalDriver": "Zusätzliche/r Fahrer/in: {name}",
+  "oneWay": "Einweggebühr",
+  "promo": "Aktionscode {code}",
+  "account": "Kontorabatt",
+  "crossBorder": "Grenzübertritt",
+  "extraKm": "Mehrkilometer ({km} km)",
+  "fuel": "Treibstoff ({quarters}/4 Tank fehlt)",
+  "refuelService": "Auftankservice",
+  "lateReturn": "Verspätete Rückgabe ({hours} Std.)",
+  "cleaning": "Reinigung",
+  "smoking": "Rauchergebühr",
+  "damage": "Schaden: {description}",
+  "fine": "Busse {reference}",
+  "fineAdmin": "Bearbeitungsgebühr Busse"
+}

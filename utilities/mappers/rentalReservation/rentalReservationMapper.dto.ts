@@ -1,4 +1,4 @@
-import type {IRentalReservation} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation";
+import type {IRentalReservation, IRentalVehicleCheck} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation";
 import type {RentalReservation} from "armonia/src/modules/carRental/api/carRental/private/rentalReservation/rentalReservation.dto";
 import type {PublicRentalReservation} from "armonia/src/modules/carRental/api/carRental/public/rentalStorefront/rentalStorefront.response.types";
 import type {CurrencySimple} from "armonia/src/modules/core/dto/currency.dto";
@@ -7,7 +7,8 @@ import type {VehicleCategorySimple} from "armonia/src/modules/carRental/dto/vehi
 import type {VehicleSimple} from "armonia/src/modules/carRental/dto/vehicle.dto";
 import type {RentalLocationSimple} from "armonia/src/modules/carRental/dto/rentalLocation.dto";
 import type {RentalExtraSimple} from "armonia/src/modules/carRental/dto/rentalExtra.dto";
-import {dateToISOString, mapSnippet} from "@coreModule/utilities/mappers/common.mapper";
+import {dateToISOString, mapMedia, mapSnippet, nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
+import {amountDue} from "@carRentalModule/utilities/services/rentalPayments";
 import {CurrencySimpleSnippet} from "@coreModule/database/schemas/currency/currency.snippets";
 import {SimpleBlankUserSnippet} from "@coreModule/database/schemas/user/user.snippets";
 import {VehicleCategorySimpleSnippet} from "@carRentalModule/database/schemas/vehicleCategory/vehicleCategory.snippets";
@@ -24,12 +25,18 @@ function contactToDTO({firstName, lastName, email, phone}: IRentalReservation["c
     return {firstName, lastName, email, phone};
 }
 
+function driversToDTO(drivers: IRentalReservation["drivers"]) {
+    return (drivers ?? []).map(({role, firstName, lastName, birthDate, licenseNumber, licenseCountry, licenseIssuedAt, licenseExpiresAt, idDocumentType, idDocumentNumber}) => (
+        {role, firstName, lastName, birthDate, licenseNumber, licenseCountry, licenseIssuedAt, licenseExpiresAt, idDocumentType, idDocumentNumber}
+    ));
+}
+
 function snapshotToDTO(snapshot: IRentalReservation["snapshot"]) {
     const {categoryName, vehicleLabel, pickupLocationName, pickupAddress, returnLocationName, returnAddress, timezone, mileagePolicy, includedKmPerDay, extraKmPrice} = snapshot;
     return {categoryName, vehicleLabel, pickupLocationName, pickupAddress, returnLocationName, returnAddress, timezone, mileagePolicy, includedKmPerDay, extraKmPrice};
 }
 
-function vehicleCheck(check: IRentalReservation["handover"]) {
+function vehicleCheck(check: IRentalVehicleCheck | undefined) {
     if (!check) return undefined;
     return {
         at: dateToISOString(check.at),
@@ -37,6 +44,17 @@ function vehicleCheck(check: IRentalReservation["handover"]) {
         odometerKm: check.odometerKm,
         fuelLevel: check.fuelLevel,
         notes: check.notes,
+        photos: check.photos?.length ? check.photos.map(mapMedia).filter((media) => media !== undefined) : undefined,
+    };
+}
+
+function agreementToDTO(agreement: IRentalReservation["agreement"]) {
+    if (!agreement) return undefined;
+    return {
+        signedAt: agreement.signedAt ? dateToISOString(agreement.signedAt) : undefined,
+        signerName: agreement.signerName,
+        signature: agreement.signature ? mapMedia(agreement.signature) : undefined,
+        termsVersion: agreement.termsVersion,
     };
 }
 
@@ -45,7 +63,7 @@ function pricingToDTO(reservation: IRentalReservation) {
     return {
         rentalDays: pricing.rentalDays,
         currency: mapSnippet<CurrencySimple>()(pricing.currency, CurrencySimpleSnippet),
-        lines: pricing.lines.map(({label, kind, quantity, unitPrice, total}) => ({label, kind, quantity, unitPrice, total})),
+        lines: pricing.lines.map(({label, kind, code, quantity, unitPrice, total}) => ({label, kind, code, quantity, unitPrice, total})),
         subtotal: pricing.subtotal,
         vatRate: pricing.vatRate,
         vatAmount: pricing.vatAmount,
@@ -70,6 +88,8 @@ export function rentalReservationToDTO(reservation: IRentalReservation): RentalR
         holdExpiresAt: optionalIso(reservation.holdExpiresAt),
         customer: mapSnippet<SimpleBlankUser>()(reservation.customer, SimpleBlankUserSnippet),
         contact: contactToDTO(reservation.contact),
+        drivers: driversToDTO(reservation.drivers),
+        promoCode: reservation.promoCode ? {code: reservation.promoCode.code} : undefined,
         extras: (reservation.extras ?? []).map((line) => ({
             extra: mapSnippet<RentalExtraSimple>()(line.extra, RentalExtraSimpleSnippet),
             name: line.name,
@@ -89,8 +109,23 @@ export function rentalReservationToDTO(reservation: IRentalReservation): RentalR
         paymentStatus: reservation.paymentStatus,
         amountPaid: reservation.amountPaid,
         notes: reservation.notes,
-        handover: vehicleCheck(reservation.handover),
+        handover: reservation.handover
+            ? {...vehicleCheck(reservation.handover)!, acknowledgedDamages: (reservation.handover.acknowledgedDamages ?? []).map(String)}
+            : undefined,
         returnInfo: reservation.returnInfo ? {...vehicleCheck(reservation.returnInfo)!, damageNoted: reservation.returnInfo.damageNoted} : undefined,
+        agreement: agreementToDTO(reservation.agreement),
+        needsTransfer: reservation.needsTransfer ?? false,
+        deposit: reservation.deposit
+            ? {
+                method: reservation.deposit.method,
+                status: reservation.deposit.status,
+                amount: reservation.deposit.amount,
+                capturedAmount: reservation.deposit.capturedAmount ?? 0,
+                hasSavedCard: !!reservation.deposit.paymentMethodId,
+                heldAt: optionalIso(reservation.deposit.heldAt),
+                settledAt: optionalIso(reservation.deposit.settledAt),
+            }
+            : undefined,
         timeline: (reservation.timeline ?? []).map(({event, at, note}) => ({event, at: dateToISOString(at), note})),
         cancelledAt: optionalIso(reservation.cancelledAt),
         cancelledBy: reservation.cancelledBy,
@@ -109,6 +144,20 @@ export function rentalReservationsToDTO(reservations: IRentalReservation[]): Ren
  * What the customer sees: their own booking without staff data (vehicle id,
  * internal notes, timeline, who did what). `pricing.currency` must be populated.
  */
+function primaryDriver(reservation: IRentalReservation): PublicRentalReservation["driver"] {
+    const driver = reservation.drivers.find((row) => row.role === "primary") ?? reservation.drivers[0];
+    if (!driver) return undefined;
+    return {
+        licenseNumber: driver.licenseNumber,
+        licenseCountry: driver.licenseCountry,
+        licenseIssuedAt: driver.licenseIssuedAt,
+        licenseExpiresAt: driver.licenseExpiresAt,
+        idDocumentType: driver.idDocumentType,
+        idDocumentNumber: driver.idDocumentNumber,
+        documents: driver.documents?.length ?? 0,
+    };
+}
+
 export function rentalReservationToPublic(reservation: IRentalReservation, now = new Date()): PublicRentalReservation {
     return {
         _id: reservation._id.toString(),
@@ -126,12 +175,22 @@ export function rentalReservationToPublic(reservation: IRentalReservation, now =
         holdExpiresAt: optionalIso(reservation.holdExpiresAt),
         contact: contactToDTO(reservation.contact),
         pricing: pricingToDTO(reservation),
-        extras: reservation.extras.map(({name, quantity, total}) => ({name, quantity, total})),
+        extras: reservation.extras.map(({extra, name, quantity, total}) => ({extraId: String(nestedEntityToRef(extra)), name, quantity, total})),
         paymentChoice: reservation.paymentChoice,
         paymentStatus: reservation.paymentStatus,
         amountPaid: reservation.amountPaid,
+        amountDue: amountDue(reservation),
         freeCancellationUntil: dateToISOString(freeCancellationUntil(reservation)),
         cancellationFeePercent: reservation.policy.cancellationFeePercent,
         canCancel: (reservation.status === "held" || reservation.status === "confirmed") && reservation.pickupAt > now,
+        canExtend: reservation.status === "confirmed" || reservation.status === "in_progress",
+        canAddExtras: (reservation.status === "held" || reservation.status === "confirmed") && reservation.pickupAt > now,
+        canPayBalance: amountDue(reservation) > 0 && reservation.status !== "cancelled" && reservation.status !== "expired",
+        canUploadDocuments: reservation.status === "held" || reservation.status === "confirmed",
+        canReview: reservation.status === "completed",
+        hasAgreement: Boolean(reservation.handover),
+        crossBorder: reservation.crossBorder === true,
+        driver: primaryDriver(reservation),
+        invoices: [],
     };
 }

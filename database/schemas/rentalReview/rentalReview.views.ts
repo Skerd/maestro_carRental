@@ -1,0 +1,256 @@
+import type {ViewConfig} from "armonia/src/modules/core/api/auxiliary/private/viewConfig";
+import {lifecycleSheetGroup} from "@coreModule/database/schemas/shared/lifecycleSheetGroup";
+import {
+    RENTAL_REVIEW_AUTHOR_NAME_MAX,
+    RENTAL_REVIEW_COMMENT_MAX,
+} from "armonia/src/modules/carRental/api/carRental/private/rentalReview/rentalReview.schema-def";
+
+const API_URL = "/api/carRental/rentalReview";
+
+export const rentalReviewSheetView: ViewConfig = {
+    model: "rentalreviews",
+    viewType: "sheet",
+    accessModel: "rentalreviews",
+    apiUrl: API_URL,
+    header: {
+        titleField: "authorName",
+        subtitleKey: "rentalReviewSubtitle",
+        showCloseButton: true,
+    },
+    nodes: [
+        {
+            render: "#SheetGroup",
+            props: {title: "overview"},
+            children: [
+                {
+                    render: "#SheetGrid",
+                    props: {columns: 2},
+                    children: [
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "reservation"},
+                            field: {
+                                name: "reservation.number",
+                                widget: "#DisplayCard",
+                                label: "reservation",
+                                widgetProps: {icon: "#IconCalendarEvent"},
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "rating"},
+                            field: {
+                                name: "rating",
+                                widget: "#DisplayCard",
+                                label: "rating",
+                                widgetProps: {
+                                    icon: "#IconStar",
+                                    type: "number",
+                                },
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "authorName"},
+                            field: {
+                                name: "authorName",
+                                widget: "#DisplayCard",
+                                label: "authorName",
+                                widgetProps: {icon: "#IconUser"},
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "isPublished"},
+                            field: {
+                                name: "isPublished",
+                                widget: "#DisplayCard",
+                                label: "isPublished",
+                                widgetProps: {
+                                    icon: "#IconWorld",
+                                    type: "boolean",
+                                },
+                            },
+                        },
+                    ],
+                },
+                {
+                    render: "#DisplayCard",
+                    permissions: {read: "comment"},
+                    field: {
+                        name: "comment",
+                        widget: "#DisplayCard",
+                        label: "comment",
+                        widgetProps: {icon: "#IconMessage"},
+                    },
+                },
+            ],
+        },
+        lifecycleSheetGroup,
+    ],
+};
+
+const rentalReviewCreateFormNodes: ViewConfig["nodes"] = [
+    {
+        render: "#FormGrid",
+        props: {columns: 2},
+        children: [
+            {
+                render: "#Field",
+                field: {
+                    name: "reservation",
+                    widget: "#ApiSelect",
+                    label: "form.reservationLabel",
+                    placeholder: "form.reservationPlaceholder",
+                    required: true,
+                    widgetProps: {
+                        apiUrl: "/api/carRental/rentalReservation/select",
+                        method: "POST",
+                        pageSize: 50,
+                        normalizeEmptyToUndefined: true,
+                    },
+                },
+            },
+            {
+                render: "#Field",
+                field: {
+                    name: "rating",
+                    widget: "#Input",
+                    label: "form.ratingLabel",
+                    placeholder: "form.ratingPlaceholder",
+                    required: true,
+                    widgetProps: {type: "number", min: 1, step: "any"},
+                },
+            },
+            {
+                render: "#Field",
+                field: {
+                    name: "authorName",
+                    widget: "#Input",
+                    label: "form.authorNameLabel",
+                    placeholder: "form.authorNamePlaceholder",
+                    required: true,
+                    widgetProps: {maxLength: RENTAL_REVIEW_AUTHOR_NAME_MAX},
+                },
+            },
+            {
+                render: "#Field",
+                field: {
+                    name: "isPublished",
+                    widget: "#Switch",
+                    label: "form.isPublishedLabel",
+                },
+            },
+        ],
+    },
+    {
+        render: "#Field",
+        field: {
+            name: "comment",
+            widget: "#Textarea",
+            label: "form.commentLabel",
+            placeholder: "form.commentPlaceholder",
+            widgetProps: {rows: 3, maxLength: RENTAL_REVIEW_COMMENT_MAX},
+        },
+    },
+];
+
+const rentalReviewEditFormNodes: ViewConfig["nodes"] = [
+    {
+        render: "#FormGrid",
+        props: {columns: 2},
+        permissions: {
+            readAny: ["reservation", "rating", "authorName", "isPublished"],
+            writeAny: ["reservation", "rating", "authorName", "isPublished"],
+        },
+        children: [
+            {
+                render: "#Field",
+                permissions: {read: "reservation", write: "reservation"},
+                field: {
+                    name: "reservation",
+                    widget: "#ApiSelect",
+                    label: "form.reservationLabel",
+                    placeholder: "form.reservationPlaceholder",
+                    required: true,
+                    widgetProps: {
+                        apiUrl: "/api/carRental/rentalReservation/select",
+                        method: "POST",
+                        pageSize: 50,
+                        normalizeEmptyToUndefined: true,
+                    },
+                },
+            },
+            {
+                render: "#Field",
+                permissions: {read: "rating", write: "rating"},
+                field: {
+                    name: "rating",
+                    widget: "#Input",
+                    label: "form.ratingLabel",
+                    placeholder: "form.ratingPlaceholder",
+                    required: true,
+                    widgetProps: {type: "number", min: 1, step: "any"},
+                },
+            },
+            {
+                render: "#Field",
+                permissions: {read: "authorName", write: "authorName"},
+                field: {
+                    name: "authorName",
+                    widget: "#Input",
+                    label: "form.authorNameLabel",
+                    placeholder: "form.authorNamePlaceholder",
+                    required: true,
+                    widgetProps: {maxLength: RENTAL_REVIEW_AUTHOR_NAME_MAX},
+                },
+            },
+            {
+                render: "#Field",
+                permissions: {read: "isPublished", write: "isPublished"},
+                field: {
+                    name: "isPublished",
+                    widget: "#Switch",
+                    label: "form.isPublishedLabel",
+                },
+            },
+        ],
+    },
+    {
+        render: "#Field",
+        permissions: {read: "comment", write: "comment"},
+        field: {
+            name: "comment",
+            widget: "#Textarea",
+            label: "form.commentLabel",
+            placeholder: "form.commentPlaceholder",
+            widgetProps: {rows: 3, maxLength: RENTAL_REVIEW_COMMENT_MAX},
+        },
+    },
+];
+
+export const rentalReviewCreateFormView: ViewConfig = {
+    model: "rentalreviews",
+    viewType: "form",
+    viewMode: "create",
+    accessModel: "rentalreviews",
+    apiUrl: API_URL,
+    method: "PUT",
+    nodes: rentalReviewCreateFormNodes,
+};
+
+export const rentalReviewEditFormView: ViewConfig = {
+    model: "rentalreviews",
+    viewType: "form",
+    viewMode: "edit",
+    accessModel: "rentalreviews",
+    apiUrl: API_URL,
+    method: "PATCH",
+    nodes: rentalReviewEditFormNodes,
+};
+
+export const rentalReviewViews: ViewConfig[] = [
+    rentalReviewSheetView,
+    rentalReviewCreateFormView,
+    rentalReviewEditFormView,
+];

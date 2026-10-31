@@ -31,6 +31,16 @@ export function carRentalConfigToDTO(config: ICarRentalConfig): CarRentalConfig 
         notifyUsers: config.notifyUsers
             ?.map((user) => mapSnippet<SimpleBlankUser>()(user, SimpleBlankUserSnippet))
             .filter((user): user is SimpleBlankUser => user !== undefined),
+        youngDriverUnderAge: config.youngDriverUnderAge,
+        youngDriverDailyFee: config.youngDriverDailyFee,
+        additionalDriverDailyFee: config.additionalDriverDailyFee,
+        oneWayFee: config.oneWayFee,
+        fuelPricePerQuarter: config.fuelPricePerQuarter,
+        refuelServiceFee: config.refuelServiceFee,
+        lateFeePerHour: config.lateFeePerHour,
+        cleaningFee: config.cleaningFee,
+        smokingFee: config.smokingFee,
+        fineAdminFee: config.fineAdminFee,
         ...mapSoftDeleteToDTO(config),
         ...mapOwnershipToDTO(config),
         ...mapLifeCycleToDTO(config),

@@ -20,6 +20,8 @@ export function vehicleDamageToDTO(damage: IVehicleDamage): VehicleDamage {
         status: damage.status,
         estimatedCost: damage.estimatedCost,
         repairCost: damage.repairCost,
+        chargedAmount: damage.chargedAmount,
+        chargedAt: damage.chargedAt ? dateToISOString(damage.chargedAt) : undefined,
         repairedAt: damage.repairedAt ? dateToISOString(damage.repairedAt) : undefined,
         ...mapSoftDeleteToDTO(damage),
         ...mapOwnershipToDTO(damage),

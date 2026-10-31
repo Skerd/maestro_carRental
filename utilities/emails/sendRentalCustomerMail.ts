@@ -17,13 +17,16 @@ import {sendMail} from "@coreModule/utilities/emails/mailDeliveryService";
 const LOCALES_ROOT = path.join(__dirname, "static", "locales");
 const TEMPLATE_DIR = path.join(__dirname, "templates", "rentalCustomer");
 
-export type RentalCustomerEmailKind = "confirmed" | "cancelled" | "reminder";
+export type RentalCustomerEmailKind = "confirmed" | "cancelled" | "reminder" | "handedOver" | "returned" | "charged";
 
 /** Copy suffix per kind: `subject{X}`, `heading{X}`, `preheader{X}`, `intro{X}`, `closing{X}`. */
 const KIND_SUFFIX: Record<RentalCustomerEmailKind, string> = {
     confirmed: "Confirmed",
     cancelled: "Cancelled",
     reminder: "Reminder",
+    handedOver: "HandedOver",
+    returned: "Returned",
+    charged: "Charged",
 };
 
 export type RentalCustomerEmail = {
@@ -44,6 +47,10 @@ export type RentalCustomerEmail = {
     manageToken: string;
     /** The manage page on the company's own site; the token is appended. */
     manageUrl: string;
+    /** Fills `{note}` in the intro, e.g. what a later charge is for. */
+    note?: string;
+    /** Built only when the email is really sent. */
+    attachments?: () => Promise<{filename: string; content: Buffer}[]>;
 };
 
 function readTemplate(filename: string): string {
@@ -71,7 +78,7 @@ export async function sendRentalCustomerMail(data: RentalCustomerEmail): Promise
 
     const manageUrl = `${data.manageUrl}?token=${encodeURIComponent(data.manageToken)}`;
     const bodyInner = applyPlaceholders(readTemplate("body.html"), {
-        intro: loc[`intro${suffix}`] ?? "",
+        intro: escapeHtml(applyPlaceholders(loc[`intro${suffix}`] ?? "", {note: data.note ?? ""})),
         detailsSummary: summaryCardHtml(loc.summaryTitle ?? "", rows),
         cta: ctaButtonHtml(loc.manageLinkText ?? "", manageUrl, loc.fallbackLabel ?? ""),
         closing: loc[`closing${suffix}`] ?? "",
@@ -87,5 +94,6 @@ export async function sendRentalCustomerMail(data: RentalCustomerEmail): Promise
     });
     const subject = applyPlaceholders(loc[`subject${suffix}`] ?? "", {number: data.number, companyName: data.companyName});
 
-    await sendMail(data.companyId, {to: data.email, subject, html});
+    const attachments = data.attachments ? await data.attachments() : [];
+    await sendMail(data.companyId, {to: data.email, subject, html, ...(attachments.length ? {attachments} : {})});
 }

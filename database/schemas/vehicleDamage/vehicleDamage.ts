@@ -35,8 +35,14 @@ export interface IVehicleDamage extends Document, IOwnershipPluginFields, ISoftD
     status: (typeof VEHICLE_DAMAGE_STATUSES)[number];
     estimatedCost?: number;
     repairCost?: number;
+    /** Charged to the customer of the linked booking; set by the chargeToCustomer action. */
+    chargedAmount?: number;
+    chargedAt?: Date;
     repairedAt?: Date;
 }
+
+/** Written only by the chargeToCustomer action. */
+const DamageNoWritePermission = {self: {write: "no-permission"}, others: {write: "no-permission"}};
 
 const VehicleDamageSchema = new Schema<IVehicleDamage>(
     {
@@ -77,6 +83,8 @@ const VehicleDamageSchema = new Schema<IVehicleDamage>(
         },
         estimatedCost: {type: SchemaTypes.Number, min: 0},
         repairCost: {type: SchemaTypes.Number, min: 0, dynamicTableConfiguration: {hideColumn: true}},
+        chargedAmount: {type: SchemaTypes.Number, min: 0, permissions: DamageNoWritePermission},
+        chargedAt: {type: SchemaTypes.Date, permissions: DamageNoWritePermission, dynamicTableConfiguration: {hideColumn: true, cellType: COLUMN_TYPE.DATE}},
         repairedAt: {type: SchemaTypes.Date, dynamicTableConfiguration: {cellType: COLUMN_TYPE.DATE, hideColumn: true}},
     },
     {accessMode: "loose"},

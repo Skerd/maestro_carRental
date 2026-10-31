@@ -44,6 +44,8 @@ export interface IRentalLocation extends Document, IOwnershipPluginFields, ISoft
     closures: {date: string; reason?: string}[];
     pickupAllowed: boolean;
     returnAllowed: boolean;
+    /** Charged when a car picked up elsewhere is returned here; unset uses the company default. */
+    oneWayFee?: number;
     isActive: boolean;
 }
 
@@ -86,6 +88,7 @@ const RentalLocationSchema = new Schema<IRentalLocation>(
         },
         pickupAllowed: {type: SchemaTypes.Boolean, default: true},
         returnAllowed: {type: SchemaTypes.Boolean, default: true},
+        oneWayFee: {type: SchemaTypes.Number, min: 0},
         isActive: {type: SchemaTypes.Boolean, default: true}, // activate / deactivate actions
     },
     {accessMode: "loose"},

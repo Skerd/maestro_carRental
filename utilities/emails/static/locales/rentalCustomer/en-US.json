@@ -26,5 +26,20 @@
   "footerNote": "You received this email because a car was booked with this address at {companyName}.",
   "preheaderConfirmed": "Your rental is confirmed. Here are the details.",
   "preheaderCancelled": "Your rental has been cancelled.",
-  "preheaderReminder": "Your car pickup is coming up."
+  "preheaderReminder": "Your car pickup is coming up.",
+  "headingHandedOver": "Enjoy your trip",
+  "subjectHandedOver": "Your rental agreement for booking {number} — {companyName}",
+  "introHandedOver": "You picked up your car. Your rental agreement is attached.",
+  "closingHandedOver": "Keep the agreement with you while you drive. Call the rental desk if anything goes wrong.",
+  "preheaderHandedOver": "Your rental agreement is attached.",
+  "headingReturned": "Thanks for returning the car",
+  "subjectReturned": "Booking {number} completed — {companyName}",
+  "introReturned": "Your rental is complete. Here is the final total.",
+  "closingReturned": "We hope to see you again.",
+  "preheaderReturned": "Your rental is complete.",
+  "headingCharged": "A charge was added to your booking",
+  "subjectCharged": "New charge on booking {number} — {companyName}",
+  "introCharged": "We added a charge to your booking: {note}",
+  "closingCharged": "Reply to this email if you have questions about this charge.",
+  "preheaderCharged": "A charge was added to your booking."
 }

@@ -1,0 +1,213 @@
+import type {ViewConfig} from "armonia/src/modules/core/api/auxiliary/private/viewConfig";
+import {lifecycleSheetGroup} from "@coreModule/database/schemas/shared/lifecycleSheetGroup";
+import {
+    RENTAL_DENY_ENTRY_EMAIL_MAX,
+    RENTAL_DENY_ENTRY_LICENSE_NUMBER_MAX,
+    RENTAL_DENY_ENTRY_REASON_MAX,
+} from "armonia/src/modules/carRental/api/carRental/private/rentalDenyEntry/rentalDenyEntry.schema-def";
+
+const API_URL = "/api/carRental/rentalDenyEntry";
+
+export const rentalDenyEntrySheetView: ViewConfig = {
+    model: "rentaldenyentrys",
+    viewType: "sheet",
+    accessModel: "rentaldenyentrys",
+    apiUrl: API_URL,
+    header: {
+        titleField: "reason",
+        subtitleKey: "rentalDenyEntrySubtitle",
+        showCloseButton: true,
+    },
+    nodes: [
+        {
+            render: "#SheetGroup",
+            props: {title: "overview"},
+            children: [
+                {
+                    render: "#SheetGrid",
+                    props: {columns: 2},
+                    children: [
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "email"},
+                            field: {
+                                name: "email",
+                                widget: "#DisplayCard",
+                                label: "email",
+                                widgetProps: {icon: "#IconMail"},
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "licenseNumber"},
+                            field: {
+                                name: "licenseNumber",
+                                widget: "#DisplayCard",
+                                label: "licenseNumber",
+                                widgetProps: {icon: "#IconId"},
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "isActive"},
+                            field: {
+                                name: "isActive",
+                                widget: "#DisplayCard",
+                                label: "isActive",
+                                widgetProps: {
+                                    icon: "#IconBan",
+                                    type: "boolean",
+                                },
+                            },
+                        },
+                    ],
+                },
+                {
+                    render: "#DisplayCard",
+                    permissions: {read: "reason"},
+                    field: {
+                        name: "reason",
+                        widget: "#DisplayCard",
+                        label: "reason",
+                        widgetProps: {icon: "#IconAlertTriangle"},
+                    },
+                },
+            ],
+        },
+        lifecycleSheetGroup,
+    ],
+};
+
+const rentalDenyEntryCreateFormNodes: ViewConfig["nodes"] = [
+    {
+        render: "#FormGrid",
+        props: {columns: 2},
+        children: [
+            {
+                render: "#Field",
+                field: {
+                    name: "email",
+                    widget: "#Input",
+                    label: "form.emailLabel",
+                    placeholder: "form.emailPlaceholder",
+                    widgetProps: {maxLength: RENTAL_DENY_ENTRY_EMAIL_MAX},
+                },
+            },
+            {
+                render: "#Field",
+                field: {
+                    name: "licenseNumber",
+                    widget: "#Input",
+                    label: "form.licenseNumberLabel",
+                    placeholder: "form.licenseNumberPlaceholder",
+                    widgetProps: {
+                        maxLength: RENTAL_DENY_ENTRY_LICENSE_NUMBER_MAX,
+                    },
+                },
+            },
+            {
+                render: "#Field",
+                field: {
+                    name: "isActive",
+                    widget: "#Switch",
+                    label: "form.isActiveLabel",
+                },
+            },
+        ],
+    },
+    {
+        render: "#Field",
+        field: {
+            name: "reason",
+            widget: "#Textarea",
+            label: "form.reasonLabel",
+            placeholder: "form.reasonPlaceholder",
+            required: true,
+            widgetProps: {rows: 3, maxLength: RENTAL_DENY_ENTRY_REASON_MAX},
+        },
+    },
+];
+
+const rentalDenyEntryEditFormNodes: ViewConfig["nodes"] = [
+    {
+        render: "#FormGrid",
+        props: {columns: 2},
+        permissions: {
+            readAny: ["email", "licenseNumber", "isActive"],
+            writeAny: ["email", "licenseNumber", "isActive"],
+        },
+        children: [
+            {
+                render: "#Field",
+                permissions: {read: "email", write: "email"},
+                field: {
+                    name: "email",
+                    widget: "#Input",
+                    label: "form.emailLabel",
+                    placeholder: "form.emailPlaceholder",
+                    widgetProps: {maxLength: RENTAL_DENY_ENTRY_EMAIL_MAX},
+                },
+            },
+            {
+                render: "#Field",
+                permissions: {read: "licenseNumber", write: "licenseNumber"},
+                field: {
+                    name: "licenseNumber",
+                    widget: "#Input",
+                    label: "form.licenseNumberLabel",
+                    placeholder: "form.licenseNumberPlaceholder",
+                    widgetProps: {
+                        maxLength: RENTAL_DENY_ENTRY_LICENSE_NUMBER_MAX,
+                    },
+                },
+            },
+            {
+                render: "#Field",
+                permissions: {read: "isActive", write: "isActive"},
+                field: {
+                    name: "isActive",
+                    widget: "#Switch",
+                    label: "form.isActiveLabel",
+                },
+            },
+        ],
+    },
+    {
+        render: "#Field",
+        permissions: {read: "reason", write: "reason"},
+        field: {
+            name: "reason",
+            widget: "#Textarea",
+            label: "form.reasonLabel",
+            placeholder: "form.reasonPlaceholder",
+            required: true,
+            widgetProps: {rows: 3, maxLength: RENTAL_DENY_ENTRY_REASON_MAX},
+        },
+    },
+];
+
+export const rentalDenyEntryCreateFormView: ViewConfig = {
+    model: "rentaldenyentrys",
+    viewType: "form",
+    viewMode: "create",
+    accessModel: "rentaldenyentrys",
+    apiUrl: API_URL,
+    method: "PUT",
+    nodes: rentalDenyEntryCreateFormNodes,
+};
+
+export const rentalDenyEntryEditFormView: ViewConfig = {
+    model: "rentaldenyentrys",
+    viewType: "form",
+    viewMode: "edit",
+    accessModel: "rentaldenyentrys",
+    apiUrl: API_URL,
+    method: "PATCH",
+    nodes: rentalDenyEntryEditFormNodes,
+};
+
+export const rentalDenyEntryViews: ViewConfig[] = [
+    rentalDenyEntrySheetView,
+    rentalDenyEntryCreateFormView,
+    rentalDenyEntryEditFormView,
+];

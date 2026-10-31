@@ -9,10 +9,12 @@ import {addModelData} from "@coreModule/database/collections";
 import {validateSchemaDefAgainstMongoose} from "@coreModule/database/utilities/validateSchemaDefAgainstMongoose";
 import {
     RENTAL_EXTRA_DESCRIPTION_MAX,
+    RENTAL_EXTRA_KINDS,
     RENTAL_EXTRA_NAME_MAX,
     RENTAL_EXTRA_PRICINGS,
     RENTAL_EXTRA_QUANTITY,
     RentalExtraSchemaDef,
+    type RentalExtraKind,
     type RentalExtraPricing,
 } from "armonia/src/modules/carRental/api/carRental/private/rentalExtra/rentalExtra.schema-def";
 import {applyRentalExtraIndexes} from "./rentalExtra.indexes";
@@ -20,10 +22,15 @@ import {rentalExtraViews} from "./rentalExtra.views";
 
 export interface IRentalExtra extends Document, IOwnershipPluginFields, ISoftDeletePluginFields, ILifeCyclePluginFields {
     name: string;
+    kind: RentalExtraKind;
     description?: string;
     pricing: RentalExtraPricing;
     price: number;
     maxQuantity: number;
+    /** Protection only: the most the customer pays toward damage. */
+    excessAmount?: number;
+    /** Protection only: the deposit taken instead of the category's. */
+    depositAmount?: number;
     isActive: boolean;
     sortOrder: number;
 }
@@ -38,8 +45,17 @@ const RentalExtraSchema = new Schema<IRentalExtra>(
             required: true,
             dynamicTableConfiguration: {enumTones: {per_day: "info", per_rental: "neutral"}},
         },
+        kind: {
+            type: SchemaTypes.String,
+            enum: RENTAL_EXTRA_KINDS,
+            required: true,
+            default: "extra",
+            dynamicTableConfiguration: {enumTones: {extra: "neutral", protection: "info"}},
+        },
         price: {type: SchemaTypes.Number, required: true, min: 0},
         maxQuantity: {type: SchemaTypes.Number, required: true, default: 1, ...RENTAL_EXTRA_QUANTITY},
+        excessAmount: {type: SchemaTypes.Number, min: 0},
+        depositAmount: {type: SchemaTypes.Number, min: 0},
         isActive: {type: SchemaTypes.Boolean, default: true}, // activate / deactivate actions
         sortOrder: {type: SchemaTypes.Number, default: 0},
     },

@@ -28,6 +28,8 @@ export function vehicleCategoryToDTO(category: IVehicleCategory): VehicleCategor
         minDriverAge: category.minDriverAge,
         isPublic: category.isPublic,
         sortOrder: category.sortOrder,
+        crossBorderAllowed: category.crossBorderAllowed !== false,
+        crossBorderFee: category.crossBorderFee,
         ...mapSoftDeleteToDTO(category),
         ...mapOwnershipToDTO(category),
         ...mapLifeCycleToDTO(category),
