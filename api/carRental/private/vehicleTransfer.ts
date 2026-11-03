@@ -43,7 +43,7 @@ export const {router} = createCrudRouter({
         const start = new Date(data.departAt);
         const end = new Date(data.arriveAt);
         await assertNoBookingClash(vehicleId, {start, end}, {companyId: company._id, session, languageCode});
-        const [block] = await VehicleBlock.create([{company: company._id, vehicle: vehicleId, startAt: start, endAt: end, reason: "transfer"}], {session});
+        const [block] = await VehicleBlock.create([{company: company._id, vehicle: vehicleId, startAt: start, endAt: end, reason: "transfer", source: "transfer"}], {session});
         return {...data, status: "planned", block: block._id};
     },
     // The trip's times and places are fixed: a changed plan is a new transfer. Driver, km and notes can change.

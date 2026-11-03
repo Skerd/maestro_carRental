@@ -13,5 +13,6 @@
   "smoking": "Smoking fee",
   "damage": "Damage: {description}",
   "fine": "Traffic fine {reference}",
-  "fineAdmin": "Fine handling fee"
+  "fineAdmin": "Fine handling fee",
+  "chargeRemoved": "Removed: {label}"
 }

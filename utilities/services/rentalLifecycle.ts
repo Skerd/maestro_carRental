@@ -21,13 +21,15 @@ import {localToUtc} from "@coreModule/utilities/time/timeWindows";
 import {carRentalConfigService} from "@carRentalModule/database/schemas/carRentalConfig/carRentalConfig.service";
 import RentalLocation from "@carRentalModule/database/schemas/rentalLocation/rentalLocation";
 import {assertCustomerAllowed} from "./rentalDeny";
+import {assertVehiclePapersValid} from "./vehicleRecords";
 import {applyDriverFees, assertDriversReadyForHandover} from "./rentalDrivers";
 import {computeRentalQuote} from "./rentalQuote";
 import {isLocationOpenAt} from "./rentalTrip";
 import {loadSelectedExtras, quoteTrip} from "./rentalReservationService";
 import {releasePromoCode} from "./rentalPromo";
 import {generateRentalAgreementPdf} from "../pdf/rentalAgreementPdf";
-import {invoiceAttachment, invoiceNewLines} from "./rentalInvoices";
+import {creditInvoicedLines, invoiceAttachment, invoiceNewLines} from "./rentalInvoices";
+import {rentalPricingLabel} from "./rentalPricingLabels";
 import {
     acknowledgedDamageIds,
     companyMediaIds,
@@ -187,7 +189,8 @@ type HandoverInput = VehicleCheckInput & {
 
 /**
  * The customer drives off: odometer and fuel are recorded and the car is on the road.
- * Refused until every driver has a licence that is valid to the return day.
+ * Refused until every driver has a licence that is valid to the return day, and while
+ * the car's insurance or road papers run out before the return.
  */
 export async function handOverRentalReservation(
     reservation: IRentalReservation,
@@ -219,6 +222,10 @@ export async function handOverRentalReservation(
         },
         ctx,
     );
+    const now = input.now ?? new Date();
+    if (vehicle) {
+        await assertVehiclePapersValid(vehicle, {from: now, until: reservation.returnAt}, {companyId, session: ctx.session, languageCode: ctx.languageCode});
+    }
     const [photos, acknowledgedDamages, [signature]] = await Promise.all([
         companyMediaIds(input.photos, companyId, ctx),
         acknowledgedDamageIds(
@@ -233,7 +240,6 @@ export async function handOverRentalReservation(
             ctx,
         ),
     ]);
-    const now = input.now ?? new Date();
     reservation.status = "in_progress";
     reservation.handover = {
         at: now,
@@ -570,6 +576,53 @@ export async function addReservationCharges(
                 : {}),
         });
     }
+}
+
+/**
+ * Takes charges added by `addReservationCharges` back off the booking (a fine the
+ * authority annulled). Not invoiced yet (before the return), the lines are removed;
+ * invoiced, they are credited on their invoice and offset by negative lines. What the
+ * customer paid beyond the new total is refunded.
+ */
+export async function removeReservationCharges(
+    reservation: IRentalReservation,
+    charges: {label: string; amount: number}[],
+    input: {by?: ObjectId; reason: string},
+    ctx: Ctx,
+): Promise<void> {
+    assertStatus(reservation, ["in_progress", "completed"], ctx.languageCode);
+    const lines = reservation.pricing.lines;
+    const invoicedCount = reservation.invoicedLineCount ?? 0;
+    const credited: {description: string; total: number}[] = [];
+    for (const charge of charges) {
+        let index = -1;
+        for (let i = lines.length - 1; i >= 0 && index < 0; i--) {
+            if (lines[i].kind === "charge" && lines[i].label === charge.label && lines[i].total === charge.amount) index = i;
+        }
+        if (index < 0) throw apiValidationException("rental_charge_not_found", "", null, ctx.languageCode);
+        const [line] = index >= invoicedCount ? lines.splice(index, 1) : [lines[index]];
+        if (index < invoicedCount) {
+            credited.push({description: line.label, total: line.total});
+            lines.push({
+                label: rentalPricingLabel(ctx.languageCode, "chargeRemoved", {label: line.label}),
+                kind: "charge",
+                code: line.code,
+                quantity: 1,
+                unitPrice: -line.total,
+                total: -line.total,
+            });
+        }
+        reservation.timeline.push({event: "charge_removed", at: new Date(), by: input.by, note: `${line.label} · ${line.total}`});
+    }
+    Object.assign(reservation.pricing, totalsFor(lines, reservation.pricing.vatRate, reservation.pricing.pricesIncludeVat));
+    if (credited.length) {
+        await creditInvoicedLines(reservation, credited, ctx);
+        reservation.invoicedLineCount = lines.length;
+    }
+    const overpaid = roundMoney(reservation.amountPaid - reservation.pricing.grandTotal);
+    if (overpaid > 0) await refundRentalPayments(reservation, overpaid, input.reason, ctx);
+    else reservation.paymentStatus = paymentStatusFor(reservation, false);
+    await reservation.save({session: ctx.session});
 }
 
 /**

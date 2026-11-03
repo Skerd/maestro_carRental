@@ -13,5 +13,6 @@
   "smoking": "Rauchergebühr",
   "damage": "Schaden: {description}",
   "fine": "Busse {reference}",
-  "fineAdmin": "Bearbeitungsgebühr Busse"
+  "fineAdmin": "Bearbeitungsgebühr Busse",
+  "chargeRemoved": "Entfernt: {label}"
 }

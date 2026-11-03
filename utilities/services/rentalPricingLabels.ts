@@ -18,7 +18,8 @@ export type RentalPricingLabelKey =
     | "smoking"
     | "damage"
     | "fine"
-    | "fineAdmin";
+    | "fineAdmin"
+    | "chargeRemoved";
 
 /**
  * Labels for the fee, discount and charge lines the system writes itself. A line

@@ -21,7 +21,7 @@ export const vehicleBlockSheetView: ViewConfig = {
             children: [
                 {
                     render: "#SheetGrid",
-                    props: {columns: 2},
+                    props: {columns: 3},
                     children: [
                         {
                             render: "#DisplayCard",
@@ -30,7 +30,13 @@ export const vehicleBlockSheetView: ViewConfig = {
                                 name: "vehicle.plate",
                                 widget: "#DisplayCard",
                                 label: "vehicle",
-                                widgetProps: {icon: "#IconCar"},
+                                widgetProps: {
+                                    icon: "#IconCar",
+                                    linkedRefPath: "vehicle",
+                                    linkedSheetModel: "vehicles",
+                                    linkedSheetWidget: "#VehicleSheetView",
+                                    linkedSheetEntityProp: "vehicle",
+                                },
                             },
                         },
                         {
@@ -76,14 +82,24 @@ export const vehicleBlockSheetView: ViewConfig = {
                     ],
                 },
                 {
-                    render: "#DisplayCard",
-                    permissions: {read: "note"},
-                    field: {
-                        name: "note",
-                        widget: "#DisplayCard",
-                        label: "note",
-                        widgetProps: {icon: "#IconNotes"},
-                    },
+                    render: "#SheetGrid",
+                    props: {columns: 1},
+                    children: [
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "note"},
+                            field: {
+                                name: "note",
+                                widget: "#DisplayCard",
+                                label: "note",
+                                widgetProps: {
+                                    icon: "#IconAlignLeft",
+                                    expandable: true,
+                                    maxLength: 250,
+                                },
+                            },
+                        },
+                    ],
                 },
             ],
         },
@@ -104,6 +120,10 @@ export const vehicleBlockCreateFormView: ViewConfig = {
     method: "PUT",
     nodes: [
         {
+            render: "#TitleWithCollapse",
+            props: {title: "form.blockSectionTitle"},
+            children: [
+        {
             render: "#FormGrid",
             props: {columns: 2},
             children: [
@@ -120,6 +140,7 @@ export const vehicleBlockCreateFormView: ViewConfig = {
                             method: "POST",
                             pageSize: 50,
                             normalizeEmptyToUndefined: true,
+                            defaultOptionsFormExtraKey: "vehicleDefaultOptions",
                         },
                     },
                 },
@@ -168,8 +189,15 @@ export const vehicleBlockCreateFormView: ViewConfig = {
                 widget: "#Textarea",
                 label: "form.noteLabel",
                 placeholder: "form.notePlaceholder",
-                widgetProps: {rows: 3, maxLength: VEHICLE_BLOCK_NOTE_MAX},
+                widgetProps: {
+                    rows: 3,
+                    maxLength: VEHICLE_BLOCK_NOTE_MAX,
+                    className:
+                        "field-sizing-fixed max-h-56 min-h-24 overflow-y-auto",
+                },
             },
+        },
+            ],
         },
     ],
 };
@@ -183,6 +211,14 @@ export const vehicleBlockEditFormView: ViewConfig = {
     apiUrl: API_URL,
     method: "PATCH",
     nodes: [
+        {
+            render: "#TitleWithCollapse",
+            props: {title: "form.blockSectionTitle"},
+            permissions: {
+                readAny: ["reason", "note"],
+                writeAny: ["reason", "note"],
+            },
+            children: [
         {
             render: "#Field",
             permissions: {read: "reason", write: "reason"},
@@ -203,8 +239,15 @@ export const vehicleBlockEditFormView: ViewConfig = {
                 widget: "#Textarea",
                 label: "form.noteLabel",
                 placeholder: "form.notePlaceholder",
-                widgetProps: {rows: 3, maxLength: VEHICLE_BLOCK_NOTE_MAX},
+                widgetProps: {
+                    rows: 3,
+                    maxLength: VEHICLE_BLOCK_NOTE_MAX,
+                    className:
+                        "field-sizing-fixed max-h-56 min-h-24 overflow-y-auto",
+                },
             },
+        },
+            ],
         },
     ],
 };

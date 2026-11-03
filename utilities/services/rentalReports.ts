@@ -17,6 +17,7 @@ import VehicleBlock from "@carRentalModule/database/schemas/vehicleBlock/vehicle
 import VehicleMaintenance from "@carRentalModule/database/schemas/vehicleMaintenance/vehicleMaintenance";
 import VehicleDamage from "@carRentalModule/database/schemas/vehicleDamage/vehicleDamage";
 import VehicleInsurance from "@carRentalModule/database/schemas/vehicleInsurance/vehicleInsurance";
+import VehicleFine from "@carRentalModule/database/schemas/vehicleFine/vehicleFine";
 import RentalSearchStat from "@carRentalModule/database/schemas/rentalSearchStat/rentalSearchStat";
 
 const HOUR = 3600 * 1000;
@@ -88,6 +89,7 @@ export async function buildRentalReport(
         maintenance,
         damages,
         insurance,
+        fines,
         stats,
     ] = await Promise.all([
         Vehicle.find({
@@ -118,18 +120,25 @@ export async function buildRentalReport(
         VehicleMaintenance.find({
             company: companyId,
             deletedAt: null,
+            status: "completed",
             serviceDate: {$gte: window.start, $lt: window.end},
-        }).select("vehicle cost"),
+        }).select("vehicle type cost"),
         VehicleDamage.find({
             company: companyId,
             deletedAt: null,
             reportedAt: {$gte: window.start, $lt: window.end},
-        }).select("vehicle repairCost"),
+        }).select("vehicle chargedAmount insurerPaidAmount"),
         VehicleInsurance.find({
             company: companyId,
             deletedAt: null,
             validFrom: {$gte: window.start, $lt: window.end},
         }).select("vehicle premium"),
+        VehicleFine.find({
+            company: companyId,
+            deletedAt: null,
+            status: "paid_by_company",
+            paidAt: {$gte: window.start, $lt: window.end},
+        }).select("vehicle paidAmount"),
         RentalSearchStat.find({
             company: companyId,
             day: {$gte: from, $lte: to},
@@ -173,10 +182,23 @@ export async function buildRentalReport(
         return totals;
     };
     const maintenanceCost = cost(
-        maintenance.map((row) => ({vehicle: row.vehicle, amount: row.cost})),
+        maintenance
+            .filter((row) => row.type !== "repair")
+            .map((row) => ({vehicle: row.vehicle, amount: row.cost})),
     );
     const repairCost = cost(
-        damages.map((row) => ({vehicle: row.vehicle, amount: row.repairCost})),
+        maintenance
+            .filter((row) => row.type === "repair")
+            .map((row) => ({vehicle: row.vehicle, amount: row.cost})),
+    );
+    const finesCost = cost(
+        fines.map((row) => ({vehicle: row.vehicle, amount: row.paidAmount})),
+    );
+    const recovered = cost(
+        damages.map((row) => ({
+            vehicle: row.vehicle,
+            amount: (row.chargedAmount ?? 0) + (row.insurerPaidAmount ?? 0),
+        })),
     );
     const insurancePremium = cost(
         insurance.map((row) => ({vehicle: row.vehicle, amount: row.premium})),
@@ -257,6 +279,8 @@ export async function buildRentalReport(
             maintenanceCost: maintenanceCost.get(id) ?? 0,
             repairCost: repairCost.get(id) ?? 0,
             insurancePremium: insurancePremium.get(id) ?? 0,
+            finesCost: finesCost.get(id) ?? 0,
+            recovered: recovered.get(id) ?? 0,
             purchasePrice,
             ...(purchasePrice > 0
                 ? {payback: rate(earned, purchasePrice)}

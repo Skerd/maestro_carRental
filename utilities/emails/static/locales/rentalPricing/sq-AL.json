@@ -13,5 +13,6 @@
   "smoking": "Tarifa e duhanit",
   "damage": "Dëmtim: {description}",
   "fine": "Gjobë {reference}",
-  "fineAdmin": "Tarifa e trajtimit të gjobës"
+  "fineAdmin": "Tarifa e trajtimit të gjobës",
+  "chargeRemoved": "Hequr: {label}"
 }

@@ -6,6 +6,7 @@ import type {ReturnRentalReservationFormType} from "armonia/src/modules/carRenta
 import type {CreateInput} from "@coreModule/database/services/baseCrudService";
 import VehicleDamage, {type IVehicleDamage} from "@carRentalModule/database/schemas/vehicleDamage/vehicleDamage";
 import {vehicleDamageService} from "@carRentalModule/database/schemas/vehicleDamage/vehicleDamage.service";
+import {damageReported} from "./vehicleRecords";
 import type {IRentalReservation} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation";
 
 type InspectionCtx = {session: ClientSession; languageCode: string; logger?: any; auditUserId?: string | ObjectId};
@@ -56,17 +57,18 @@ export async function recordReturnDamages(
     for (const damage of damages) {
         const photos = await companyMediaIds(damage.photos, input.companyId, ctx);
         const data: CreateInput<IVehicleDamage> = {
-                company: input.companyId,
-                vehicle: reservation.vehicle,
+            company: input.companyId,
+            vehicle: reservation.vehicle,
             reservation: reservation._id,
             reportedAt: input.now,
-                area: damage.area,
-                severity: damage.severity,
-                description: damage.description,
-                photos,
-                status: "open",
-                ...(damage.estimatedCost !== undefined ? {estimatedCost: damage.estimatedCost} : {}),
+            area: damage.area,
+            severity: damage.severity,
+            description: damage.description,
+            photos,
+            status: "open",
+            ...(damage.estimatedCost !== undefined ? {estimatedCost: damage.estimatedCost} : {}),
         };
-        await vehicleDamageService.create(data, {session: ctx.session, logger: ctx.logger, languageCode: ctx.languageCode, auditUserId: ctx.auditUserId});
+        const created = await vehicleDamageService.create(data, {session: ctx.session, logger: ctx.logger, languageCode: ctx.languageCode, auditUserId: ctx.auditUserId});
+        await damageReported(created, {companyId: input.companyId, session: ctx.session, languageCode: ctx.languageCode});
     }
 }

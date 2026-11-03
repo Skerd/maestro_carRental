@@ -10,7 +10,7 @@ export const vehicleTransferSheetView: ViewConfig = {
     accessModel: "vehicletransfers",
     apiUrl: API_URL,
     header: {
-        titleField: "vehicle",
+        titleField: "vehicle.plate",
         subtitleKey: "vehicleTransferSubtitle",
         showCloseButton: true,
     },
@@ -21,7 +21,7 @@ export const vehicleTransferSheetView: ViewConfig = {
             children: [
                 {
                     render: "#SheetGrid",
-                    props: {columns: 2},
+                    props: {columns: 3},
                     children: [
                         {
                             render: "#DisplayCard",
@@ -30,7 +30,13 @@ export const vehicleTransferSheetView: ViewConfig = {
                                 name: "vehicle.plate",
                                 widget: "#DisplayCard",
                                 label: "vehicle",
-                                widgetProps: {icon: "#IconCar"},
+                                widgetProps: {
+                                    icon: "#IconCar",
+                                    linkedRefPath: "vehicle",
+                                    linkedSheetModel: "vehicles",
+                                    linkedSheetWidget: "#VehicleSheetView",
+                                    linkedSheetEntityProp: "vehicle",
+                                },
                             },
                         },
                         {
@@ -40,7 +46,14 @@ export const vehicleTransferSheetView: ViewConfig = {
                                 name: "fromLocation.name",
                                 widget: "#DisplayCard",
                                 label: "fromLocation",
-                                widgetProps: {icon: "#IconMapPin"},
+                                widgetProps: {
+                                    icon: "#IconMapPin",
+                                    linkedRefPath: "fromLocation",
+                                    linkedSheetModel: "rentallocations",
+                                    linkedSheetWidget:
+                                        "#RentalLocationSheetView",
+                                    linkedSheetEntityProp: "rentalLocation",
+                                },
                             },
                         },
                         {
@@ -50,7 +63,14 @@ export const vehicleTransferSheetView: ViewConfig = {
                                 name: "toLocation.name",
                                 widget: "#DisplayCard",
                                 label: "toLocation",
-                                widgetProps: {icon: "#IconMapPinFilled"},
+                                widgetProps: {
+                                    icon: "#IconMapPinFilled",
+                                    linkedRefPath: "toLocation",
+                                    linkedSheetModel: "rentallocations",
+                                    linkedSheetWidget:
+                                        "#RentalLocationSheetView",
+                                    linkedSheetEntityProp: "rentalLocation",
+                                },
                             },
                         },
                         {
@@ -119,14 +139,24 @@ export const vehicleTransferSheetView: ViewConfig = {
                     ],
                 },
                 {
-                    render: "#DisplayCard",
-                    permissions: {read: "notes"},
-                    field: {
-                        name: "notes",
-                        widget: "#DisplayCard",
-                        label: "notes",
-                        widgetProps: {icon: "#IconNotes"},
-                    },
+                    render: "#SheetGrid",
+                    props: {columns: 1},
+                    children: [
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "notes"},
+                            field: {
+                                name: "notes",
+                                widget: "#DisplayCard",
+                                label: "notes",
+                                widgetProps: {
+                                    icon: "#IconAlignLeft",
+                                    expandable: true,
+                                    maxLength: 250,
+                                },
+                            },
+                        },
+                    ],
                 },
             ],
         },
@@ -136,123 +166,146 @@ export const vehicleTransferSheetView: ViewConfig = {
 
 const vehicleTransferCreateFormNodes: ViewConfig["nodes"] = [
     {
-        render: "#FormGrid",
-        props: {columns: 2},
+        render: "#TitleWithCollapse",
+        props: {title: "form.tripSectionTitle"},
         children: [
             {
-                render: "#Field",
-                field: {
-                    name: "vehicle",
-                    widget: "#ApiSelect",
-                    label: "form.vehicleLabel",
-                    placeholder: "form.vehiclePlaceholder",
-                    required: true,
-                    widgetProps: {
-                        apiUrl: "/api/carRental/vehicle/select",
-                        method: "POST",
-                        pageSize: 50,
-                        normalizeEmptyToUndefined: true,
-                        postBody: {includeInactive: true},
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "vehicle",
+                            widget: "#ApiSelect",
+                            label: "form.vehicleLabel",
+                            placeholder: "form.vehiclePlaceholder",
+                            required: true,
+                            widgetProps: {
+                                apiUrl: "/api/carRental/vehicle/select",
+                                method: "POST",
+                                pageSize: 50,
+                                normalizeEmptyToUndefined: true,
+                                postBody: {includeInactive: true},
+                                defaultOptionsFormExtraKey:
+                                    "vehicleDefaultOptions",
+                            },
+                        },
                     },
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "fromLocation",
-                    widget: "#ApiSelect",
-                    label: "form.fromLocationLabel",
-                    placeholder: "form.fromLocationPlaceholder",
-                    required: true,
-                    widgetProps: {
-                        apiUrl: "/api/carRental/rentalLocation/select",
-                        method: "POST",
-                        pageSize: 50,
-                        normalizeEmptyToUndefined: true,
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "fromLocation",
+                            widget: "#ApiSelect",
+                            label: "form.fromLocationLabel",
+                            placeholder: "form.fromLocationPlaceholder",
+                            required: true,
+                            widgetProps: {
+                                apiUrl: "/api/carRental/rentalLocation/select",
+                                method: "POST",
+                                pageSize: 50,
+                                normalizeEmptyToUndefined: true,
+                            },
+                        },
                     },
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "toLocation",
-                    widget: "#ApiSelect",
-                    label: "form.toLocationLabel",
-                    placeholder: "form.toLocationPlaceholder",
-                    required: true,
-                    widgetProps: {
-                        apiUrl: "/api/carRental/rentalLocation/select",
-                        method: "POST",
-                        pageSize: 50,
-                        normalizeEmptyToUndefined: true,
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "toLocation",
+                            widget: "#ApiSelect",
+                            label: "form.toLocationLabel",
+                            placeholder: "form.toLocationPlaceholder",
+                            required: true,
+                            widgetProps: {
+                                apiUrl: "/api/carRental/rentalLocation/select",
+                                method: "POST",
+                                pageSize: 50,
+                                normalizeEmptyToUndefined: true,
+                            },
+                        },
                     },
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "departAt",
-                    widget: "#DateInput",
-                    label: "form.departAtLabel",
-                    placeholder: "form.departAtPlaceholder",
-                    required: true,
-                    widgetProps: {valueFormat: "yyyy-MM-dd HH:mm"},
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "arriveAt",
-                    widget: "#DateInput",
-                    label: "form.arriveAtLabel",
-                    placeholder: "form.arriveAtPlaceholder",
-                    required: true,
-                    widgetProps: {valueFormat: "yyyy-MM-dd HH:mm"},
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "driver",
-                    widget: "#ApiSelect",
-                    label: "form.driverLabel",
-                    placeholder: "form.driverPlaceholder",
-                    widgetProps: {
-                        apiUrl: "/api/company/users/select",
-                        method: "POST",
-                        pageSize: 50,
-                        normalizeEmptyToUndefined: true,
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "departAt",
+                            widget: "#DateInput",
+                            label: "form.departAtLabel",
+                            placeholder: "form.departAtPlaceholder",
+                            required: true,
+                            widgetProps: {valueFormat: "yyyy-MM-dd HH:mm"},
+                        },
                     },
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "odometerKm",
-                    widget: "#Input",
-                    label: "form.odometerKmLabel",
-                    placeholder: "form.odometerKmPlaceholder",
-                    widgetProps: {type: "number", min: 0, step: "any"},
-                },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "arriveAt",
+                            widget: "#DateInput",
+                            label: "form.arriveAtLabel",
+                            placeholder: "form.arriveAtPlaceholder",
+                            required: true,
+                            widgetProps: {valueFormat: "yyyy-MM-dd HH:mm"},
+                        },
+                    },
+                ],
             },
         ],
     },
     {
-        render: "#Field",
-        field: {
-            name: "notes",
-            widget: "#Textarea",
-            label: "form.notesLabel",
-            placeholder: "form.notesPlaceholder",
-            widgetProps: {rows: 3, maxLength: VEHICLE_TRANSFER_NOTES_MAX},
-        },
+        render: "#TitleWithCollapse",
+        props: {title: "form.driverSectionTitle"},
+        children: [
+            {
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "driver",
+                            widget: "#ApiSelect",
+                            label: "form.driverLabel",
+                            placeholder: "form.driverPlaceholder",
+                            widgetProps: {
+                                apiUrl: "/api/company/users/select",
+                                method: "POST",
+                                pageSize: 50,
+                                normalizeEmptyToUndefined: true,
+                            },
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "odometerKm",
+                            widget: "#Input",
+                            label: "form.odometerKmLabel",
+                            placeholder: "form.odometerKmPlaceholder",
+                            widgetProps: {type: "number", min: 0, step: "any"},
+                        },
+                    },
+                ],
+            },
+            {
+                render: "#Field",
+                field: {
+                    name: "notes",
+                    widget: "#Textarea",
+                    label: "form.notesLabel",
+                    placeholder: "form.notesPlaceholder",
+                    widgetProps: {
+                        rows: 3,
+                        maxLength: VEHICLE_TRANSFER_NOTES_MAX,
+                    },
+                },
+            },
+        ],
     },
 ];
 
 const vehicleTransferEditFormNodes: ViewConfig["nodes"] = [
     {
-        render: "#FormGrid",
-        props: {columns: 2},
+        render: "#TitleWithCollapse",
+        props: {title: "form.tripSectionTitle"},
         permissions: {
             readAny: [
                 "vehicle",
@@ -260,8 +313,6 @@ const vehicleTransferEditFormNodes: ViewConfig["nodes"] = [
                 "toLocation",
                 "departAt",
                 "arriveAt",
-                "driver",
-                "odometerKm",
             ],
             writeAny: [
                 "vehicle",
@@ -269,135 +320,163 @@ const vehicleTransferEditFormNodes: ViewConfig["nodes"] = [
                 "toLocation",
                 "departAt",
                 "arriveAt",
-                "driver",
-                "odometerKm",
             ],
         },
         children: [
             {
-                render: "#Field",
-                permissions: {read: "vehicle", write: "vehicle"},
-                field: {
-                    name: "vehicle",
-                    widget: "#ApiSelect",
-                    label: "form.vehicleLabel",
-                    placeholder: "form.vehiclePlaceholder",
-                    required: true,
-                    widgetProps: {
-                        disabled: true,
-                        apiUrl: "/api/carRental/vehicle/select",
-                        method: "POST",
-                        pageSize: 50,
-                        normalizeEmptyToUndefined: true,
-                        postBody: {includeInactive: true},
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        permissions: {read: "vehicle", write: "vehicle"},
+                        field: {
+                            name: "vehicle",
+                            widget: "#ApiSelect",
+                            label: "form.vehicleLabel",
+                            placeholder: "form.vehiclePlaceholder",
+                            required: true,
+                            widgetProps: {
+                                disabled: true,
+                                apiUrl: "/api/carRental/vehicle/select",
+                                method: "POST",
+                                pageSize: 50,
+                                normalizeEmptyToUndefined: true,
+                                postBody: {includeInactive: true},
+                                defaultOptionsFormExtraKey:
+                                    "vehicleDefaultOptions",
+                            },
+                        },
                     },
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "fromLocation", write: "fromLocation"},
-                field: {
-                    name: "fromLocation",
-                    widget: "#ApiSelect",
-                    label: "form.fromLocationLabel",
-                    placeholder: "form.fromLocationPlaceholder",
-                    required: true,
-                    widgetProps: {
-                        disabled: true,
-                        apiUrl: "/api/carRental/rentalLocation/select",
-                        method: "POST",
-                        pageSize: 50,
-                        normalizeEmptyToUndefined: true,
+                    {
+                        render: "#Field",
+                        permissions: {
+                            read: "fromLocation",
+                            write: "fromLocation",
+                        },
+                        field: {
+                            name: "fromLocation",
+                            widget: "#ApiSelect",
+                            label: "form.fromLocationLabel",
+                            placeholder: "form.fromLocationPlaceholder",
+                            required: true,
+                            widgetProps: {
+                                disabled: true,
+                                apiUrl: "/api/carRental/rentalLocation/select",
+                                method: "POST",
+                                pageSize: 50,
+                                normalizeEmptyToUndefined: true,
+                            },
+                        },
                     },
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "toLocation", write: "toLocation"},
-                field: {
-                    name: "toLocation",
-                    widget: "#ApiSelect",
-                    label: "form.toLocationLabel",
-                    placeholder: "form.toLocationPlaceholder",
-                    required: true,
-                    widgetProps: {
-                        disabled: true,
-                        apiUrl: "/api/carRental/rentalLocation/select",
-                        method: "POST",
-                        pageSize: 50,
-                        normalizeEmptyToUndefined: true,
+                    {
+                        render: "#Field",
+                        permissions: {read: "toLocation", write: "toLocation"},
+                        field: {
+                            name: "toLocation",
+                            widget: "#ApiSelect",
+                            label: "form.toLocationLabel",
+                            placeholder: "form.toLocationPlaceholder",
+                            required: true,
+                            widgetProps: {
+                                disabled: true,
+                                apiUrl: "/api/carRental/rentalLocation/select",
+                                method: "POST",
+                                pageSize: 50,
+                                normalizeEmptyToUndefined: true,
+                            },
+                        },
                     },
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "departAt", write: "departAt"},
-                field: {
-                    name: "departAt",
-                    widget: "#DateInput",
-                    label: "form.departAtLabel",
-                    placeholder: "form.departAtPlaceholder",
-                    required: true,
-                    widgetProps: {
-                        disabled: true,
-                        valueFormat: "yyyy-MM-dd HH:mm",
+                    {
+                        render: "#Field",
+                        permissions: {read: "departAt", write: "departAt"},
+                        field: {
+                            name: "departAt",
+                            widget: "#DateInput",
+                            label: "form.departAtLabel",
+                            placeholder: "form.departAtPlaceholder",
+                            required: true,
+                            widgetProps: {
+                                disabled: true,
+                                valueFormat: "yyyy-MM-dd HH:mm",
+                            },
+                        },
                     },
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "arriveAt", write: "arriveAt"},
-                field: {
-                    name: "arriveAt",
-                    widget: "#DateInput",
-                    label: "form.arriveAtLabel",
-                    placeholder: "form.arriveAtPlaceholder",
-                    required: true,
-                    widgetProps: {
-                        disabled: true,
-                        valueFormat: "yyyy-MM-dd HH:mm",
+                    {
+                        render: "#Field",
+                        permissions: {read: "arriveAt", write: "arriveAt"},
+                        field: {
+                            name: "arriveAt",
+                            widget: "#DateInput",
+                            label: "form.arriveAtLabel",
+                            placeholder: "form.arriveAtPlaceholder",
+                            required: true,
+                            widgetProps: {
+                                disabled: true,
+                                valueFormat: "yyyy-MM-dd HH:mm",
+                            },
+                        },
                     },
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "driver", write: "driver"},
-                field: {
-                    name: "driver",
-                    widget: "#ApiSelect",
-                    label: "form.driverLabel",
-                    placeholder: "form.driverPlaceholder",
-                    widgetProps: {
-                        apiUrl: "/api/company/users/select",
-                        method: "POST",
-                        pageSize: 50,
-                        normalizeEmptyToUndefined: true,
-                    },
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "odometerKm", write: "odometerKm"},
-                field: {
-                    name: "odometerKm",
-                    widget: "#Input",
-                    label: "form.odometerKmLabel",
-                    placeholder: "form.odometerKmPlaceholder",
-                    widgetProps: {type: "number", min: 0, step: "any"},
-                },
+                ],
             },
         ],
     },
     {
-        render: "#Field",
-        permissions: {read: "notes", write: "notes"},
-        field: {
-            name: "notes",
-            widget: "#Textarea",
-            label: "form.notesLabel",
-            placeholder: "form.notesPlaceholder",
-            widgetProps: {rows: 3, maxLength: VEHICLE_TRANSFER_NOTES_MAX},
+        render: "#TitleWithCollapse",
+        props: {title: "form.driverSectionTitle"},
+        permissions: {
+            readAny: ["driver", "odometerKm", "notes"],
+            writeAny: ["driver", "odometerKm", "notes"],
         },
+        children: [
+            {
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        permissions: {read: "driver", write: "driver"},
+                        field: {
+                            name: "driver",
+                            widget: "#ApiSelect",
+                            label: "form.driverLabel",
+                            placeholder: "form.driverPlaceholder",
+                            widgetProps: {
+                                apiUrl: "/api/company/users/select",
+                                method: "POST",
+                                pageSize: 50,
+                                normalizeEmptyToUndefined: true,
+                            },
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "odometerKm", write: "odometerKm"},
+                        field: {
+                            name: "odometerKm",
+                            widget: "#Input",
+                            label: "form.odometerKmLabel",
+                            placeholder: "form.odometerKmPlaceholder",
+                            widgetProps: {type: "number", min: 0, step: "any"},
+                        },
+                    },
+                ],
+            },
+            {
+                render: "#Field",
+                permissions: {read: "notes", write: "notes"},
+                field: {
+                    name: "notes",
+                    widget: "#Textarea",
+                    label: "form.notesLabel",
+                    placeholder: "form.notesPlaceholder",
+                    widgetProps: {
+                        rows: 3,
+                        maxLength: VEHICLE_TRANSFER_NOTES_MAX,
+                    },
+                },
+            },
+        ],
     },
 ];
 

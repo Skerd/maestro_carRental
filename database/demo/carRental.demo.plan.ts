@@ -38,6 +38,8 @@ export type DemoBooking = {
 };
 
 const TIMES = ["09:00", "10:00", "14:00", "17:30"];
+/** How far back the earliest booking can start (see `slotsOf`). */
+const DEMO_HISTORY_DAYS = 90;
 const DAMAGE_AREAS = ["front", "rear", "left", "right", "windshield", "wheels", "interior", "roof"] as const;
 const SEVERITIES = ["minor", "moderate", "major"] as const;
 
@@ -217,7 +219,8 @@ export function planVehicleHistory(vehicle: DemoVehicle, today: string, finalKm:
             premium, deductible, status: "active",
         },
     ];
-    if (acquiredOffset < validFromOffset - 365) {
+    // The previous year's policy, for older cars and for any car whose bookings go back before the current one.
+    if (acquiredOffset < validFromOffset - 365 || validFromOffset > -DEMO_HISTORY_DAYS) {
         policies.push({
             insurer, policyNumber: policyNumber(0), coverage,
             validFrom: addLocalDays(today, validFromOffset - 365), expiresAt: addLocalDays(today, validFromOffset - 1),

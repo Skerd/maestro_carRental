@@ -38,7 +38,7 @@ export const rentalLocationSheetView: ViewConfig = {
             children: [
                 {
                     render: "#SheetGrid",
-                    props: {columns: 2},
+                    props: {columns: 3},
                     children: [
                         {
                             render: "#DisplayCard",

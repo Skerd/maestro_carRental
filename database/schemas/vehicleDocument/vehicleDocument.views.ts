@@ -30,7 +30,7 @@ export const vehicleDocumentSheetView: ViewConfig = {
             children: [
                 {
                     render: "#SheetGrid",
-                    props: {columns: 2},
+                    props: {columns: 3},
                     children: [
                         {
                             render: "#DisplayCard",
@@ -39,7 +39,13 @@ export const vehicleDocumentSheetView: ViewConfig = {
                                 name: "vehicle.plate",
                                 widget: "#DisplayCard",
                                 label: "vehicle",
-                                widgetProps: {icon: "#IconCar"},
+                                widgetProps: {
+                                    icon: "#IconCar",
+                                    linkedRefPath: "vehicle",
+                                    linkedSheetModel: "vehicles",
+                                    linkedSheetWidget: "#VehicleSheetView",
+                                    linkedSheetEntityProp: "vehicle",
+                                },
                             },
                         },
                         {
@@ -121,14 +127,71 @@ export const vehicleDocumentSheetView: ViewConfig = {
                     ],
                 },
                 {
-                    render: "#DisplayCard",
-                    permissions: {read: "notes"},
-                    field: {
-                        name: "notes",
-                        widget: "#DisplayCard",
-                        label: "notes",
-                        widgetProps: {icon: "#IconNotes"},
-                    },
+                    render: "#SheetGrid",
+                    props: {columns: 1},
+                    children: [
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "notes"},
+                            field: {
+                                name: "notes",
+                                widget: "#DisplayCard",
+                                label: "notes",
+                                widgetProps: {
+                                    icon: "#IconAlignLeft",
+                                    expandable: true,
+                                    maxLength: 250,
+                                },
+                            },
+                        },
+                    ],
+                },
+            ],
+        },
+        {
+            render: "#SheetGroup",
+            props: {title: "renewalGroup"},
+            permissions: {readAny: ["supersedes", "supersededBy"]},
+            children: [
+                {
+                    render: "#SheetGrid",
+                    props: {columns: 2},
+                    children: [
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "supersedes"},
+                            field: {
+                                name: "supersedes.documentNumber",
+                                widget: "#DisplayCard",
+                                label: "supersedes",
+                                widgetProps: {
+                                    icon: "#IconHistory",
+                                    linkedRefPath: "supersedes",
+                                    linkedSheetModel: "vehicledocuments",
+                                    linkedSheetWidget:
+                                        "#VehicleDocumentSheetView",
+                                    linkedSheetEntityProp: "vehicleDocument",
+                                },
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "supersededBy"},
+                            field: {
+                                name: "supersededBy.documentNumber",
+                                widget: "#DisplayCard",
+                                label: "supersededBy",
+                                widgetProps: {
+                                    icon: "#IconRefresh",
+                                    linkedRefPath: "supersededBy",
+                                    linkedSheetModel: "vehicledocuments",
+                                    linkedSheetWidget:
+                                        "#VehicleDocumentSheetView",
+                                    linkedSheetEntityProp: "vehicleDocument",
+                                },
+                            },
+                        },
+                    ],
                 },
             ],
         },
@@ -184,6 +247,8 @@ const vehicleDocumentCreateFormNodes: ViewConfig["nodes"] = [
                                 pageSize: 50,
                                 normalizeEmptyToUndefined: true,
                                 postBody: {includeInactive: true},
+                                defaultOptionsFormExtraKey:
+                                    "vehicleDefaultOptions",
                             },
                         },
                     },
@@ -226,6 +291,21 @@ const vehicleDocumentCreateFormNodes: ViewConfig["nodes"] = [
                         },
                     },
                 ],
+            },
+            {
+                render: "#Field",
+                field: {
+                    name: "notes",
+                    widget: "#Textarea",
+                    label: "form.notesLabel",
+                    placeholder: "form.notesPlaceholder",
+                    widgetProps: {
+                        rows: 4,
+                        maxLength: VEHICLE_RECORD_NOTES_MAX,
+                        className:
+                            "field-sizing-fixed max-h-56 min-h-24 overflow-y-auto",
+                    },
+                },
             },
         ],
     },
@@ -275,33 +355,24 @@ const vehicleDocumentCreateFormNodes: ViewConfig["nodes"] = [
         ],
     },
     {
-        render: "#Field",
-        field: {
-            name: "notes",
-            widget: "#Textarea",
-            label: "form.notesLabel",
-            placeholder: "form.notesPlaceholder",
-            widgetProps: {
-                rows: 4,
-                maxLength: VEHICLE_RECORD_NOTES_MAX,
-                className:
-                    "field-sizing-fixed max-h-56 min-h-24 overflow-y-auto",
+        render: "#TitleWithCollapse",
+        props: {title: "form.attachmentsSectionTitle"},
+        children: [
+            {
+                render: "#Field",
+                field: {
+                    name: "attachments",
+                    widget: "#MediaField",
+                    label: "form.attachmentsLabel",
+                    widgetProps: {
+                        mediaType: "file",
+                        mode: "multiple",
+                        maxCount: VEHICLE_RECORD_ATTACHMENTS_MAX,
+                        accept: "application/pdf,image/*",
+                    },
+                },
             },
-        },
-    },
-    {
-        render: "#Field",
-        field: {
-            name: "attachments",
-            widget: "#MediaField",
-            label: "form.attachmentsLabel",
-            widgetProps: {
-                mediaType: "file",
-                mode: "multiple",
-                maxCount: VEHICLE_RECORD_ATTACHMENTS_MAX,
-                accept: "application/pdf,image/*",
-            },
-        },
+        ],
     },
 ];
 
@@ -310,8 +381,8 @@ const vehicleDocumentEditFormNodes: ViewConfig["nodes"] = [
         render: "#TitleWithCollapse",
         props: {title: "form.identificationSectionTitle"},
         permissions: {
-            readAny: ["vehicle", "type", "documentNumber", "issuer"],
-            writeAny: ["vehicle", "type", "documentNumber", "issuer"],
+            readAny: ["vehicle", "type", "documentNumber", "issuer", "notes"],
+            writeAny: ["vehicle", "type", "documentNumber", "issuer", "notes"],
         },
         children: [
             {
@@ -333,6 +404,8 @@ const vehicleDocumentEditFormNodes: ViewConfig["nodes"] = [
                                 pageSize: 50,
                                 normalizeEmptyToUndefined: true,
                                 postBody: {includeInactive: true},
+                                defaultOptionsFormExtraKey:
+                                    "vehicleDefaultOptions",
                             },
                         },
                     },
@@ -381,6 +454,22 @@ const vehicleDocumentEditFormNodes: ViewConfig["nodes"] = [
                         },
                     },
                 ],
+            },
+            {
+                render: "#Field",
+                permissions: {read: "notes", write: "notes"},
+                field: {
+                    name: "notes",
+                    widget: "#Textarea",
+                    label: "form.notesLabel",
+                    placeholder: "form.notesPlaceholder",
+                    widgetProps: {
+                        rows: 4,
+                        maxLength: VEHICLE_RECORD_NOTES_MAX,
+                        className:
+                            "field-sizing-fixed max-h-56 min-h-24 overflow-y-auto",
+                    },
+                },
             },
         ],
     },
@@ -437,35 +526,29 @@ const vehicleDocumentEditFormNodes: ViewConfig["nodes"] = [
         ],
     },
     {
-        render: "#Field",
-        permissions: {read: "notes", write: "notes"},
-        field: {
-            name: "notes",
-            widget: "#Textarea",
-            label: "form.notesLabel",
-            placeholder: "form.notesPlaceholder",
-            widgetProps: {
-                rows: 4,
-                maxLength: VEHICLE_RECORD_NOTES_MAX,
-                className:
-                    "field-sizing-fixed max-h-56 min-h-24 overflow-y-auto",
-            },
+        render: "#TitleWithCollapse",
+        props: {title: "form.attachmentsSectionTitle"},
+        permissions: {
+            readAny: ["attachments"],
+            writeAny: ["attachments"],
         },
-    },
-    {
-        render: "#Field",
-        permissions: {read: "attachments", write: "attachments"},
-        field: {
-            name: "attachments",
-            widget: "#MediaField",
-            label: "form.attachmentsLabel",
-            widgetProps: {
-                mediaType: "file",
-                mode: "multiple",
-                maxCount: VEHICLE_RECORD_ATTACHMENTS_MAX,
-                accept: "application/pdf,image/*",
+        children: [
+            {
+                render: "#Field",
+                permissions: {read: "attachments", write: "attachments"},
+                field: {
+                    name: "attachments",
+                    widget: "#MediaField",
+                    label: "form.attachmentsLabel",
+                    widgetProps: {
+                        mediaType: "file",
+                        mode: "multiple",
+                        maxCount: VEHICLE_RECORD_ATTACHMENTS_MAX,
+                        accept: "application/pdf,image/*",
+                    },
+                },
             },
-        },
+        ],
     },
 ];
 

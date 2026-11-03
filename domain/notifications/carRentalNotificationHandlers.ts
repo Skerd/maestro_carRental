@@ -28,6 +28,13 @@ const ALERTS: Record<RentalCode, (payload: Record<string, unknown>) => Alert> = 
     [NotificationEventCodes.VEHICLE_DOCUMENT_EXPIRING]: (p) => vehicleAlert(`${p.documentType ?? "Document"} of ${p.plate ?? ""} expires on ${p.expiresOn ?? ""}`, p),
     [NotificationEventCodes.VEHICLE_SERVICE_DUE]: (p) =>
         vehicleAlert(`${p.plate ?? ""} is due for service${p.dueOn ? ` by ${p.dueOn}` : ""}${p.dueKm ? ` or at ${p.dueKm} km` : ""}`, p),
+    [NotificationEventCodes.VEHICLE_INSURANCE_EXPIRED]: (p) =>
+        vehicleAlert(`Insurance ${p.policyNumber ?? ""} of ${p.plate ?? ""} has expired with no renewal: the car cannot be handed over`, p),
+    [NotificationEventCodes.VEHICLE_DOCUMENT_EXPIRED]: (p) =>
+        vehicleAlert(`${p.documentType ?? "Document"} of ${p.plate ?? ""} has expired with no renewal`, p),
+    [NotificationEventCodes.VEHICLE_DAMAGE_REPORTED]: (p) => vehicleAlert(`New ${p.severity ?? ""} damage (${p.area ?? ""}) reported on ${p.plate ?? ""}`, p),
+    [NotificationEventCodes.VEHICLE_FINE_DUE]: (p) =>
+        vehicleAlert(`Fine ${p.reference ?? ""} (${p.authority ?? ""}) of ${p.plate ?? ""} is due on ${p.dueOn ?? ""} and not paid`, p),
 };
 
 function bindHandler(code: RentalCode): void {

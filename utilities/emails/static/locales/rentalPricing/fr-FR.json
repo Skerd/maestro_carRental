@@ -13,5 +13,6 @@
   "smoking": "Frais fumeur",
   "damage": "Dommage : {description}",
   "fine": "Amende {reference}",
-  "fineAdmin": "Frais de traitement de l'amende"
+  "fineAdmin": "Frais de traitement de l'amende",
+  "chargeRemoved": "Retiré : {label}"
 }

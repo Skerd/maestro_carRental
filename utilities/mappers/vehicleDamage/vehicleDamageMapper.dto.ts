@@ -6,6 +6,10 @@ import {dateToISOString, mapMedia, mapSnippet} from "@coreModule/utilities/mappe
 import {VehicleSimpleSnippet} from "@carRentalModule/database/schemas/vehicle/vehicle.snippets";
 import {mapLifeCycleToDTO, mapOwnershipToDTO, mapSoftDeleteToDTO} from "@coreModule/utilities/mappers/plugin/pluginMappers.dto";
 import {RentalReservationSimpleSnippet} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation.snippets";
+import type {VehicleMaintenanceSimple} from "armonia/src/modules/carRental/dto/vehicleMaintenance.dto";
+import {VehicleMaintenanceSimpleSnippet} from "@carRentalModule/database/schemas/vehicleMaintenance/vehicleMaintenance.snippets";
+import type {VehicleInsuranceSimple} from "armonia/src/modules/carRental/dto/vehicleInsurance.dto";
+import {VehicleInsuranceSimpleSnippet} from "@carRentalModule/database/schemas/vehicleInsurance/vehicleInsurance.snippets";
 
 export function vehicleDamageToDTO(damage: IVehicleDamage): VehicleDamage {
     return {
@@ -19,10 +23,13 @@ export function vehicleDamageToDTO(damage: IVehicleDamage): VehicleDamage {
         photos: damage.photos?.length ? damage.photos.map(mapMedia).filter((media) => media !== undefined) : undefined,
         status: damage.status,
         estimatedCost: damage.estimatedCost,
-        repairCost: damage.repairCost,
+        repair: mapSnippet<VehicleMaintenanceSimple>()(damage.repair, VehicleMaintenanceSimpleSnippet),
+        repairedAt: damage.repairedAt ? dateToISOString(damage.repairedAt) : undefined,
         chargedAmount: damage.chargedAmount,
         chargedAt: damage.chargedAt ? dateToISOString(damage.chargedAt) : undefined,
-        repairedAt: damage.repairedAt ? dateToISOString(damage.repairedAt) : undefined,
+        insurance: mapSnippet<VehicleInsuranceSimple>()(damage.insurance, VehicleInsuranceSimpleSnippet),
+        claimNumber: damage.claimNumber,
+        insurerPaidAmount: damage.insurerPaidAmount,
         ...mapSoftDeleteToDTO(damage),
         ...mapOwnershipToDTO(damage),
         ...mapLifeCycleToDTO(damage),

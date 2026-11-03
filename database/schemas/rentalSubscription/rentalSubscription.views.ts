@@ -32,11 +32,12 @@ export const rentalSubscriptionSheetView: ViewConfig = {
     nodes: [
         {
             render: "#SheetGroup",
-            props: {title: "overview"},
+            props: {title: "contactGroup"},
+            permissions: {readAny: ["contactName", "email", "phone"]},
             children: [
                 {
                     render: "#SheetGrid",
-                    props: {columns: 2},
+                    props: {columns: 3},
                     children: [
                         {
                             render: "#DisplayCard",
@@ -68,6 +69,19 @@ export const rentalSubscriptionSheetView: ViewConfig = {
                                 widgetProps: {icon: "#IconPhone"},
                             },
                         },
+                    ],
+                },
+            ],
+        },
+        {
+            render: "#SheetGroup",
+            props: {title: "bookingGroup"},
+            permissions: {readAny: ["category", "pickupLocation"]},
+            children: [
+                {
+                    render: "#SheetGrid",
+                    props: {columns: 2},
+                    children: [
                         {
                             render: "#DisplayCard",
                             permissions: {read: "category"},
@@ -75,7 +89,13 @@ export const rentalSubscriptionSheetView: ViewConfig = {
                                 name: "category.name",
                                 widget: "#DisplayCard",
                                 label: "category",
-                                widgetProps: {icon: "#IconCategory"},
+                                widgetProps: {
+                                    icon: "#IconCategory",
+                                    linkedRefPath: "category",
+                                    linkedSheetModel: "vehiclecategories",
+                                    linkedSheetWidget: "#VehicleCategorySheetView",
+                                    linkedSheetEntityProp: "vehicleCategory",
+                                },
                             },
                         },
                         {
@@ -85,9 +105,30 @@ export const rentalSubscriptionSheetView: ViewConfig = {
                                 name: "pickupLocation.name",
                                 widget: "#DisplayCard",
                                 label: "pickupLocation",
-                                widgetProps: {icon: "#IconMapPin"},
+                                widgetProps: {
+                                    icon: "#IconMapPin",
+                                    linkedRefPath: "pickupLocation",
+                                    linkedSheetModel: "rentallocations",
+                                    linkedSheetWidget: "#RentalLocationSheetView",
+                                    linkedSheetEntityProp: "rentalLocation",
+                                },
                             },
                         },
+                    ],
+                },
+            ],
+        },
+        {
+            render: "#SheetGroup",
+            props: {title: "scheduleGroup"},
+            permissions: {
+                readAny: ["period", "price", "status", "nextRunAt"],
+            },
+            children: [
+                {
+                    render: "#SheetGrid",
+                    props: {columns: 3},
+                    children: [
                         {
                             render: "#DisplayCard",
                             permissions: {read: "period"},
@@ -152,140 +193,170 @@ export const rentalSubscriptionSheetView: ViewConfig = {
 
 const rentalSubscriptionCreateFormNodes: ViewConfig["nodes"] = [
     {
-        render: "#FormGrid",
-        props: {columns: 2},
+        render: "#TitleWithCollapse",
+        props: {title: "form.contactSectionTitle"},
         children: [
             {
-                render: "#Field",
-                field: {
-                    name: "contactName",
-                    widget: "#Input",
-                    label: "form.contactNameLabel",
-                    placeholder: "form.contactNamePlaceholder",
-                    required: true,
-                    widgetProps: {
-                        maxLength: RENTAL_SUBSCRIPTION_CONTACT_NAME_MAX,
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "contactName",
+                            widget: "#Input",
+                            label: "form.contactNameLabel",
+                            placeholder: "form.contactNamePlaceholder",
+                            required: true,
+                            widgetProps: {
+                                maxLength: RENTAL_SUBSCRIPTION_CONTACT_NAME_MAX,
+                            },
+                        },
                     },
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "email",
-                    widget: "#Input",
-                    label: "form.emailLabel",
-                    placeholder: "form.emailPlaceholder",
-                    required: true,
-                    widgetProps: {maxLength: RENTAL_SUBSCRIPTION_EMAIL_MAX},
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "phone",
-                    widget: "#Input",
-                    label: "form.phoneLabel",
-                    placeholder: "form.phonePlaceholder",
-                    required: true,
-                    widgetProps: {maxLength: RENTAL_SUBSCRIPTION_PHONE_MAX},
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "category",
-                    widget: "#ApiSelect",
-                    label: "form.categoryLabel",
-                    placeholder: "form.categoryPlaceholder",
-                    required: true,
-                    widgetProps: {
-                        apiUrl: "/api/carRental/vehicleCategory/select",
-                        method: "POST",
-                        pageSize: 50,
-                        normalizeEmptyToUndefined: true,
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "email",
+                            widget: "#Input",
+                            label: "form.emailLabel",
+                            placeholder: "form.emailPlaceholder",
+                            required: true,
+                            widgetProps: {maxLength: RENTAL_SUBSCRIPTION_EMAIL_MAX},
+                        },
                     },
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "pickupLocation",
-                    widget: "#ApiSelect",
-                    label: "form.pickupLocationLabel",
-                    placeholder: "form.pickupLocationPlaceholder",
-                    required: true,
-                    widgetProps: {
-                        apiUrl: "/api/carRental/rentalLocation/select",
-                        method: "POST",
-                        pageSize: 50,
-                        normalizeEmptyToUndefined: true,
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "phone",
+                            widget: "#Input",
+                            label: "form.phoneLabel",
+                            placeholder: "form.phonePlaceholder",
+                            required: true,
+                            widgetProps: {maxLength: RENTAL_SUBSCRIPTION_PHONE_MAX},
+                        },
                     },
-                },
+                ],
             },
+        ],
+    },
+    {
+        render: "#TitleWithCollapse",
+        props: {title: "form.bookingSectionTitle"},
+        children: [
             {
-                render: "#Field",
-                field: {
-                    name: "businessAccount",
-                    widget: "#ApiSelect",
-                    label: "form.businessAccountLabel",
-                    placeholder: "form.businessAccountPlaceholder",
-                    widgetProps: {
-                        apiUrl: "/api/carRental/rentalBusinessAccount/select",
-                        method: "POST",
-                        pageSize: 50,
-                        normalizeEmptyToUndefined: true,
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "category",
+                            widget: "#ApiSelect",
+                            label: "form.categoryLabel",
+                            placeholder: "form.categoryPlaceholder",
+                            required: true,
+                            widgetProps: {
+                                apiUrl: "/api/carRental/vehicleCategory/select",
+                                method: "POST",
+                                pageSize: 50,
+                                normalizeEmptyToUndefined: true,
+                            },
+                        },
                     },
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "period",
-                    widget: "#SimpleSelect",
-                    label: "form.periodLabel",
-                    placeholder: "form.periodPlaceholder",
-                    required: true,
-                    widgetProps: {
-                        options: periodOptions,
-                        className: "grow w-full",
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "pickupLocation",
+                            widget: "#ApiSelect",
+                            label: "form.pickupLocationLabel",
+                            placeholder: "form.pickupLocationPlaceholder",
+                            required: true,
+                            widgetProps: {
+                                apiUrl: "/api/carRental/rentalLocation/select",
+                                method: "POST",
+                                pageSize: 50,
+                                normalizeEmptyToUndefined: true,
+                            },
+                        },
                     },
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "price",
-                    widget: "#Input",
-                    label: "form.priceLabel",
-                    placeholder: "form.pricePlaceholder",
-                    required: true,
-                    widgetProps: {type: "number", min: 0, step: "any"},
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "status",
-                    widget: "#SimpleSelect",
-                    label: "form.statusLabel",
-                    placeholder: "form.statusPlaceholder",
-                    required: true,
-                    widgetProps: {
-                        options: statusOptions,
-                        className: "grow w-full",
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "businessAccount",
+                            widget: "#ApiSelect",
+                            label: "form.businessAccountLabel",
+                            placeholder: "form.businessAccountPlaceholder",
+                            widgetProps: {
+                                apiUrl: "/api/carRental/rentalBusinessAccount/select",
+                                method: "POST",
+                                pageSize: 50,
+                                normalizeEmptyToUndefined: true,
+                            },
+                        },
                     },
-                },
+                ],
             },
+        ],
+    },
+    {
+        render: "#TitleWithCollapse",
+        props: {title: "form.scheduleSectionTitle"},
+        children: [
             {
-                render: "#Field",
-                field: {
-                    name: "nextRunAt",
-                    widget: "#DateInput",
-                    label: "form.nextRunAtLabel",
-                    placeholder: "form.nextRunAtPlaceholder",
-                    required: true,
-                    widgetProps: {valueFormat: "yyyy-MM-dd HH:mm"},
-                },
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "period",
+                            widget: "#SimpleSelect",
+                            label: "form.periodLabel",
+                            placeholder: "form.periodPlaceholder",
+                            required: true,
+                            widgetProps: {
+                                options: periodOptions,
+                                className: "grow w-full",
+                            },
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "price",
+                            widget: "#Input",
+                            label: "form.priceLabel",
+                            placeholder: "form.pricePlaceholder",
+                            required: true,
+                            widgetProps: {type: "number", min: 0, step: "any"},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "status",
+                            widget: "#SimpleSelect",
+                            label: "form.statusLabel",
+                            placeholder: "form.statusPlaceholder",
+                            required: true,
+                            widgetProps: {
+                                options: statusOptions,
+                                className: "grow w-full",
+                            },
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "nextRunAt",
+                            widget: "#DateInput",
+                            label: "form.nextRunAtLabel",
+                            placeholder: "form.nextRunAtPlaceholder",
+                            required: true,
+                            widgetProps: {valueFormat: "yyyy-MM-dd HH:mm"},
+                        },
+                    },
+                ],
             },
         ],
     },
@@ -293,177 +364,195 @@ const rentalSubscriptionCreateFormNodes: ViewConfig["nodes"] = [
 
 const rentalSubscriptionEditFormNodes: ViewConfig["nodes"] = [
     {
-        render: "#FormGrid",
-        props: {columns: 2},
+        render: "#TitleWithCollapse",
+        props: {title: "form.contactSectionTitle"},
         permissions: {
-            readAny: [
-                "contactName",
-                "email",
-                "phone",
-                "category",
-                "pickupLocation",
-                "period",
-                "price",
-                "status",
-                "nextRunAt",
-            ],
-            writeAny: [
-                "contactName",
-                "email",
-                "phone",
-                "category",
-                "pickupLocation",
-                "period",
-                "price",
-                "status",
-                "nextRunAt",
-            ],
+            readAny: ["contactName", "email", "phone"],
+            writeAny: ["contactName", "email", "phone"],
         },
         children: [
             {
-                render: "#Field",
-                permissions: {read: "contactName", write: "contactName"},
-                field: {
-                    name: "contactName",
-                    widget: "#Input",
-                    label: "form.contactNameLabel",
-                    placeholder: "form.contactNamePlaceholder",
-                    required: true,
-                    widgetProps: {
-                        maxLength: RENTAL_SUBSCRIPTION_CONTACT_NAME_MAX,
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        permissions: {read: "contactName", write: "contactName"},
+                        field: {
+                            name: "contactName",
+                            widget: "#Input",
+                            label: "form.contactNameLabel",
+                            placeholder: "form.contactNamePlaceholder",
+                            required: true,
+                            widgetProps: {
+                                maxLength: RENTAL_SUBSCRIPTION_CONTACT_NAME_MAX,
+                            },
+                        },
                     },
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "email", write: "email"},
-                field: {
-                    name: "email",
-                    widget: "#Input",
-                    label: "form.emailLabel",
-                    placeholder: "form.emailPlaceholder",
-                    required: true,
-                    widgetProps: {maxLength: RENTAL_SUBSCRIPTION_EMAIL_MAX},
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "phone", write: "phone"},
-                field: {
-                    name: "phone",
-                    widget: "#Input",
-                    label: "form.phoneLabel",
-                    placeholder: "form.phonePlaceholder",
-                    required: true,
-                    widgetProps: {maxLength: RENTAL_SUBSCRIPTION_PHONE_MAX},
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "category", write: "category"},
-                field: {
-                    name: "category",
-                    widget: "#ApiSelect",
-                    label: "form.categoryLabel",
-                    placeholder: "form.categoryPlaceholder",
-                    required: true,
-                    widgetProps: {
-                        apiUrl: "/api/carRental/vehicleCategory/select",
-                        method: "POST",
-                        pageSize: 50,
-                        normalizeEmptyToUndefined: true,
+                    {
+                        render: "#Field",
+                        permissions: {read: "email", write: "email"},
+                        field: {
+                            name: "email",
+                            widget: "#Input",
+                            label: "form.emailLabel",
+                            placeholder: "form.emailPlaceholder",
+                            required: true,
+                            widgetProps: {maxLength: RENTAL_SUBSCRIPTION_EMAIL_MAX},
+                        },
                     },
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "pickupLocation", write: "pickupLocation"},
-                field: {
-                    name: "pickupLocation",
-                    widget: "#ApiSelect",
-                    label: "form.pickupLocationLabel",
-                    placeholder: "form.pickupLocationPlaceholder",
-                    required: true,
-                    widgetProps: {
-                        apiUrl: "/api/carRental/rentalLocation/select",
-                        method: "POST",
-                        pageSize: 50,
-                        normalizeEmptyToUndefined: true,
+                    {
+                        render: "#Field",
+                        permissions: {read: "phone", write: "phone"},
+                        field: {
+                            name: "phone",
+                            widget: "#Input",
+                            label: "form.phoneLabel",
+                            placeholder: "form.phonePlaceholder",
+                            required: true,
+                            widgetProps: {maxLength: RENTAL_SUBSCRIPTION_PHONE_MAX},
+                        },
                     },
-                },
+                ],
             },
+        ],
+    },
+    {
+        render: "#TitleWithCollapse",
+        props: {title: "form.bookingSectionTitle"},
+        permissions: {
+            readAny: ["category", "pickupLocation", "businessAccount"],
+            writeAny: ["category", "pickupLocation", "businessAccount"],
+        },
+        children: [
             {
-                render: "#Field",
-                permissions: {
-                    read: "businessAccount",
-                    write: "businessAccount",
-                },
-                field: {
-                    name: "businessAccount",
-                    widget: "#ApiSelect",
-                    label: "form.businessAccountLabel",
-                    placeholder: "form.businessAccountPlaceholder",
-                    widgetProps: {
-                        apiUrl: "/api/carRental/rentalBusinessAccount/select",
-                        method: "POST",
-                        pageSize: 50,
-                        normalizeEmptyToUndefined: true,
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        permissions: {read: "category", write: "category"},
+                        field: {
+                            name: "category",
+                            widget: "#ApiSelect",
+                            label: "form.categoryLabel",
+                            placeholder: "form.categoryPlaceholder",
+                            required: true,
+                            widgetProps: {
+                                apiUrl: "/api/carRental/vehicleCategory/select",
+                                method: "POST",
+                                pageSize: 50,
+                                normalizeEmptyToUndefined: true,
+                            },
+                        },
                     },
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "period", write: "period"},
-                field: {
-                    name: "period",
-                    widget: "#SimpleSelect",
-                    label: "form.periodLabel",
-                    placeholder: "form.periodPlaceholder",
-                    required: true,
-                    widgetProps: {
-                        options: periodOptions,
-                        className: "grow w-full",
+                    {
+                        render: "#Field",
+                        permissions: {read: "pickupLocation", write: "pickupLocation"},
+                        field: {
+                            name: "pickupLocation",
+                            widget: "#ApiSelect",
+                            label: "form.pickupLocationLabel",
+                            placeholder: "form.pickupLocationPlaceholder",
+                            required: true,
+                            widgetProps: {
+                                apiUrl: "/api/carRental/rentalLocation/select",
+                                method: "POST",
+                                pageSize: 50,
+                                normalizeEmptyToUndefined: true,
+                            },
+                        },
                     },
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "price", write: "price"},
-                field: {
-                    name: "price",
-                    widget: "#Input",
-                    label: "form.priceLabel",
-                    placeholder: "form.pricePlaceholder",
-                    required: true,
-                    widgetProps: {type: "number", min: 0, step: "any"},
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "status", write: "status"},
-                field: {
-                    name: "status",
-                    widget: "#SimpleSelect",
-                    label: "form.statusLabel",
-                    placeholder: "form.statusPlaceholder",
-                    required: true,
-                    widgetProps: {
-                        options: statusOptions,
-                        className: "grow w-full",
+                    {
+                        render: "#Field",
+                        permissions: {
+                            read: "businessAccount",
+                            write: "businessAccount",
+                        },
+                        field: {
+                            name: "businessAccount",
+                            widget: "#ApiSelect",
+                            label: "form.businessAccountLabel",
+                            placeholder: "form.businessAccountPlaceholder",
+                            widgetProps: {
+                                apiUrl: "/api/carRental/rentalBusinessAccount/select",
+                                method: "POST",
+                                pageSize: 50,
+                                normalizeEmptyToUndefined: true,
+                            },
+                        },
                     },
-                },
+                ],
             },
+        ],
+    },
+    {
+        render: "#TitleWithCollapse",
+        props: {title: "form.scheduleSectionTitle"},
+        permissions: {
+            readAny: ["period", "price", "status", "nextRunAt"],
+            writeAny: ["period", "price", "status", "nextRunAt"],
+        },
+        children: [
             {
-                render: "#Field",
-                permissions: {read: "nextRunAt", write: "nextRunAt"},
-                field: {
-                    name: "nextRunAt",
-                    widget: "#DateInput",
-                    label: "form.nextRunAtLabel",
-                    placeholder: "form.nextRunAtPlaceholder",
-                    required: true,
-                    widgetProps: {valueFormat: "yyyy-MM-dd HH:mm"},
-                },
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        permissions: {read: "period", write: "period"},
+                        field: {
+                            name: "period",
+                            widget: "#SimpleSelect",
+                            label: "form.periodLabel",
+                            placeholder: "form.periodPlaceholder",
+                            required: true,
+                            widgetProps: {
+                                options: periodOptions,
+                                className: "grow w-full",
+                            },
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "price", write: "price"},
+                        field: {
+                            name: "price",
+                            widget: "#Input",
+                            label: "form.priceLabel",
+                            placeholder: "form.pricePlaceholder",
+                            required: true,
+                            widgetProps: {type: "number", min: 0, step: "any"},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "status", write: "status"},
+                        field: {
+                            name: "status",
+                            widget: "#SimpleSelect",
+                            label: "form.statusLabel",
+                            placeholder: "form.statusPlaceholder",
+                            required: true,
+                            widgetProps: {
+                                options: statusOptions,
+                                className: "grow w-full",
+                            },
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "nextRunAt", write: "nextRunAt"},
+                        field: {
+                            name: "nextRunAt",
+                            widget: "#DateInput",
+                            label: "form.nextRunAtLabel",
+                            placeholder: "form.nextRunAtPlaceholder",
+                            required: true,
+                            widgetProps: {valueFormat: "yyyy-MM-dd HH:mm"},
+                        },
+                    },
+                ],
             },
         ],
     },

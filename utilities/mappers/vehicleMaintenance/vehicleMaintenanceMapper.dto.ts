@@ -3,6 +3,8 @@ import type {VehicleMaintenance} from "armonia/src/modules/carRental/api/carRent
 import type {VehicleSimple} from "armonia/src/modules/carRental/dto/vehicle.dto";
 import {dateToISOString, mapMedia, mapSnippet} from "@coreModule/utilities/mappers/common.mapper";
 import {VehicleSimpleSnippet} from "@carRentalModule/database/schemas/vehicle/vehicle.snippets";
+import type {VehicleDamageSimple} from "armonia/src/modules/carRental/dto/vehicleDamage.dto";
+import {VehicleDamageSimpleSnippet} from "@carRentalModule/database/schemas/vehicleDamage/vehicleDamage.snippets";
 import {mapLifeCycleToDTO, mapOwnershipToDTO, mapSoftDeleteToDTO} from "@coreModule/utilities/mappers/plugin/pluginMappers.dto";
 
 export function vehicleMaintenanceToDTO(record: IVehicleMaintenance): VehicleMaintenance {
@@ -12,6 +14,7 @@ export function vehicleMaintenanceToDTO(record: IVehicleMaintenance): VehicleMai
         type: record.type,
         status: record.status,
         serviceDate: dateToISOString(record.serviceDate),
+        readyAt: record.readyAt ? dateToISOString(record.readyAt) : undefined,
         odometerKm: record.odometerKm,
         provider: record.provider,
         cost: record.cost,
@@ -19,6 +22,9 @@ export function vehicleMaintenanceToDTO(record: IVehicleMaintenance): VehicleMai
         nextDueAt: record.nextDueAt ? dateToISOString(record.nextDueAt) : undefined,
         nextDueKm: record.nextDueKm,
         attachments: record.attachments?.length ? record.attachments.map(mapMedia).filter((media) => media !== undefined) : undefined,
+        damages: record.damages?.length
+            ? record.damages.map((damage) => mapSnippet<VehicleDamageSimple>()(damage, VehicleDamageSimpleSnippet)).filter((damage) => damage !== undefined)
+            : undefined,
         ...mapSoftDeleteToDTO(record),
         ...mapOwnershipToDTO(record),
         ...mapLifeCycleToDTO(record),

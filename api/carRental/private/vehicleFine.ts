@@ -9,7 +9,7 @@ import {vehicleFineToDTO, vehicleFinesToDTO} from "@carRentalModule/utilities/ma
 import {vehicleFinesToSelect} from "@carRentalModule/utilities/mappers/vehicleFine/vehicleFineMapper.select";
 import {VehicleFineActions} from "@carRentalModule/database/schemas/vehicleFine/vehicleFine.actions";
 import {assertCompanyVehicle, recordAttachmentsUpload} from "@carRentalModule/utilities/services/vehicleRecords";
-import {bookingAtOffence, mainDriverName} from "@carRentalModule/utilities/services/rentalFines";
+import {matchFine} from "@carRentalModule/utilities/services/rentalFines";
 
 export const basePath = "/api/carRental/vehicleFine";
 
@@ -28,14 +28,22 @@ export const {router} = createCrudRouter({
     actions: VehicleFineActions,
     createMiddleware: [recordAttachmentsUpload],
     editMiddleware: [recordAttachmentsUpload],
-    /** A new fine is matched to the booking that had the car at the time, and its main driver. */
+    /**
+     * A new fine is matched to the booking that had the car at the time and its main
+     * driver, or else to the staff transfer and its driver. The status follows the match.
+     */
     buildCreateData: async (params: any) => {
         const {company, session, languageCode} = params;
         const vehicleId = await assertCompanyVehicle(params.vehicle, {companyId: company._id, session, languageCode});
         const data = await buildCreateDataFromSchemaDef(VehicleFineSchemaDef)(params);
-        const booking = await bookingAtOffence({companyId: company._id, vehicleId, offenceAt: new Date(data.offenceAt)}, session);
-        if (!booking) return data;
-        return {...data, reservation: booking._id, driverName: mainDriverName(booking), status: data.status === "received" || !data.status ? "driver_identified" : data.status};
+        const match = await matchFine({companyId: company._id, vehicleId, offenceAt: new Date(data.offenceAt)}, session);
+        return {
+            ...data,
+            reservation: match.reservation?._id,
+            transfer: match.transfer?._id,
+            driverName: match.driverName,
+            status: match.reservation || match.driverName ? "driver_identified" : "received",
+        };
     },
     buildUpdateData: async (params: any, writeFields) => {
         const {company, session, languageCode} = params;

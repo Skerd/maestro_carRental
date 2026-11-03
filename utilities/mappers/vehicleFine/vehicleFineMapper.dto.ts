@@ -4,6 +4,8 @@ import type {VehicleSimple} from "armonia/src/modules/carRental/dto/vehicle.dto"
 import {VehicleSimpleSnippet} from "@carRentalModule/database/schemas/vehicle/vehicle.snippets";
 import type {RentalReservationSimple} from "armonia/src/modules/carRental/dto/rentalReservation.dto";
 import {RentalReservationSimpleSnippet} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation.snippets";
+import type {VehicleTransferSimple} from "armonia/src/modules/carRental/dto/vehicleTransfer.dto";
+import {VehicleTransferSimpleSnippet} from "@carRentalModule/database/schemas/vehicleTransfer/vehicleTransfer.snippets";
 import {dateToISOString, mapMedia, mapSnippet} from "@coreModule/utilities/mappers/common.mapper";
 import {mapLifeCycleToDTO, mapOwnershipToDTO, mapSoftDeleteToDTO} from "@coreModule/utilities/mappers/plugin/pluginMappers.dto";
 
@@ -22,6 +24,10 @@ export function vehicleFineToDTO(fine: IVehicleFine): VehicleFine {
         reservation: mapSnippet<RentalReservationSimple>()(fine.reservation, RentalReservationSimpleSnippet),
         driverName: fine.driverName,
         chargedAmount: fine.chargedAmount,
+        transfer: mapSnippet<VehicleTransferSimple>()(fine.transfer, VehicleTransferSimpleSnippet),
+        paidAt: fine.paidAt ? dateToISOString(fine.paidAt) : undefined,
+        paidAmount: fine.paidAmount,
+        paymentReference: fine.paymentReference,
         attachments: fine.attachments?.length ? fine.attachments.map(mapMedia).filter((media) => media !== undefined) : undefined,
         notes: fine.notes,
         ...mapSoftDeleteToDTO(fine),

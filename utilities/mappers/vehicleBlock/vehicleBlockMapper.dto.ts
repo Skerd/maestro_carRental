@@ -13,6 +13,7 @@ export function vehicleBlockToDTO(block: IVehicleBlock): VehicleBlock {
         endAt: dateToISOString(block.endAt),
         reason: block.reason,
         note: block.note,
+        source: block.source,
         ...mapSoftDeleteToDTO(block),
         ...mapOwnershipToDTO(block),
         ...mapLifeCycleToDTO(block),

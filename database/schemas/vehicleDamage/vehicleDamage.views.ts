@@ -2,9 +2,9 @@ import type {ViewConfig} from "armonia/src/modules/core/api/auxiliary/private/vi
 import {lifecycleSheetGroup} from "@coreModule/database/schemas/shared/lifecycleSheetGroup";
 import {
     VEHICLE_DAMAGE_AREAS,
+    VEHICLE_DAMAGE_CLAIM_NUMBER_MAX,
     VEHICLE_DAMAGE_PHOTOS_MAX,
     VEHICLE_DAMAGE_SEVERITIES,
-    VEHICLE_DAMAGE_STATUSES,
 } from "armonia/src/modules/carRental/api/carRental/private/vehicleDamage/vehicleDamage.schema-def";
 import {VEHICLE_RECORD_NOTES_MAX} from "armonia/src/modules/carRental/api/carRental/private/vehicle/vehicle.schema-def";
 
@@ -26,24 +26,30 @@ export const vehicleDamageSheetView: ViewConfig = {
             props: {title: "overview"},
             children: [
                 {
-                    render: "#DisplayCard",
-                    permissions: {read: "photos"},
-                    field: {
-                        name: "photos",
-                        widget: "#GalleryCarousel",
-                        label: "photos",
-                        widgetProps: {
-                            icon: "#IconPhoto",
-                            imageGalleryField: "photos",
-                            showThumbnails: false,
-                            allowFullScreen: false,
-                            coverAfterFirst: false,
+                    render: "div",
+                    props: {className: "max-w-full"},
+                    children: [
+                        {
+                            render: "#GalleryCarousel",
+                            permissions: {read: "photos"},
+                            field: {
+                                name: "photos",
+                                widget: "#GalleryCarousel",
+                                widgetProps: {
+                                    imageGalleryField: "photos",
+                                    showThumbnails: false,
+                                    allowFullScreen: false,
+                                    coverAfterFirst: false,
+                                    showPreviews: true,
+                                    previewLocation: "right",
+                                },
+                            },
                         },
-                    },
+                    ],
                 },
                 {
                     render: "#SheetGrid",
-                    props: {columns: 2},
+                    props: {columns: 3},
                     children: [
                         {
                             render: "#DisplayCard",
@@ -52,7 +58,13 @@ export const vehicleDamageSheetView: ViewConfig = {
                                 name: "vehicle.plate",
                                 widget: "#DisplayCard",
                                 label: "vehicle",
-                                widgetProps: {icon: "#IconCar"},
+                                widgetProps: {
+                                    icon: "#IconCar",
+                                    linkedRefPath: "vehicle",
+                                    linkedSheetModel: "vehicles",
+                                    linkedSheetWidget: "#VehicleSheetView",
+                                    linkedSheetEntityProp: "vehicle",
+                                },
                             },
                         },
                         {
@@ -62,7 +74,14 @@ export const vehicleDamageSheetView: ViewConfig = {
                                 name: "reservation.number",
                                 widget: "#DisplayCard",
                                 label: "reservation",
-                                widgetProps: {icon: "#IconCalendarCheck"},
+                                widgetProps: {
+                                    icon: "#IconCalendarCheck",
+                                    linkedRefPath: "reservation",
+                                    linkedSheetModel: "rentalreservations",
+                                    linkedSheetWidget:
+                                        "#RentalReservationSheetView",
+                                    linkedSheetEntityProp: "rentalReservation",
+                                },
                             },
                         },
                         {
@@ -120,6 +139,39 @@ export const vehicleDamageSheetView: ViewConfig = {
                                 },
                             },
                         },
+                    ],
+                },
+                {
+                    render: "#SheetGrid",
+                    props: {columns: 1},
+                    children: [
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "description"},
+                            field: {
+                                name: "description",
+                                widget: "#DisplayCard",
+                                label: "description",
+                                widgetProps: {
+                                    icon: "#IconAlignLeft",
+                                    expandable: true,
+                                    maxLength: 250,
+                                },
+                            },
+                        },
+                    ],
+                },
+            ],
+        },
+        {
+            render: "#SheetGroup",
+            props: {title: "repairGroup"},
+            permissions: {readAny: ["estimatedCost", "repair", "repairedAt"]},
+            children: [
+                {
+                    render: "#SheetGrid",
+                    props: {columns: 3},
+                    children: [
                         {
                             render: "#DisplayCard",
                             permissions: {read: "estimatedCost"},
@@ -135,9 +187,28 @@ export const vehicleDamageSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
-                            permissions: {read: "repairCost"},
+                            permissions: {read: "repair"},
                             field: {
-                                name: "repairCost",
+                                name: "repair.status",
+                                widget: "#DisplayCard",
+                                label: "repair",
+                                widgetProps: {
+                                    icon: "#IconTool",
+                                    type: "enum",
+                                    languageKeyCategory: "repairStatusValues",
+                                    linkedRefPath: "repair",
+                                    linkedSheetModel: "vehiclemaintenances",
+                                    linkedSheetWidget:
+                                        "#VehicleMaintenanceSheetView",
+                                    linkedSheetEntityProp: "vehicleMaintenance",
+                                },
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "repair"},
+                            field: {
+                                name: "repair.cost",
                                 widget: "#DisplayCard",
                                 label: "repairCost",
                                 widgetProps: {
@@ -146,6 +217,40 @@ export const vehicleDamageSheetView: ViewConfig = {
                                 },
                             },
                         },
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "repairedAt"},
+                            field: {
+                                name: "repairedAt",
+                                widget: "#DisplayCard",
+                                label: "repairedAt",
+                                widgetProps: {
+                                    icon: "#IconCalendarCheck",
+                                    type: "date",
+                                },
+                            },
+                        },
+                    ],
+                },
+            ],
+        },
+        {
+            render: "#SheetGroup",
+            props: {title: "recoveryGroup"},
+            permissions: {
+                readAny: [
+                    "chargedAmount",
+                    "chargedAt",
+                    "insurance",
+                    "claimNumber",
+                    "insurerPaidAmount",
+                ],
+            },
+            children: [
+                {
+                    render: "#SheetGrid",
+                    props: {columns: 3},
+                    children: [
                         {
                             render: "#DisplayCard",
                             permissions: {read: "chargedAmount"},
@@ -174,29 +279,45 @@ export const vehicleDamageSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
-                            permissions: {read: "repairedAt"},
+                            permissions: {read: "insurance"},
                             field: {
-                                name: "repairedAt",
+                                name: "insurance.policyNumber",
                                 widget: "#DisplayCard",
-                                label: "repairedAt",
+                                label: "insurance",
                                 widgetProps: {
-                                    icon: "#IconCalendarCheck",
-                                    format: "date",
-                                    type: "date",
+                                    icon: "#IconShieldCheck",
+                                    linkedRefPath: "insurance",
+                                    linkedSheetModel: "vehicleinsurances",
+                                    linkedSheetWidget:
+                                        "#VehicleInsuranceSheetView",
+                                    linkedSheetEntityProp: "vehicleInsurance",
+                                },
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "claimNumber"},
+                            field: {
+                                name: "claimNumber",
+                                widget: "#DisplayCard",
+                                label: "claimNumber",
+                                widgetProps: {icon: "#Hash"},
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "insurerPaidAmount"},
+                            field: {
+                                name: "insurerPaidAmount",
+                                widget: "#DisplayCard",
+                                label: "insurerPaidAmount",
+                                widgetProps: {
+                                    icon: "#IconCash",
+                                    type: "number",
                                 },
                             },
                         },
                     ],
-                },
-                {
-                    render: "#DisplayCard",
-                    permissions: {read: "description"},
-                    field: {
-                        name: "description",
-                        widget: "#DisplayCard",
-                        label: "description",
-                        widgetProps: {icon: "#IconNotes"},
-                    },
                 },
             ],
         },
@@ -211,10 +332,6 @@ const areaOptions = VEHICLE_DAMAGE_AREAS.map((value) => ({
 const severityOptions = VEHICLE_DAMAGE_SEVERITIES.map((value) => ({
     value,
     label: `form.severity.${value}`,
-}));
-const statusOptions = VEHICLE_DAMAGE_STATUSES.map((value) => ({
-    value,
-    label: `form.status.${value}`,
 }));
 
 const vehicleDamageCreateFormNodes: ViewConfig["nodes"] = [
@@ -240,6 +357,8 @@ const vehicleDamageCreateFormNodes: ViewConfig["nodes"] = [
                                 pageSize: 50,
                                 normalizeEmptyToUndefined: true,
                                 postBody: {includeInactive: true},
+                                defaultOptionsFormExtraKey:
+                                    "vehicleDefaultOptions",
                             },
                         },
                     },
@@ -316,14 +435,11 @@ const vehicleDamageCreateFormNodes: ViewConfig["nodes"] = [
                     {
                         render: "#Field",
                         field: {
-                            name: "status",
-                            widget: "#SimpleSelect",
-                            label: "form.statusLabel",
-                            placeholder: "form.statusPlaceholder",
-                            widgetProps: {
-                                options: statusOptions,
-                                className: "grow w-full",
-                            },
+                            name: "estimatedCost",
+                            widget: "#Input",
+                            label: "form.estimatedCostLabel",
+                            placeholder: "form.estimatedCostPlaceholder",
+                            widgetProps: {type: "number", min: 0, step: "0.01"},
                         },
                     },
                 ],
@@ -332,7 +448,42 @@ const vehicleDamageCreateFormNodes: ViewConfig["nodes"] = [
     },
     {
         render: "#TitleWithCollapse",
-        props: {title: "form.repairSectionTitle"},
+        props: {title: "form.detailsSectionTitle"},
+        children: [
+            {
+                render: "#Field",
+                field: {
+                    name: "description",
+                    widget: "#Textarea",
+                    label: "form.descriptionLabel",
+                    placeholder: "form.descriptionPlaceholder",
+                    required: true,
+                    widgetProps: {
+                        rows: 4,
+                        maxLength: VEHICLE_RECORD_NOTES_MAX,
+                        className:
+                            "field-sizing-fixed max-h-56 min-h-24 overflow-y-auto",
+                    },
+                },
+            },
+            {
+                render: "#Field",
+                field: {
+                    name: "photos",
+                    widget: "#MediaField",
+                    label: "form.photosLabel",
+                    widgetProps: {
+                        mediaType: "image",
+                        mode: "multiple",
+                        maxCount: VEHICLE_DAMAGE_PHOTOS_MAX,
+                    },
+                },
+            },
+        ],
+    },
+    {
+        render: "#TitleWithCollapse",
+        props: {title: "form.claimSectionTitle", defaultOpen: false},
         children: [
             {
                 render: "#FormGrid",
@@ -341,65 +492,47 @@ const vehicleDamageCreateFormNodes: ViewConfig["nodes"] = [
                     {
                         render: "#Field",
                         field: {
-                            name: "estimatedCost",
-                            widget: "#Input",
-                            label: "form.estimatedCostLabel",
-                            placeholder: "form.estimatedCostPlaceholder",
-                            widgetProps: {type: "number", min: 0, step: "0.01"},
+                            name: "insurance",
+                            widget: "#ApiSelect",
+                            label: "form.insuranceLabel",
+                            placeholder: "form.insurancePlaceholder",
+                            widgetProps: {
+                                apiUrl: "/api/carRental/vehicleInsurance/select",
+                                method: "POST",
+                                pageSize: 50,
+                                normalizeEmptyToUndefined: true,
+                                postBodyFromFormFields: [
+                                    {field: "vehicle", paramName: "vehicle"},
+                                ],
+                                enableWhenFormFieldsNonEmpty: ["vehicle"],
+                            },
                         },
                     },
                     {
                         render: "#Field",
                         field: {
-                            name: "repairCost",
+                            name: "claimNumber",
                             widget: "#Input",
-                            label: "form.repairCostLabel",
-                            placeholder: "form.repairCostPlaceholder",
-                            widgetProps: {type: "number", min: 0, step: "0.01"},
+                            label: "form.claimNumberLabel",
+                            placeholder: "form.claimNumberPlaceholder",
+                            widgetProps: {
+                                maxLength: VEHICLE_DAMAGE_CLAIM_NUMBER_MAX,
+                            },
                         },
                     },
                     {
                         render: "#Field",
                         field: {
-                            name: "repairedAt",
-                            widget: "#DateInput",
-                            label: "form.repairedAtLabel",
-                            placeholder: "form.repairedAtPlaceholder",
-                            widgetProps: {valueFormat: "yyyy-MM-dd"},
+                            name: "insurerPaidAmount",
+                            widget: "#Input",
+                            label: "form.insurerPaidAmountLabel",
+                            placeholder: "form.insurerPaidAmountPlaceholder",
+                            widgetProps: {type: "number", min: 0, step: "0.01"},
                         },
                     },
                 ],
             },
         ],
-    },
-    {
-        render: "#Field",
-        field: {
-            name: "description",
-            widget: "#Textarea",
-            label: "form.descriptionLabel",
-            placeholder: "form.descriptionPlaceholder",
-            required: true,
-            widgetProps: {
-                rows: 4,
-                maxLength: VEHICLE_RECORD_NOTES_MAX,
-                className:
-                    "field-sizing-fixed max-h-56 min-h-24 overflow-y-auto",
-            },
-        },
-    },
-    {
-        render: "#Field",
-        field: {
-            name: "photos",
-            widget: "#MediaField",
-            label: "form.photosLabel",
-            widgetProps: {
-                mediaType: "image",
-                mode: "multiple",
-                maxCount: VEHICLE_DAMAGE_PHOTOS_MAX,
-            },
-        },
     },
 ];
 
@@ -431,6 +564,8 @@ const vehicleDamageEditFormNodes: ViewConfig["nodes"] = [
                                 pageSize: 50,
                                 normalizeEmptyToUndefined: true,
                                 postBody: {includeInactive: true},
+                                defaultOptionsFormExtraKey:
+                                    "vehicleDefaultOptions",
                             },
                         },
                     },
@@ -477,8 +612,8 @@ const vehicleDamageEditFormNodes: ViewConfig["nodes"] = [
         render: "#TitleWithCollapse",
         props: {title: "form.classificationSectionTitle"},
         permissions: {
-            readAny: ["area", "severity", "status"],
-            writeAny: ["area", "severity", "status"],
+            readAny: ["area", "severity", "estimatedCost"],
+            writeAny: ["area", "severity", "estimatedCost"],
         },
         children: [
             {
@@ -517,36 +652,6 @@ const vehicleDamageEditFormNodes: ViewConfig["nodes"] = [
                     },
                     {
                         render: "#Field",
-                        permissions: {read: "status", write: "status"},
-                        field: {
-                            name: "status",
-                            widget: "#SimpleSelect",
-                            label: "form.statusLabel",
-                            placeholder: "form.statusPlaceholder",
-                            widgetProps: {
-                                options: statusOptions,
-                                className: "grow w-full",
-                            },
-                        },
-                    },
-                ],
-            },
-        ],
-    },
-    {
-        render: "#TitleWithCollapse",
-        props: {title: "form.repairSectionTitle"},
-        permissions: {
-            readAny: ["estimatedCost", "repairCost", "repairedAt"],
-            writeAny: ["estimatedCost", "repairCost", "repairedAt"],
-        },
-        children: [
-            {
-                render: "#FormGrid",
-                props: {columns: 2},
-                children: [
-                    {
-                        render: "#Field",
                         permissions: {
                             read: "estimatedCost",
                             write: "estimatedCost",
@@ -559,62 +664,116 @@ const vehicleDamageEditFormNodes: ViewConfig["nodes"] = [
                             widgetProps: {type: "number", min: 0, step: "0.01"},
                         },
                     },
-                    {
-                        render: "#Field",
-                        permissions: {read: "repairCost", write: "repairCost"},
-                        field: {
-                            name: "repairCost",
-                            widget: "#Input",
-                            label: "form.repairCostLabel",
-                            placeholder: "form.repairCostPlaceholder",
-                            widgetProps: {type: "number", min: 0, step: "0.01"},
-                        },
-                    },
-                    {
-                        render: "#Field",
-                        permissions: {read: "repairedAt", write: "repairedAt"},
-                        field: {
-                            name: "repairedAt",
-                            widget: "#DateInput",
-                            label: "form.repairedAtLabel",
-                            placeholder: "form.repairedAtPlaceholder",
-                            widgetProps: {valueFormat: "yyyy-MM-dd"},
-                        },
-                    },
                 ],
             },
         ],
     },
     {
-        render: "#Field",
-        permissions: {read: "description", write: "description"},
-        field: {
-            name: "description",
-            widget: "#Textarea",
-            label: "form.descriptionLabel",
-            placeholder: "form.descriptionPlaceholder",
-            required: true,
-            widgetProps: {
-                rows: 4,
-                maxLength: VEHICLE_RECORD_NOTES_MAX,
-                className:
-                    "field-sizing-fixed max-h-56 min-h-24 overflow-y-auto",
-            },
+        render: "#TitleWithCollapse",
+        props: {title: "form.detailsSectionTitle"},
+        permissions: {
+            readAny: ["description", "photos"],
+            writeAny: ["description", "photos"],
         },
+        children: [
+            {
+                render: "#Field",
+                permissions: {read: "description", write: "description"},
+                field: {
+                    name: "description",
+                    widget: "#Textarea",
+                    label: "form.descriptionLabel",
+                    placeholder: "form.descriptionPlaceholder",
+                    required: true,
+                    widgetProps: {
+                        rows: 4,
+                        maxLength: VEHICLE_RECORD_NOTES_MAX,
+                        className:
+                            "field-sizing-fixed max-h-56 min-h-24 overflow-y-auto",
+                    },
+                },
+            },
+            {
+                render: "#Field",
+                permissions: {read: "photos", write: "photos"},
+                field: {
+                    name: "photos",
+                    widget: "#MediaField",
+                    label: "form.photosLabel",
+                    widgetProps: {
+                        mediaType: "image",
+                        mode: "multiple",
+                        maxCount: VEHICLE_DAMAGE_PHOTOS_MAX,
+                    },
+                },
+            },
+        ],
     },
     {
-        render: "#Field",
-        permissions: {read: "photos", write: "photos"},
-        field: {
-            name: "photos",
-            widget: "#MediaField",
-            label: "form.photosLabel",
-            widgetProps: {
-                mediaType: "image",
-                mode: "multiple",
-                maxCount: VEHICLE_DAMAGE_PHOTOS_MAX,
-            },
+        render: "#TitleWithCollapse",
+        props: {title: "form.claimSectionTitle"},
+        permissions: {
+            readAny: ["insurance", "claimNumber", "insurerPaidAmount"],
+            writeAny: ["insurance", "claimNumber", "insurerPaidAmount"],
         },
+        children: [
+            {
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        permissions: {read: "insurance", write: "insurance"},
+                        field: {
+                            name: "insurance",
+                            widget: "#ApiSelect",
+                            label: "form.insuranceLabel",
+                            placeholder: "form.insurancePlaceholder",
+                            widgetProps: {
+                                apiUrl: "/api/carRental/vehicleInsurance/select",
+                                method: "POST",
+                                pageSize: 50,
+                                normalizeEmptyToUndefined: true,
+                                postBodyFromFormFields: [
+                                    {field: "vehicle", paramName: "vehicle"},
+                                ],
+                                enableWhenFormFieldsNonEmpty: ["vehicle"],
+                            },
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {
+                            read: "claimNumber",
+                            write: "claimNumber",
+                        },
+                        field: {
+                            name: "claimNumber",
+                            widget: "#Input",
+                            label: "form.claimNumberLabel",
+                            placeholder: "form.claimNumberPlaceholder",
+                            widgetProps: {
+                                maxLength: VEHICLE_DAMAGE_CLAIM_NUMBER_MAX,
+                            },
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {
+                            read: "insurerPaidAmount",
+                            write: "insurerPaidAmount",
+                        },
+                        field: {
+                            name: "insurerPaidAmount",
+                            widget: "#Input",
+                            label: "form.insurerPaidAmountLabel",
+                            placeholder: "form.insurerPaidAmountPlaceholder",
+                            widgetProps: {type: "number", min: 0, step: "0.01"},
+                        },
+                    },
+                ],
+            },
+        ],
     },
 ];
 

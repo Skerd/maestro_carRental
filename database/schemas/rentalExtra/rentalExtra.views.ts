@@ -119,14 +119,24 @@ export const rentalExtraSheetView: ViewConfig = {
                     ],
                 },
                 {
-                    render: "#DisplayCard",
-                    permissions: {read: "description"},
-                    field: {
-                        name: "description",
-                        widget: "#DisplayCard",
-                        label: "description",
-                        widgetProps: {icon: "#IconAlignLeft"},
-                    },
+                    render: "#SheetGrid",
+                    props: {columns: 1},
+                    children: [
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "description"},
+                            field: {
+                                name: "description",
+                                widget: "#DisplayCard",
+                                label: "description",
+                                widgetProps: {
+                                    icon: "#IconAlignLeft",
+                                    expandable: true,
+                                    maxLength: 250,
+                                },
+                            },
+                        },
+                    ],
                 },
             ],
         },

@@ -25,7 +25,7 @@ export const rentalDenyEntrySheetView: ViewConfig = {
             children: [
                 {
                     render: "#SheetGrid",
-                    props: {columns: 2},
+                    props: {columns: 3},
                     children: [
                         {
                             render: "#DisplayCard",
@@ -63,14 +63,24 @@ export const rentalDenyEntrySheetView: ViewConfig = {
                     ],
                 },
                 {
-                    render: "#DisplayCard",
-                    permissions: {read: "reason"},
-                    field: {
-                        name: "reason",
-                        widget: "#DisplayCard",
-                        label: "reason",
-                        widgetProps: {icon: "#IconAlertTriangle"},
-                    },
+                    render: "#SheetGrid",
+                    props: {columns: 1},
+                    children: [
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "reason"},
+                            field: {
+                                name: "reason",
+                                widget: "#DisplayCard",
+                                label: "reason",
+                                widgetProps: {
+                                    icon: "#IconAlignLeft",
+                                    expandable: true,
+                                    maxLength: 250,
+                                },
+                            },
+                        },
+                    ],
                 },
             ],
         },

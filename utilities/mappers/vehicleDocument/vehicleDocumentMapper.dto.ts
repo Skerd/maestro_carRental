@@ -3,6 +3,8 @@ import type {VehicleDocument} from "armonia/src/modules/carRental/api/carRental/
 import type {VehicleSimple} from "armonia/src/modules/carRental/dto/vehicle.dto";
 import {dateToISOString, mapMedia, mapSnippet} from "@coreModule/utilities/mappers/common.mapper";
 import {VehicleSimpleSnippet} from "@carRentalModule/database/schemas/vehicle/vehicle.snippets";
+import type {VehicleDocumentSimple} from "armonia/src/modules/carRental/dto/vehicleDocument.dto";
+import {VehicleDocumentSimpleSnippet} from "@carRentalModule/database/schemas/vehicleDocument/vehicleDocument.snippets";
 import {mapLifeCycleToDTO, mapOwnershipToDTO, mapSoftDeleteToDTO} from "@coreModule/utilities/mappers/plugin/pluginMappers.dto";
 
 export function vehicleDocumentToDTO(document: IVehicleDocument): VehicleDocument {
@@ -17,6 +19,8 @@ export function vehicleDocumentToDTO(document: IVehicleDocument): VehicleDocumen
         status: document.status,
         attachments: document.attachments?.length ? document.attachments.map(mapMedia).filter((media) => media !== undefined) : undefined,
         notes: document.notes,
+        supersedes: mapSnippet<VehicleDocumentSimple>()(document.supersedes, VehicleDocumentSimpleSnippet),
+        supersededBy: mapSnippet<VehicleDocumentSimple>()(document.supersededBy, VehicleDocumentSimpleSnippet),
         ...mapSoftDeleteToDTO(document),
         ...mapOwnershipToDTO(document),
         ...mapLifeCycleToDTO(document),

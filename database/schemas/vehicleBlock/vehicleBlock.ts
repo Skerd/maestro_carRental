@@ -11,6 +11,7 @@ import {COLUMN_TYPE} from "armonia/src/modules/core/database/filter/typeOperator
 import {
     VEHICLE_BLOCK_NOTE_MAX,
     VEHICLE_BLOCK_REASONS,
+    VEHICLE_BLOCK_SOURCES,
     VehicleBlockSchemaDef,
 } from "armonia/src/modules/carRental/api/carRental/private/vehicleBlock/vehicleBlock.schema-def";
 import type {IVehicle} from "../vehicle/vehicle";
@@ -24,7 +25,12 @@ export interface IVehicleBlock extends Document, IOwnershipPluginFields, ISoftDe
     endAt: Date;
     reason: (typeof VEHICLE_BLOCK_REASONS)[number];
     note?: string;
+    /** Set when a transfer or a scheduled service made the block; it then ends or goes with that record. */
+    source?: (typeof VEHICLE_BLOCK_SOURCES)[number];
 }
+
+/** Written only by the system (the transfer and service that own the block). */
+const NoWritePermission = {self: {write: "no-permission"}, others: {write: "no-permission"}};
 
 const VehicleBlockSchema = new Schema<IVehicleBlock>(
     {
@@ -44,6 +50,7 @@ const VehicleBlockSchema = new Schema<IVehicleBlock>(
             dynamicTableConfiguration: {enumTones: {maintenance: "warning", repair: "danger", transfer: "info", other: "neutral"}},
         },
         note: {type: SchemaTypes.String, maxlength: VEHICLE_BLOCK_NOTE_MAX},
+        source: {type: SchemaTypes.String, enum: VEHICLE_BLOCK_SOURCES, permissions: NoWritePermission, dynamicTableConfiguration: {hideColumn: true}},
     },
     {accessMode: "loose"},
 );

@@ -7,6 +7,7 @@ import RentalReview from "@carRentalModule/database/schemas/rentalReview/rentalR
 import {rentalReviewService} from "@carRentalModule/database/schemas/rentalReview/rentalReview.service";
 import {rentalReviewToDTO, rentalReviewsToDTO} from "@carRentalModule/utilities/mappers/rentalReview/rentalReviewMapper.dto";
 import {rentalReviewsToSelect} from "@carRentalModule/utilities/mappers/rentalReview/rentalReviewMapper.select";
+import {RentalReviewActions} from "@carRentalModule/database/schemas/rentalReview/rentalReview.actions";
 
 export const basePath = "/api/carRental/rentalReview";
 
@@ -22,6 +23,7 @@ export const {router} = createCrudRouter({
     toSelect: rentalReviewsToSelect,
     selectSearchField: "authorName",
     defaultSort: {createdAt: -1},
+    actions: RentalReviewActions,
     buildCreateData: buildCreateDataFromSchemaDef(RentalReviewSchemaDef),
     buildUpdateData: buildUpdateDataFromSchemaDef(RentalReviewSchemaDef),
 });

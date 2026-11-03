@@ -23,7 +23,10 @@ export const rentalBusinessAccountSheetView: ViewConfig = {
     nodes: [
         {
             render: "#SheetGroup",
-            props: {title: "overview"},
+            props: {title: "companyGroup"},
+            permissions: {
+                readAny: ["name", "vatNumber", "billingEmail", "address"],
+            },
             children: [
                 {
                     render: "#SheetGrid",
@@ -69,6 +72,21 @@ export const rentalBusinessAccountSheetView: ViewConfig = {
                                 widgetProps: {icon: "#IconMapPin"},
                             },
                         },
+                    ],
+                },
+            ],
+        },
+        {
+            render: "#SheetGroup",
+            props: {title: "termsGroup"},
+            permissions: {
+                readAny: ["discountPercent", "paymentTermsDays", "isActive"],
+            },
+            children: [
+                {
+                    render: "#SheetGrid",
+                    props: {columns: 3},
+                    children: [
                         {
                             render: "#DisplayCard",
                             permissions: {read: "discountPercent"},
@@ -110,15 +128,32 @@ export const rentalBusinessAccountSheetView: ViewConfig = {
                         },
                     ],
                 },
+            ],
+        },
+        {
+            render: "#SheetGroup",
+            props: {title: "notesGroup"},
+            permissions: {read: "notes"},
+            children: [
                 {
-                    render: "#DisplayCard",
-                    permissions: {read: "notes"},
-                    field: {
-                        name: "notes",
-                        widget: "#DisplayCard",
-                        label: "notes",
-                        widgetProps: {icon: "#IconNotes"},
-                    },
+                    render: "#SheetGrid",
+                    props: {columns: 1},
+                    children: [
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "notes"},
+                            field: {
+                                name: "notes",
+                                widget: "#DisplayCard",
+                                label: "notes",
+                                widgetProps: {
+                                    icon: "#IconAlignLeft",
+                                    expandable: true,
+                                    maxLength: 250,
+                                },
+                            },
+                        },
+                    ],
                 },
             ],
         },
@@ -128,233 +163,274 @@ export const rentalBusinessAccountSheetView: ViewConfig = {
 
 const rentalBusinessAccountCreateFormNodes: ViewConfig["nodes"] = [
     {
-        render: "#FormGrid",
-        props: {columns: 2},
+        render: "#TitleWithCollapse",
+        props: {title: "form.companySectionTitle"},
         children: [
             {
-                render: "#Field",
-                field: {
-                    name: "name",
-                    widget: "#Input",
-                    label: "form.nameLabel",
-                    placeholder: "form.namePlaceholder",
-                    required: true,
-                    widgetProps: {maxLength: RENTAL_BUSINESS_ACCOUNT_NAME_MAX},
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "vatNumber",
-                    widget: "#Input",
-                    label: "form.vatNumberLabel",
-                    placeholder: "form.vatNumberPlaceholder",
-                    required: true,
-                    widgetProps: {
-                        maxLength: RENTAL_BUSINESS_ACCOUNT_VAT_NUMBER_MAX,
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "name",
+                            widget: "#Input",
+                            label: "form.nameLabel",
+                            placeholder: "form.namePlaceholder",
+                            required: true,
+                            widgetProps: {maxLength: RENTAL_BUSINESS_ACCOUNT_NAME_MAX},
+                        },
                     },
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "billingEmail",
-                    widget: "#Input",
-                    label: "form.billingEmailLabel",
-                    placeholder: "form.billingEmailPlaceholder",
-                    required: true,
-                    widgetProps: {
-                        maxLength: RENTAL_BUSINESS_ACCOUNT_BILLING_EMAIL_MAX,
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "vatNumber",
+                            widget: "#Input",
+                            label: "form.vatNumberLabel",
+                            placeholder: "form.vatNumberPlaceholder",
+                            required: true,
+                            widgetProps: {
+                                maxLength: RENTAL_BUSINESS_ACCOUNT_VAT_NUMBER_MAX,
+                            },
+                        },
                     },
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "address",
-                    widget: "#Input",
-                    label: "form.addressLabel",
-                    placeholder: "form.addressPlaceholder",
-                    widgetProps: {
-                        maxLength: RENTAL_BUSINESS_ACCOUNT_ADDRESS_MAX,
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "billingEmail",
+                            widget: "#Input",
+                            label: "form.billingEmailLabel",
+                            placeholder: "form.billingEmailPlaceholder",
+                            required: true,
+                            widgetProps: {
+                                maxLength: RENTAL_BUSINESS_ACCOUNT_BILLING_EMAIL_MAX,
+                            },
+                        },
                     },
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "discountPercent",
-                    widget: "#Input",
-                    label: "form.discountPercentLabel",
-                    placeholder: "form.discountPercentPlaceholder",
-                    widgetProps: {type: "number", min: 0, step: "any"},
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "paymentTermsDays",
-                    widget: "#Input",
-                    label: "form.paymentTermsDaysLabel",
-                    placeholder: "form.paymentTermsDaysPlaceholder",
-                    widgetProps: {type: "number", min: 0, step: "any"},
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "isActive",
-                    widget: "#Switch",
-                    label: "form.isActiveLabel",
-                },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "address",
+                            widget: "#Input",
+                            label: "form.addressLabel",
+                            placeholder: "form.addressPlaceholder",
+                            widgetProps: {
+                                maxLength: RENTAL_BUSINESS_ACCOUNT_ADDRESS_MAX,
+                            },
+                        },
+                    },
+                ],
             },
         ],
     },
     {
-        render: "#Field",
-        field: {
-            name: "notes",
-            widget: "#Textarea",
-            label: "form.notesLabel",
-            placeholder: "form.notesPlaceholder",
-            widgetProps: {
-                rows: 3,
-                maxLength: RENTAL_BUSINESS_ACCOUNT_NOTES_MAX,
+        render: "#TitleWithCollapse",
+        props: {title: "form.termsSectionTitle"},
+        children: [
+            {
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "discountPercent",
+                            widget: "#Input",
+                            label: "form.discountPercentLabel",
+                            placeholder: "form.discountPercentPlaceholder",
+                            widgetProps: {type: "number", min: 0, step: "any"},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "paymentTermsDays",
+                            widget: "#Input",
+                            label: "form.paymentTermsDaysLabel",
+                            placeholder: "form.paymentTermsDaysPlaceholder",
+                            widgetProps: {type: "number", min: 0, step: "any"},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "isActive",
+                            widget: "#Switch",
+                            label: "form.isActiveLabel",
+                        },
+                    },
+                ],
             },
-        },
+        ],
+    },
+    {
+        render: "#TitleWithCollapse",
+        props: {title: "form.notesSectionTitle"},
+        children: [
+            {
+                render: "#Field",
+                field: {
+                    name: "notes",
+                    widget: "#Textarea",
+                    label: "form.notesLabel",
+                    placeholder: "form.notesPlaceholder",
+                    widgetProps: {
+                        rows: 4,
+                        maxLength: RENTAL_BUSINESS_ACCOUNT_NOTES_MAX,
+                        className:
+                            "field-sizing-fixed max-h-56 min-h-24 overflow-y-auto",
+                    },
+                },
+            },
+        ],
     },
 ];
 
 const rentalBusinessAccountEditFormNodes: ViewConfig["nodes"] = [
     {
-        render: "#FormGrid",
-        props: {columns: 2},
+        render: "#TitleWithCollapse",
+        props: {title: "form.companySectionTitle"},
         permissions: {
-            readAny: [
-                "name",
-                "vatNumber",
-                "billingEmail",
-                "address",
-                "discountPercent",
-                "paymentTermsDays",
-                "isActive",
-            ],
-            writeAny: [
-                "name",
-                "vatNumber",
-                "billingEmail",
-                "address",
-                "discountPercent",
-                "paymentTermsDays",
-                "isActive",
-            ],
+            readAny: ["name", "vatNumber", "billingEmail", "address"],
+            writeAny: ["name", "vatNumber", "billingEmail", "address"],
         },
         children: [
             {
-                render: "#Field",
-                permissions: {read: "name", write: "name"},
-                field: {
-                    name: "name",
-                    widget: "#Input",
-                    label: "form.nameLabel",
-                    placeholder: "form.namePlaceholder",
-                    required: true,
-                    widgetProps: {maxLength: RENTAL_BUSINESS_ACCOUNT_NAME_MAX},
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "vatNumber", write: "vatNumber"},
-                field: {
-                    name: "vatNumber",
-                    widget: "#Input",
-                    label: "form.vatNumberLabel",
-                    placeholder: "form.vatNumberPlaceholder",
-                    required: true,
-                    widgetProps: {
-                        maxLength: RENTAL_BUSINESS_ACCOUNT_VAT_NUMBER_MAX,
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        permissions: {read: "name", write: "name"},
+                        field: {
+                            name: "name",
+                            widget: "#Input",
+                            label: "form.nameLabel",
+                            placeholder: "form.namePlaceholder",
+                            required: true,
+                            widgetProps: {maxLength: RENTAL_BUSINESS_ACCOUNT_NAME_MAX},
+                        },
                     },
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "billingEmail", write: "billingEmail"},
-                field: {
-                    name: "billingEmail",
-                    widget: "#Input",
-                    label: "form.billingEmailLabel",
-                    placeholder: "form.billingEmailPlaceholder",
-                    required: true,
-                    widgetProps: {
-                        maxLength: RENTAL_BUSINESS_ACCOUNT_BILLING_EMAIL_MAX,
+                    {
+                        render: "#Field",
+                        permissions: {read: "vatNumber", write: "vatNumber"},
+                        field: {
+                            name: "vatNumber",
+                            widget: "#Input",
+                            label: "form.vatNumberLabel",
+                            placeholder: "form.vatNumberPlaceholder",
+                            required: true,
+                            widgetProps: {
+                                maxLength: RENTAL_BUSINESS_ACCOUNT_VAT_NUMBER_MAX,
+                            },
+                        },
                     },
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "address", write: "address"},
-                field: {
-                    name: "address",
-                    widget: "#Input",
-                    label: "form.addressLabel",
-                    placeholder: "form.addressPlaceholder",
-                    widgetProps: {
-                        maxLength: RENTAL_BUSINESS_ACCOUNT_ADDRESS_MAX,
+                    {
+                        render: "#Field",
+                        permissions: {read: "billingEmail", write: "billingEmail"},
+                        field: {
+                            name: "billingEmail",
+                            widget: "#Input",
+                            label: "form.billingEmailLabel",
+                            placeholder: "form.billingEmailPlaceholder",
+                            required: true,
+                            widgetProps: {
+                                maxLength: RENTAL_BUSINESS_ACCOUNT_BILLING_EMAIL_MAX,
+                            },
+                        },
                     },
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {
-                    read: "discountPercent",
-                    write: "discountPercent",
-                },
-                field: {
-                    name: "discountPercent",
-                    widget: "#Input",
-                    label: "form.discountPercentLabel",
-                    placeholder: "form.discountPercentPlaceholder",
-                    widgetProps: {type: "number", min: 0, step: "any"},
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {
-                    read: "paymentTermsDays",
-                    write: "paymentTermsDays",
-                },
-                field: {
-                    name: "paymentTermsDays",
-                    widget: "#Input",
-                    label: "form.paymentTermsDaysLabel",
-                    placeholder: "form.paymentTermsDaysPlaceholder",
-                    widgetProps: {type: "number", min: 0, step: "any"},
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "isActive", write: "isActive"},
-                field: {
-                    name: "isActive",
-                    widget: "#Switch",
-                    label: "form.isActiveLabel",
-                },
+                    {
+                        render: "#Field",
+                        permissions: {read: "address", write: "address"},
+                        field: {
+                            name: "address",
+                            widget: "#Input",
+                            label: "form.addressLabel",
+                            placeholder: "form.addressPlaceholder",
+                            widgetProps: {
+                                maxLength: RENTAL_BUSINESS_ACCOUNT_ADDRESS_MAX,
+                            },
+                        },
+                    },
+                ],
             },
         ],
     },
     {
-        render: "#Field",
-        permissions: {read: "notes", write: "notes"},
-        field: {
-            name: "notes",
-            widget: "#Textarea",
-            label: "form.notesLabel",
-            placeholder: "form.notesPlaceholder",
-            widgetProps: {
-                rows: 3,
-                maxLength: RENTAL_BUSINESS_ACCOUNT_NOTES_MAX,
-            },
+        render: "#TitleWithCollapse",
+        props: {title: "form.termsSectionTitle"},
+        permissions: {
+            readAny: ["discountPercent", "paymentTermsDays", "isActive"],
+            writeAny: ["discountPercent", "paymentTermsDays", "isActive"],
         },
+        children: [
+            {
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        permissions: {
+                            read: "discountPercent",
+                            write: "discountPercent",
+                        },
+                        field: {
+                            name: "discountPercent",
+                            widget: "#Input",
+                            label: "form.discountPercentLabel",
+                            placeholder: "form.discountPercentPlaceholder",
+                            widgetProps: {type: "number", min: 0, step: "any"},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {
+                            read: "paymentTermsDays",
+                            write: "paymentTermsDays",
+                        },
+                        field: {
+                            name: "paymentTermsDays",
+                            widget: "#Input",
+                            label: "form.paymentTermsDaysLabel",
+                            placeholder: "form.paymentTermsDaysPlaceholder",
+                            widgetProps: {type: "number", min: 0, step: "any"},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "isActive", write: "isActive"},
+                        field: {
+                            name: "isActive",
+                            widget: "#Switch",
+                            label: "form.isActiveLabel",
+                        },
+                    },
+                ],
+            },
+        ],
+    },
+    {
+        render: "#TitleWithCollapse",
+        props: {title: "form.notesSectionTitle"},
+        permissions: {readAny: ["notes"], writeAny: ["notes"]},
+        children: [
+            {
+                render: "#Field",
+                permissions: {read: "notes", write: "notes"},
+                field: {
+                    name: "notes",
+                    widget: "#Textarea",
+                    label: "form.notesLabel",
+                    placeholder: "form.notesPlaceholder",
+                    widgetProps: {
+                        rows: 4,
+                        maxLength: RENTAL_BUSINESS_ACCOUNT_NOTES_MAX,
+                        className:
+                            "field-sizing-fixed max-h-56 min-h-24 overflow-y-auto",
+                    },
+                },
+            },
+        ],
     },
 ];
 

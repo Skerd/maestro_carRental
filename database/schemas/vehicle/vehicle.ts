@@ -40,12 +40,7 @@ const NoWritePermission = {
     others: {write: "no-permission"},
 };
 
-export interface IVehicle
-    extends
-        Document,
-        IOwnershipPluginFields,
-        ISoftDeletePluginFields,
-        ILifeCyclePluginFields {
+export interface IVehicle extends Document, IOwnershipPluginFields, ISoftDeletePluginFields, ILifeCyclePluginFields {
     category: IVehicleCategory;
     make: string;
     model: string;
@@ -89,7 +84,9 @@ const VehicleSchema = new Schema<IVehicle>(
             ref: "VehicleCategory",
             required: true,
             refAllowlist: VehicleCategorySimpleSnippet,
-            dynamicTableConfiguration: {refDisplayKey: ["name"]},
+            dynamicTableConfiguration: {
+                refDisplayKey: ["name"]
+            },
         },
         make: {
             type: SchemaTypes.String,
@@ -105,7 +102,10 @@ const VehicleSchema = new Schema<IVehicle>(
             minlength: 1,
             maxlength: VEHICLE_MODEL_MAX,
         },
-        year: {type: SchemaTypes.Number, ...VEHICLE_YEAR},
+        year: {
+            type: SchemaTypes.Number,
+            ...VEHICLE_YEAR
+        },
         plate: {
             type: SchemaTypes.String,
             required: true,
@@ -119,7 +119,9 @@ const VehicleSchema = new Schema<IVehicle>(
             trim: true,
             uppercase: true,
             maxlength: VEHICLE_VIN_MAX,
-            dynamicTableConfiguration: {hideColumn: true},
+            dynamicTableConfiguration: {
+                hideColumn: true
+            },
         },
         color: {
             type: SchemaTypes.String,
@@ -131,15 +133,21 @@ const VehicleSchema = new Schema<IVehicle>(
             ref: "RentalLocation",
             required: true,
             refAllowlist: RentalLocationSimpleSnippet,
-            dynamicTableConfiguration: {refDisplayKey: ["name"]},
+            dynamicTableConfiguration: {
+                refDisplayKey: ["name"]
+            },
         },
         readiness: {
             type: SchemaTypes.String,
             enum: VEHICLE_READINESS,
             default: "ready",
             permissions: {
-                self: {write: "no-permission"},
-                others: {write: "no-permission"},
+                self: {
+                    write: "no-permission"
+                },
+                others: {
+                    write: "no-permission"
+                },
             },
             dynamicTableConfiguration: {
                 enumTones: {
@@ -154,10 +162,16 @@ const VehicleSchema = new Schema<IVehicle>(
             ref: "RentalLocation",
             refAllowlist: RentalLocationSimpleSnippet,
             permissions: {
-                self: {write: "no-permission"},
-                others: {write: "no-permission"},
+                self: {
+                    write: "no-permission"
+                },
+                others: {
+                    write: "no-permission"
+                },
             },
-            dynamicTableConfiguration: {refDisplayKey: ["name"]},
+            dynamicTableConfiguration: {
+                refDisplayKey: ["name"]
+            },
         },
         status: {
             type: SchemaTypes.String,
@@ -172,14 +186,22 @@ const VehicleSchema = new Schema<IVehicle>(
                 },
             },
         },
-        odometerKm: {type: SchemaTypes.Number, min: 0},
+        odometerKm: {
+            type: SchemaTypes.Number,
+            min: 0
+        },
         notes: {
             type: SchemaTypes.String,
             maxlength: VEHICLE_NOTES_MAX,
-            dynamicTableConfiguration: {hideColumn: true},
+            dynamicTableConfiguration: {
+                hideColumn: true
+            },
         },
         images: {
-            type: [{type: SchemaTypes.ObjectId, ref: "Media"}],
+            type: [{
+                type: SchemaTypes.ObjectId,
+                ref: "Media"
+            }],
             default: [],
             refAllowlist: MediaSimpleSnippet,
             dynamicTableConfiguration: {
@@ -189,7 +211,10 @@ const VehicleSchema = new Schema<IVehicle>(
             },
         },
         videos: {
-            type: [{type: SchemaTypes.ObjectId, ref: "Media"}],
+            type: [{
+                type: SchemaTypes.ObjectId,
+                ref: "Media"
+            }],
             default: [],
             refAllowlist: MediaSimpleSnippet,
             dynamicTableConfiguration: {
@@ -208,9 +233,15 @@ const VehicleSchema = new Schema<IVehicle>(
         purchasePrice: {
             type: SchemaTypes.Number,
             min: 0,
-            dynamicTableConfiguration: {hideColumn: true},
+            dynamicTableConfiguration: {
+                hideColumn: true
+            },
         },
-        trackerId: {type: SchemaTypes.String, trim: true, maxlength: 64},
+        trackerId: {
+            type: SchemaTypes.String,
+            trim: true,
+            maxlength: 64
+        },
         lastLatitude: {
             type: SchemaTypes.Number,
             min: -90,
@@ -230,7 +261,9 @@ const VehicleSchema = new Schema<IVehicle>(
         nextServiceDueAt: {
             type: SchemaTypes.Date,
             permissions: NoWritePermission,
-            dynamicTableConfiguration: {cellType: COLUMN_TYPE.DATE},
+            dynamicTableConfiguration: {
+                cellType: COLUMN_TYPE.DATE
+            },
         },
         nextServiceDueKm: {
             type: SchemaTypes.Number,
@@ -239,13 +272,19 @@ const VehicleSchema = new Schema<IVehicle>(
         serviceReminderSentAt: {
             type: SchemaTypes.Date,
             permissions: NoWritePermission,
-            dynamicTableConfiguration: {hideColumn: true, filterable: false},
+            dynamicTableConfiguration: {
+                hideColumn: true,
+                filterable: false
+            },
         },
         allocationVersion: {
             type: SchemaTypes.Number,
             default: 0,
             permissions: NoWritePermission,
-            dynamicTableConfiguration: {hideColumn: true, filterable: false},
+            dynamicTableConfiguration: {
+                hideColumn: true,
+                filterable: false
+            },
         },
     },
     {accessMode: "loose"},

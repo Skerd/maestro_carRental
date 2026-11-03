@@ -20,10 +20,18 @@ import {
 import {VEHICLE_RECORD_NOTES_MAX} from "armonia/src/modules/carRental/api/carRental/private/vehicle/vehicle.schema-def";
 import type {IVehicle} from "../vehicle/vehicle";
 import {VehicleSimpleSnippet} from "../vehicle/vehicle.snippets";
+import {VehicleInsuranceSimpleSnippet} from "./vehicleInsurance.snippets";
 import {applyVehicleInsuranceIndexes} from "./vehicleInsurance.indexes";
 import {vehicleInsuranceViews} from "./vehicleInsurance.views";
 
-const NoWritePermission = {self: {write: "no-permission"}, others: {write: "no-permission"}};
+const NoWritePermission = {
+    self: {
+        write: "no-permission"
+    },
+    others: {
+        write: "no-permission"
+    }
+};
 
 export interface IVehicleInsurance extends Document, IOwnershipPluginFields, ISoftDeletePluginFields, ILifeCyclePluginFields {
     vehicle: IVehicle;
@@ -37,8 +45,10 @@ export interface IVehicleInsurance extends Document, IOwnershipPluginFields, ISo
     status: (typeof VEHICLE_INSURANCE_STATUSES)[number];
     attachments: IMedia[];
     notes?: string;
-    /** Set once the fleet reminder job has warned about this expiry; cleared when the date moves. */
     expiryReminderSentAt?: Date;
+    /** The record this one renews (set at create only), and the one that renewed it. */
+    supersedes?: IVehicleInsurance;
+    supersededBy?: IVehicleInsurance;
 }
 
 const VehicleInsuranceSchema = new Schema<IVehicleInsurance>(
@@ -48,36 +58,110 @@ const VehicleInsuranceSchema = new Schema<IVehicleInsurance>(
             ref: "Vehicle",
             required: true,
             refAllowlist: VehicleSimpleSnippet,
-            dynamicTableConfiguration: {refDisplayKey: ["plate", "make", "model"]},
+            dynamicTableConfiguration: {
+                refDisplayKey: ["plate", "make", "model"]
+            },
         },
-        insurer: {type: SchemaTypes.String, required: true, trim: true, minlength: 1, maxlength: VEHICLE_INSURER_MAX},
-        policyNumber: {type: SchemaTypes.String, required: true, trim: true, minlength: 1, maxlength: VEHICLE_POLICY_NUMBER_MAX},
+        insurer: {
+            type: SchemaTypes.String,
+            required: true,
+            trim: true,
+            minlength: 1,
+            maxlength: VEHICLE_INSURER_MAX
+        },
+        policyNumber: {
+            type: SchemaTypes.String,
+            required: true,
+            trim: true,
+            minlength: 1,
+            maxlength: VEHICLE_POLICY_NUMBER_MAX
+        },
         coverage: {
             type: SchemaTypes.String,
             enum: VEHICLE_INSURANCE_COVERAGES,
             required: true,
-            dynamicTableConfiguration: {enumTones: {third_party: "neutral", partial_casco: "info", full_casco: "success"}},
+            dynamicTableConfiguration: {
+                enumTones: {
+                    third_party: "neutral",
+                    partial_casco: "info",
+                    full_casco: "success"
+                }
+            },
         },
-        validFrom: {type: SchemaTypes.Date, required: true, dynamicTableConfiguration: {cellType: COLUMN_TYPE.DATE}},
-        expiresAt: {type: SchemaTypes.Date, required: true, dynamicTableConfiguration: {cellType: COLUMN_TYPE.DATE}},
-        premium: {type: SchemaTypes.Number, min: 0},
-        deductible: {type: SchemaTypes.Number, min: 0, dynamicTableConfiguration: {hideColumn: true}},
+        validFrom: {
+            type: SchemaTypes.Date,
+            required: true,
+            dynamicTableConfiguration: {
+                cellType: COLUMN_TYPE.DATE
+            }
+        },
+        expiresAt: {
+            type: SchemaTypes.Date,
+            required: true,
+            dynamicTableConfiguration: {
+                cellType: COLUMN_TYPE.DATE
+            }
+        },
+        premium: {
+            type: SchemaTypes.Number,
+            min: 0
+        },
+        deductible: {
+            type: SchemaTypes.Number,
+            min: 0,
+            dynamicTableConfiguration: {
+                hideColumn: true
+            }
+        },
         status: {
             type: SchemaTypes.String,
             enum: VEHICLE_INSURANCE_STATUSES,
             required: true,
             default: "active",
-            dynamicTableConfiguration: {enumTones: {active: "success", expired: "danger", cancelled: "neutral"}},
+            dynamicTableConfiguration: {
+                enumTones: {
+                    active: "success",
+                    expired: "danger",
+                    cancelled: "neutral"
+                }
+            },
         },
         attachments: {
             type: [{type: SchemaTypes.ObjectId, ref: "Media"}],
             default: [],
             refAllowlist: MediaSimpleSnippet,
-            dynamicTableConfiguration: {sortable: false, filterable: false, hideColumn: true},
+            dynamicTableConfiguration: {
+                sortable: false,
+                filterable: false,
+                hideColumn: true
+            },
         },
-        notes: {type: SchemaTypes.String, maxlength: VEHICLE_RECORD_NOTES_MAX, dynamicTableConfiguration: {hideColumn: true}},
+        notes: {
+            type: SchemaTypes.String,
+            maxlength: VEHICLE_RECORD_NOTES_MAX,
+            dynamicTableConfiguration: {
+                hideColumn: true
+            }
+        },
         expiryReminderSentAt: {
             type: SchemaTypes.Date,
+            permissions: NoWritePermission,
+            dynamicTableConfiguration: {
+                hideColumn: true,
+                filterable: false
+            },
+        },
+        supersedes: {
+            type: SchemaTypes.ObjectId,
+            ref: "VehicleInsurance",
+            refAllowlist: VehicleInsuranceSimpleSnippet,
+            permissions: NoWritePermission,
+            dynamicTableConfiguration: {hideColumn: true, filterable: false},
+        },
+        supersededBy: {
+            type: SchemaTypes.ObjectId,
+            ref: "VehicleInsurance",
+            refAllowlist: VehicleInsuranceSimpleSnippet,
             permissions: NoWritePermission,
             dynamicTableConfiguration: {hideColumn: true, filterable: false},
         },

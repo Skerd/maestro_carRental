@@ -84,6 +84,7 @@ import {
     DEMO_LOCATIONS,
     DEMO_MODELS,
     DEMO_TIMEZONE,
+    DEMO_WORKSHOPS,
     demoVehicles,
     type DemoVehicle,
 } from "./carRental.demo.data";
@@ -321,6 +322,13 @@ export async function seedCarRentalDemoData(
                 },
             );
             vehicleIdByIndex.set(vehicle.index, doc._id as ObjectId);
+            if (
+                !(await VehicleInsurance.exists({
+                    company: company._id,
+                    vehicle: doc._id,
+                }))
+            )
+                await seedVehiclePapers(doc._id as ObjectId, history, owned);
         }
 
         const existingKeys = new Set(
@@ -614,7 +622,59 @@ async function playOutcome(
     }
 }
 
-/** A car's policies, documents, service log, damages and workshop block. */
+/**
+ * A car's insurance policies and documents, oldest first so each renewal names the
+ * one it renews. Seeded before the bookings: a car is only handed over with its papers.
+ */
+async function seedVehiclePapers(
+    vehicleId: ObjectId,
+    history: DemoHistory,
+    owned: {company: ObjectId; createdBy: ObjectId},
+): Promise<void> {
+    const base = {...owned, vehicle: vehicleId};
+    const policyChain = new Map<string, ObjectId>();
+    const policies = [...history.policies].sort((a, b) =>
+        a.validFrom.localeCompare(b.validFrom),
+    );
+    for (const policy of policies) {
+        const previous = policyChain.get(policy.coverage);
+        const created = await VehicleInsurance.create({
+            ...base,
+            ...policy,
+            validFrom: day(policy.validFrom),
+            expiresAt: day(policy.expiresAt),
+            supersedes: previous,
+        });
+        if (previous)
+            await VehicleInsurance.updateOne(
+                {_id: previous},
+                {$set: {supersededBy: created._id}},
+            );
+        policyChain.set(policy.coverage, created._id);
+    }
+    const documentChain = new Map<string, ObjectId>();
+    const documents = [...history.documents].sort((a, b) =>
+        a.issuedAt.localeCompare(b.issuedAt),
+    );
+    for (const document of documents) {
+        const previous = documentChain.get(document.type);
+        const created = await VehicleDocument.create({
+            ...base,
+            ...document,
+            issuedAt: day(document.issuedAt),
+            expiresAt: document.expiresAt ? day(document.expiresAt) : undefined,
+            supersedes: previous,
+        });
+        if (previous)
+            await VehicleDocument.updateOne(
+                {_id: previous},
+                {$set: {supersededBy: created._id}},
+            );
+        documentChain.set(document.type, created._id);
+    }
+}
+
+/** A car's service log, damages and workshop block. */
 async function seedVehicleHistory(
     vehicle: DemoVehicle,
     vehicleId: ObjectId,
@@ -626,22 +686,6 @@ async function seedVehicleHistory(
     }: {owned: {company: ObjectId; createdBy: ObjectId}; today: string},
 ): Promise<void> {
     const base = {...owned, vehicle: vehicleId};
-    for (const policy of history.policies) {
-        await VehicleInsurance.create({
-            ...base,
-            ...policy,
-            validFrom: day(policy.validFrom),
-            expiresAt: day(policy.expiresAt),
-        });
-    }
-    for (const document of history.documents) {
-        await VehicleDocument.create({
-            ...base,
-            ...document,
-            issuedAt: day(document.issuedAt),
-            expiresAt: document.expiresAt ? day(document.expiresAt) : undefined,
-        });
-    }
     for (const service of history.services) {
         await VehicleMaintenance.create({
             ...base,
@@ -650,6 +694,40 @@ async function seedVehicleHistory(
             nextDueAt: service.nextDueAt ? day(service.nextDueAt) : undefined,
         });
     }
+    const casco = await VehicleInsurance.findOne({
+        company: owned.company,
+        vehicle: vehicleId,
+        coverage: "full_casco",
+    })
+        .sort({validFrom: -1})
+        .select("_id");
+    // A damage in the workshop or fixed has its repair record, which holds the cost.
+    const repairFor = async (
+        damage: {_id: ObjectId; description: string},
+        input: {status: "scheduled" | "completed"; serviceDate: string; cost: number},
+    ) => {
+        const repair = await VehicleMaintenance.create({
+            ...base,
+            type: "repair",
+            status: input.status,
+            serviceDate: day(input.serviceDate),
+            provider: DEMO_WORKSHOPS[vehicle.index % DEMO_WORKSHOPS.length],
+            cost: input.cost,
+            description: damage.description,
+            damages: [damage._id],
+        });
+        await VehicleDamage.updateOne(
+            {_id: damage._id},
+            {
+                $set: {
+                    repair: repair._id,
+                    ...(input.status === "completed" && {
+                        repairedAt: day(input.serviceDate),
+                    }),
+                },
+            },
+        );
+    };
 
     const damaged = plan.filter(
         (booking) => booking.vehicleIndex === vehicle.index && booking.damage,
@@ -662,7 +740,8 @@ async function seedVehicleHistory(
         if (!reservation?.returnInfo) continue;
         // Older damage is fixed by now; the latest is still open or in the workshop.
         const repaired = booking.returnDate < addLocalDays(today, -20);
-        await VehicleDamage.create({
+        const status = repaired ? "repaired" : n % 2 === 0 ? "open" : "in_repair";
+        const damage = await VehicleDamage.create({
             ...base,
             reservation: reservation._id,
             reportedAt: reservation.returnInfo.at,
@@ -670,20 +749,42 @@ async function seedVehicleHistory(
             severity: booking.damage!.severity,
             description: `Found at return: ${booking.damage!.severity} damage on the ${booking.damage!.area}.`,
             estimatedCost: booking.damage!.estimatedCost,
-            status: repaired ? "repaired" : n % 2 === 0 ? "open" : "in_repair",
-            ...(repaired && {
-                repairCost: booking.damage!.estimatedCost + 20,
-                repairedAt: day(addLocalDays(booking.returnDate, 7)),
-            }),
+            status,
+            // Every other fixed damage on a casco car was claimed from the insurer.
+            ...(repaired &&
+                n % 2 === 0 &&
+                casco && {
+                    insurance: casco._id,
+                    claimNumber: `CLM-${vehicle.index}-${n + 1}`,
+                    insurerPaidAmount: booking.damage!.estimatedCost,
+                }),
         });
+        if (status === "repaired")
+            await repairFor(damage, {
+                status: "completed",
+                serviceDate: addLocalDays(booking.returnDate, 7),
+                cost: booking.damage!.estimatedCost + 20,
+            });
+        if (status === "in_repair")
+            await repairFor(damage, {
+                status: "scheduled",
+                serviceDate: addLocalDays(today, 2),
+                cost: booking.damage!.estimatedCost,
+            });
     }
     if (history.inspectionDamage) {
-        const {reportedAt, ...damage} = history.inspectionDamage;
-        await VehicleDamage.create({
+        const {reportedAt, ...input} = history.inspectionDamage;
+        const damage = await VehicleDamage.create({
             ...base,
-            ...damage,
+            ...input,
             reportedAt: at(reportedAt, "08:30"),
         });
+        if (input.status === "in_repair")
+            await repairFor(damage, {
+                status: "scheduled",
+                serviceDate: addLocalDays(today, 2),
+                cost: input.estimatedCost,
+            });
     }
     if (history.block) {
         await upsert(
@@ -950,14 +1051,26 @@ async function seedCounterRecords(input: {
         );
         if (!booking)
             throw new Error(`Demo fine ${fine.reference} matched no booking`);
+        // One of each outcome: to recharge, driver named, paid before recharging, contested.
+        const outcome = [
+            {status: "driver_identified"},
+            {status: "transferred"},
+            {
+                status: "driver_identified",
+                paidAt: offenceAt,
+                paidAmount: fine.amount,
+                paymentReference: `PAY-${fine.reference}`,
+            },
+            {status: "disputed"},
+        ][index];
         await VehicleFine.create({
             ...owned,
             ...fine,
+            ...outcome,
             vehicle: vehicleId,
             offenceAt,
             reservation: booking._id,
             driverName: mainDriverName(booking),
-            status: "driver_identified",
         });
     }
 
@@ -1028,6 +1141,7 @@ async function seedCounterRecords(input: {
                         startAt: departAt,
                         endAt: arriveAt,
                         reason: "transfer",
+                        source: "transfer",
                         note: notes,
                     },
                 ],

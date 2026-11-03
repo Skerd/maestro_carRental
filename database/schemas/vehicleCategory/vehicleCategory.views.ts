@@ -161,24 +161,43 @@ export const vehicleCategorySheetView: ViewConfig = {
                     ],
                 },
                 {
-                    render: "#DisplayCard",
-                    permissions: {read: "description"},
-                    field: {
-                        name: "description",
-                        widget: "#DisplayCard",
-                        label: "description",
-                        widgetProps: {icon: "#IconAlignLeft"},
-                    },
+                    render: "#SheetGrid",
+                    props: {columns: 1},
+                    children: [
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "description"},
+                            field: {
+                                name: "description",
+                                widget: "#DisplayCard",
+                                label: "description",
+                                widgetProps: {
+                                    icon: "#IconAlignLeft",
+                                    expandable: true,
+                                    maxLength: 250,
+                                },
+                            },
+                        },
+                    ],
                 },
                 {
-                    render: "#DisplayCard",
-                    permissions: {read: "features"},
-                    field: {
-                        name: "features",
-                        widget: "#DisplayCard",
-                        label: "features",
-                        widgetProps: {icon: "#IconListCheck"},
-                    },
+                    render: "#SheetGrid",
+                    props: {columns: 1},
+                    children: [
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "features"},
+                            field: {
+                                name: "features",
+                                widget: "#DisplayCard",
+                                label: "features",
+                                widgetProps: {
+                                    icon: "#IconListCheck",
+                                    valueType: "stringBadgeList",
+                                },
+                            },
+                        },
+                    ],
                 },
             ],
         },

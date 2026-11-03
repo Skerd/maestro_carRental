@@ -10,7 +10,9 @@ import {vehicleDamageService} from "@carRentalModule/database/schemas/vehicleDam
 import {vehicleDamageToDTO, vehicleDamagesToDTO} from "@carRentalModule/utilities/mappers/vehicleDamage/vehicleDamageMapper.dto";
 import {vehicleDamagesToSelect} from "@carRentalModule/utilities/mappers/vehicleDamage/vehicleDamageMapper.select";
 import RentalReservation from "@carRentalModule/database/schemas/rentalReservation/rentalReservation";
-import {assertCompanyVehicle} from "@carRentalModule/utilities/services/vehicleRecords";
+import VehicleInsurance from "@carRentalModule/database/schemas/vehicleInsurance/vehicleInsurance";
+import VehicleMaintenance from "@carRentalModule/database/schemas/vehicleMaintenance/vehicleMaintenance";
+import {assertCompanyVehicle, damageReported} from "@carRentalModule/utilities/services/vehicleRecords";
 import {mediaUploadMW} from "@coreModule/utilities/middlewares/mediaUploadMW";
 import {VehicleDamageActions} from "@carRentalModule/database/schemas/vehicleDamage/vehicleDamage.actions";
 import {VEHICLE_DAMAGE_PHOTOS_MAX, VehicleDamageSchemaDef} from "armonia/src/modules/carRental/api/carRental/private/vehicleDamage/vehicleDamage.schema-def";
@@ -37,6 +39,23 @@ async function assertReservationOfVehicle(
     }
 }
 
+/** A claim is made on a policy of the damaged car. */
+async function assertPolicyOfVehicle(
+    insuranceId: unknown,
+    vehicleId: unknown,
+    ctx: {companyId: ObjectId; session: ClientSession; languageCode: string},
+): Promise<void> {
+    const matches = await VehicleInsurance.exists({
+        _id: new ObjectId(String(insuranceId)),
+        company: ctx.companyId,
+        vehicle: new ObjectId(String(vehicleId)),
+        deletedAt: null,
+    }).session(ctx.session);
+    if (!matches) {
+        throw apiValidationException("vehicle_damage_policy_mismatch", "", null, ctx.languageCode);
+    }
+}
+
 export const basePath = "/api/carRental/vehicleDamage";
 
 export const {router} = createCrudRouter({
@@ -60,6 +79,7 @@ export const {router} = createCrudRouter({
         const ctx = {companyId: company._id, session, languageCode};
         await assertCompanyVehicle(params.vehicle, ctx);
         if (params.reservation) await assertReservationOfVehicle(params.reservation, params.vehicle, ctx);
+        if (params.insurance) await assertPolicyOfVehicle(params.insurance, params.vehicle, ctx);
         return buildCreateDataFromSchemaDef(VehicleDamageSchemaDef)(params);
     },
     buildUpdateData: async (params: any, writeFields) => {
@@ -69,6 +89,27 @@ export const {router} = createCrudRouter({
         if (update.vehicle) await assertCompanyVehicle(update.vehicle, ctx);
         const reservation = update.reservation !== undefined ? update.reservation : existing.reservation?._id;
         if (reservation) await assertReservationOfVehicle(reservation, update.vehicle ?? existing.vehicle?._id, ctx);
+        if (update.insurance) await assertPolicyOfVehicle(update.insurance, update.vehicle ?? existing.vehicle?._id, ctx);
         return update;
+    },
+    afterCreate: async (created, {company, session, languageCode}) => {
+        await damageReported(created, {companyId: company._id, session, languageCode});
+    },
+    // A deleted damage leaves its repair's list; restored, it goes back to a repair still live.
+    afterDelete: async ({session}, doc) => {
+        if (doc.repair) await VehicleMaintenance.updateOne({_id: doc.repair}, {$pull: {damages: doc._id}}, {session});
+    },
+    afterRestore: async ({session}, doc) => {
+        if (!doc.repair) return;
+        const repair = await VehicleMaintenance.findOneAndUpdate(
+            {_id: doc.repair, deletedAt: null, status: {$ne: "cancelled"}},
+            {$addToSet: {damages: doc._id}},
+            {session},
+        );
+        // The repair was cancelled or deleted meanwhile, or completed: the damage follows it.
+        if (!repair) await VehicleDamage.updateOne({_id: doc._id}, {$set: {status: "open"}, $unset: {repair: 1}}, {session});
+        else if (repair.status === "completed" && doc.status !== "repaired") {
+            await VehicleDamage.updateOne({_id: doc._id}, {$set: {status: "repaired", repairedAt: new Date()}}, {session});
+        }
     },
 });

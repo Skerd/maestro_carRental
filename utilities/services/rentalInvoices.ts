@@ -2,6 +2,7 @@ import type {ClientSession} from "mongoose";
 import type {ObjectId} from "mongodb";
 import type {serverLogger} from "@coreModule/loggers/serverLog";
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
+import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import Invoice, {
     type IInvoice,
 } from "@financeModule/database/schemas/invoice/invoice";
@@ -70,6 +71,41 @@ export async function invoiceNewLines(
     reservation.invoicedLineCount = reservation.pricing.lines.length;
     await reservation.save({session: ctx.session});
     return invoice;
+}
+
+/**
+ * Credits booking lines that were already invoiced (a charge taken back), each on the
+ * invoice that holds it: a credit note per invoice, for those lines only.
+ */
+export async function creditInvoicedLines(
+    reservation: IRentalReservation,
+    lines: {description: string; total: number}[],
+    ctx: Ctx,
+): Promise<void> {
+    const company = nestedEntityToRef(reservation.company)!;
+    const invoices = await Invoice.find({
+        company,
+        sourceType: "rentalReservation",
+        sourceId: reservation._id,
+        kind: "invoice",
+        status: "issued",
+        deletedAt: null,
+    })
+        .sort({issuedAt: -1})
+        .session(ctx.session);
+    const byInvoice = new Map<string, {invoice: IInvoice; lines: typeof lines}>();
+    for (const line of lines) {
+        const invoice = invoices.find((candidate) =>
+            candidate.lines.some((invoiced) => invoiced.description === line.description && invoiced.total === line.total),
+        );
+        if (!invoice) throw apiValidationException("rental_charge_not_found", "", null, ctx.languageCode);
+        const group = byInvoice.get(String(invoice._id)) ?? {invoice, lines: []};
+        group.lines.push(line);
+        byInvoice.set(String(invoice._id), group);
+    }
+    for (const {invoice, lines: credited} of byInvoice.values()) {
+        await invoiceService.credit(invoice._id, {...ctx, company}, credited);
+    }
 }
 
 /** The invoice as an email attachment, read again after commit so it carries its fiscal codes when registered. */

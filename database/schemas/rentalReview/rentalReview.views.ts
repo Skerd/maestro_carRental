@@ -24,7 +24,7 @@ export const rentalReviewSheetView: ViewConfig = {
             children: [
                 {
                     render: "#SheetGrid",
-                    props: {columns: 2},
+                    props: {columns: 3},
                     children: [
                         {
                             render: "#DisplayCard",
@@ -33,7 +33,13 @@ export const rentalReviewSheetView: ViewConfig = {
                                 name: "reservation.number",
                                 widget: "#DisplayCard",
                                 label: "reservation",
-                                widgetProps: {icon: "#IconCalendarEvent"},
+                                widgetProps: {
+                                    icon: "#IconCalendarEvent",
+                                    linkedRefPath: "reservation",
+                                    linkedSheetModel: "rentalreservations",
+                                    linkedSheetWidget: "#RentalReservationSheetView",
+                                    linkedSheetEntityProp: "rentalReservation",
+                                },
                             },
                         },
                         {
@@ -75,14 +81,24 @@ export const rentalReviewSheetView: ViewConfig = {
                     ],
                 },
                 {
-                    render: "#DisplayCard",
-                    permissions: {read: "comment"},
-                    field: {
-                        name: "comment",
-                        widget: "#DisplayCard",
-                        label: "comment",
-                        widgetProps: {icon: "#IconMessage"},
-                    },
+                    render: "#SheetGrid",
+                    props: {columns: 1},
+                    children: [
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "comment"},
+                            field: {
+                                name: "comment",
+                                widget: "#DisplayCard",
+                                label: "comment",
+                                widgetProps: {
+                                    icon: "#IconAlignLeft",
+                                    expandable: true,
+                                    maxLength: 250,
+                                },
+                            },
+                        },
+                    ],
                 },
             ],
         },
@@ -133,14 +149,6 @@ const rentalReviewCreateFormNodes: ViewConfig["nodes"] = [
                     widgetProps: {maxLength: RENTAL_REVIEW_AUTHOR_NAME_MAX},
                 },
             },
-            {
-                render: "#Field",
-                field: {
-                    name: "isPublished",
-                    widget: "#Switch",
-                    label: "form.isPublishedLabel",
-                },
-            },
         ],
     },
     {
@@ -160,8 +168,8 @@ const rentalReviewEditFormNodes: ViewConfig["nodes"] = [
         render: "#FormGrid",
         props: {columns: 2},
         permissions: {
-            readAny: ["reservation", "rating", "authorName", "isPublished"],
-            writeAny: ["reservation", "rating", "authorName", "isPublished"],
+            readAny: ["reservation", "rating", "authorName"],
+            writeAny: ["reservation", "rating", "authorName"],
         },
         children: [
             {
@@ -203,15 +211,6 @@ const rentalReviewEditFormNodes: ViewConfig["nodes"] = [
                     placeholder: "form.authorNamePlaceholder",
                     required: true,
                     widgetProps: {maxLength: RENTAL_REVIEW_AUTHOR_NAME_MAX},
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "isPublished", write: "isPublished"},
-                field: {
-                    name: "isPublished",
-                    widget: "#Switch",
-                    label: "form.isPublishedLabel",
                 },
             },
         ],

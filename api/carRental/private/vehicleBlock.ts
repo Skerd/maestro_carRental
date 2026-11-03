@@ -7,6 +7,8 @@ import {vehicleBlockService} from "@carRentalModule/database/schemas/vehicleBloc
 import {vehicleBlockToDTO, vehicleBlocksToDTO} from "@carRentalModule/utilities/mappers/vehicleBlock/vehicleBlockMapper.dto";
 import {vehicleBlocksToSelect} from "@carRentalModule/utilities/mappers/vehicleBlock/vehicleBlockMapper.select";
 import {assertNoBookingClash} from "@carRentalModule/utilities/services/rentalAvailability";
+import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
+import {assertCanDelete} from "@coreModule/database/relationsRegistry";
 
 export const basePath = "/api/carRental/vehicleBlock";
 
@@ -35,8 +37,16 @@ export const {router} = createCrudRouter({
         return {vehicle: vehicleId, startAt: start, endAt: end, reason, note};
     },
     // The window was checked against bookings at create; only the reason and note change.
-    buildUpdateData: ({reason, note}: any, writeFields) => ({
-        ...(reason !== undefined && writeFields.reason && {reason}),
-        ...(note !== undefined && writeFields.note && {note}),
-    }),
+    // A transfer's or service's block is changed through that record.
+    buildUpdateData: ({reason, note, existing, languageCode}: any, writeFields) => {
+        if (existing.source) throw apiValidationException("vehicle_block_managed", "", null, languageCode);
+        return {
+            ...(reason !== undefined && writeFields.reason && {reason}),
+            ...(note !== undefined && writeFields.note && {note}),
+        };
+    },
+    beforeDelete: async ({languageCode, session}, doc) => {
+        if (doc.source) throw apiValidationException("vehicle_block_managed", "", null, languageCode);
+        await assertCanDelete(VehicleBlock.modelName, doc._id, languageCode, session);
+    },
 });

@@ -30,7 +30,7 @@ export const rentalPromoCodeSheetView: ViewConfig = {
             children: [
                 {
                     render: "#SheetGrid",
-                    props: {columns: 2},
+                    props: {columns: 3},
                     children: [
                         {
                             render: "#DisplayCard",
@@ -76,7 +76,13 @@ export const rentalPromoCodeSheetView: ViewConfig = {
                                 name: "category.name",
                                 widget: "#DisplayCard",
                                 label: "category",
-                                widgetProps: {icon: "#IconCategory"},
+                                widgetProps: {
+                                    icon: "#IconCategory",
+                                    linkedRefPath: "category",
+                                    linkedSheetModel: "vehiclecategories",
+                                    linkedSheetWidget: "#VehicleCategorySheetView",
+                                    linkedSheetEntityProp: "vehicleCategory",
+                                },
                             },
                         },
                         {
@@ -199,14 +205,24 @@ export const rentalPromoCodeSheetView: ViewConfig = {
                     ],
                 },
                 {
-                    render: "#DisplayCard",
-                    permissions: {read: "description"},
-                    field: {
-                        name: "description",
-                        widget: "#DisplayCard",
-                        label: "description",
-                        widgetProps: {icon: "#IconNotes"},
-                    },
+                    render: "#SheetGrid",
+                    props: {columns: 1},
+                    children: [
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "description"},
+                            field: {
+                                name: "description",
+                                widget: "#DisplayCard",
+                                label: "description",
+                                widgetProps: {
+                                    icon: "#IconAlignLeft",
+                                    expandable: true,
+                                    maxLength: 250,
+                                },
+                            },
+                        },
+                    ],
                 },
             ],
         },

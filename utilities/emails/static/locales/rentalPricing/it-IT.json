@@ -13,5 +13,6 @@
   "smoking": "Penale fumo",
   "damage": "Danno: {description}",
   "fine": "Multa {reference}",
-  "fineAdmin": "Spese di gestione della multa"
+  "fineAdmin": "Spese di gestione della multa",
+  "chargeRemoved": "Rimosso: {label}"
 }

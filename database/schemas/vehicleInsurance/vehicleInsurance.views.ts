@@ -2,7 +2,6 @@ import type {ViewConfig} from "armonia/src/modules/core/api/auxiliary/private/vi
 import {lifecycleSheetGroup} from "@coreModule/database/schemas/shared/lifecycleSheetGroup";
 import {
     VEHICLE_INSURANCE_COVERAGES,
-    VEHICLE_INSURANCE_STATUSES,
     VEHICLE_INSURER_MAX,
     VEHICLE_POLICY_NUMBER_MAX,
 } from "armonia/src/modules/carRental/api/carRental/private/vehicleInsurance/vehicleInsurance.schema-def";
@@ -30,7 +29,7 @@ export const vehicleInsuranceSheetView: ViewConfig = {
             children: [
                 {
                     render: "#SheetGrid",
-                    props: {columns: 2},
+                    props: {columns: 3},
                     children: [
                         {
                             render: "#DisplayCard",
@@ -39,7 +38,13 @@ export const vehicleInsuranceSheetView: ViewConfig = {
                                 name: "vehicle.plate",
                                 widget: "#DisplayCard",
                                 label: "vehicle",
-                                widgetProps: {icon: "#IconCar"},
+                                widgetProps: {
+                                    icon: "#IconCar",
+                                    linkedRefPath: "vehicle",
+                                    linkedSheetModel: "vehicles",
+                                    linkedSheetWidget: "#VehicleSheetView",
+                                    linkedSheetEntityProp: "vehicle",
+                                },
                             },
                         },
                         {
@@ -73,20 +78,6 @@ export const vehicleInsuranceSheetView: ViewConfig = {
                                     icon: "#IconShieldCheck",
                                     type: "enum",
                                     languageKeyCategory: "coverageValues",
-                                },
-                            },
-                        },
-                        {
-                            render: "#DisplayCard",
-                            permissions: {read: "status"},
-                            field: {
-                                name: "status",
-                                widget: "#DisplayCard",
-                                label: "status",
-                                widgetProps: {
-                                    icon: "#IconStatusChange",
-                                    type: "enum",
-                                    languageKeyCategory: "statusValues",
                                 },
                             },
                         },
@@ -144,17 +135,88 @@ export const vehicleInsuranceSheetView: ViewConfig = {
                                 },
                             },
                         },
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "status"},
+                            field: {
+                                name: "status",
+                                widget: "#DisplayCard",
+                                label: "status",
+                                widgetProps: {
+                                    icon: "#IconStatusChange",
+                                    type: "enum",
+                                    languageKeyCategory: "statusValues",
+                                },
+                            },
+                        },
                     ],
                 },
                 {
-                    render: "#DisplayCard",
-                    permissions: {read: "notes"},
-                    field: {
-                        name: "notes",
-                        widget: "#DisplayCard",
-                        label: "notes",
-                        widgetProps: {icon: "#IconNotes"},
-                    },
+                    render: "#SheetGrid",
+                    props: {columns: 1},
+                    children: [
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "notes"},
+                            field: {
+                                name: "notes",
+                                widget: "#DisplayCard",
+                                label: "notes",
+                                widgetProps: {
+                                    icon: "#IconAlignLeft",
+                                    expandable: true,
+                                    maxLength: 250,
+                                },
+                            },
+                        },
+                    ],
+                },
+            ],
+        },
+        {
+            render: "#SheetGroup",
+            props: {title: "renewalGroup"},
+            permissions: {readAny: ["supersedes", "supersededBy"]},
+            children: [
+                {
+                    render: "#SheetGrid",
+                    props: {columns: 2},
+                    children: [
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "supersedes"},
+                            field: {
+                                name: "supersedes.policyNumber",
+                                widget: "#DisplayCard",
+                                label: "supersedes",
+                                widgetProps: {
+                                    icon: "#IconHistory",
+                                    linkedRefPath: "supersedes",
+                                    linkedSheetModel: "vehicleinsurances",
+                                    linkedSheetWidget:
+                                        "#VehicleInsuranceSheetView",
+                                    linkedSheetEntityProp: "vehicleInsurance",
+                                },
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "supersededBy"},
+                            field: {
+                                name: "supersededBy.policyNumber",
+                                widget: "#DisplayCard",
+                                label: "supersededBy",
+                                widgetProps: {
+                                    icon: "#IconRefresh",
+                                    linkedRefPath: "supersededBy",
+                                    linkedSheetModel: "vehicleinsurances",
+                                    linkedSheetWidget:
+                                        "#VehicleInsuranceSheetView",
+                                    linkedSheetEntityProp: "vehicleInsurance",
+                                },
+                            },
+                        },
+                    ],
                 },
             ],
         },
@@ -182,335 +244,379 @@ const coverageOptions = VEHICLE_INSURANCE_COVERAGES.map((value) => ({
     value,
     label: `form.coverage.${value}`,
 }));
-const statusOptions = VEHICLE_INSURANCE_STATUSES.map((value) => ({
-    value,
-    label: `form.status.${value}`,
-}));
+
+const vehicleSelectProps = {
+    apiUrl: "/api/carRental/vehicle/select",
+    method: "POST",
+    pageSize: 50,
+    normalizeEmptyToUndefined: true,
+    postBody: {includeInactive: true},
+    defaultOptionsFormExtraKey: "vehicleDefaultOptions",
+};
 
 const vehicleInsuranceCreateFormNodes: ViewConfig["nodes"] = [
     {
-        render: "#FormGrid",
-        props: {columns: 2},
+        render: "#TitleWithCollapse",
+        props: {title: "form.identificationSectionTitle"},
         children: [
             {
-                render: "#Field",
-                field: {
-                    name: "vehicle",
-                    widget: "#ApiSelect",
-                    label: "form.vehicleLabel",
-                    placeholder: "form.vehiclePlaceholder",
-                    required: true,
-                    widgetProps: {
-                        apiUrl: "/api/carRental/vehicle/select",
-                        method: "POST",
-                        pageSize: 50,
-                        normalizeEmptyToUndefined: true,
-                        postBody: {includeInactive: true},
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "vehicle",
+                            widget: "#ApiSelect",
+                            label: "form.vehicleLabel",
+                            placeholder: "form.vehiclePlaceholder",
+                            required: true,
+                            widgetProps: vehicleSelectProps,
+                        },
                     },
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "insurer",
-                    widget: "#Input",
-                    label: "form.insurerLabel",
-                    placeholder: "form.insurerPlaceholder",
-                    required: true,
-                    widgetProps: {maxLength: VEHICLE_INSURER_MAX},
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "policyNumber",
-                    widget: "#Input",
-                    label: "form.policyNumberLabel",
-                    placeholder: "form.policyNumberPlaceholder",
-                    required: true,
-                    widgetProps: {maxLength: VEHICLE_POLICY_NUMBER_MAX},
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "coverage",
-                    widget: "#SimpleSelect",
-                    label: "form.coverageLabel",
-                    placeholder: "form.coveragePlaceholder",
-                    required: true,
-                    widgetProps: {
-                        options: coverageOptions,
-                        className: "grow w-full",
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "insurer",
+                            widget: "#Input",
+                            label: "form.insurerLabel",
+                            placeholder: "form.insurerPlaceholder",
+                            required: true,
+                            widgetProps: {maxLength: VEHICLE_INSURER_MAX},
+                        },
                     },
-                },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "policyNumber",
+                            widget: "#Input",
+                            label: "form.policyNumberLabel",
+                            placeholder: "form.policyNumberPlaceholder",
+                            required: true,
+                            widgetProps: {maxLength: VEHICLE_POLICY_NUMBER_MAX},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "coverage",
+                            widget: "#SimpleSelect",
+                            label: "form.coverageLabel",
+                            placeholder: "form.coveragePlaceholder",
+                            required: true,
+                            widgetProps: {
+                                options: coverageOptions,
+                                className: "grow w-full",
+                            },
+                        },
+                    },
+                ],
             },
             {
                 render: "#Field",
                 field: {
-                    name: "validFrom",
-                    widget: "#DateInput",
-                    label: "form.validFromLabel",
-                    placeholder: "form.validFromPlaceholder",
-                    required: true,
-                    widgetProps: {valueFormat: "yyyy-MM-dd"},
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "expiresAt",
-                    widget: "#DateInput",
-                    label: "form.expiresAtLabel",
-                    placeholder: "form.expiresAtPlaceholder",
-                    required: true,
-                    widgetProps: {valueFormat: "yyyy-MM-dd"},
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "premium",
-                    widget: "#Input",
-                    label: "form.premiumLabel",
-                    placeholder: "form.premiumPlaceholder",
-                    widgetProps: {type: "number", min: 0, step: "0.01"},
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "deductible",
-                    widget: "#Input",
-                    label: "form.deductibleLabel",
-                    placeholder: "form.deductiblePlaceholder",
-                    widgetProps: {type: "number", min: 0, step: "0.01"},
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "status",
-                    widget: "#SimpleSelect",
-                    label: "form.statusLabel",
-                    placeholder: "form.statusPlaceholder",
+                    name: "notes",
+                    widget: "#Textarea",
+                    label: "form.notesLabel",
+                    placeholder: "form.notesPlaceholder",
                     widgetProps: {
-                        options: statusOptions,
-                        className: "grow w-full",
+                        rows: 4,
+                        maxLength: VEHICLE_RECORD_NOTES_MAX,
+                        className:
+                            "field-sizing-fixed max-h-56 min-h-24 overflow-y-auto",
                     },
                 },
             },
         ],
     },
     {
-        render: "#Field",
-        field: {
-            name: "notes",
-            widget: "#Textarea",
-            label: "form.notesLabel",
-            placeholder: "form.notesPlaceholder",
-            widgetProps: {
-                rows: 4,
-                maxLength: VEHICLE_RECORD_NOTES_MAX,
-                className:
-                    "field-sizing-fixed max-h-56 min-h-24 overflow-y-auto",
+        render: "#TitleWithCollapse",
+        props: {title: "form.validitySectionTitle"},
+        children: [
+            {
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "validFrom",
+                            widget: "#DateInput",
+                            label: "form.validFromLabel",
+                            placeholder: "form.validFromPlaceholder",
+                            required: true,
+                            widgetProps: {valueFormat: "yyyy-MM-dd"},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "expiresAt",
+                            widget: "#DateInput",
+                            label: "form.expiresAtLabel",
+                            placeholder: "form.expiresAtPlaceholder",
+                            required: true,
+                            widgetProps: {valueFormat: "yyyy-MM-dd"},
+                        },
+                    },
+                ],
             },
-        },
+        ],
     },
     {
-        render: "#Field",
-        field: {
-            name: "attachments",
-            widget: "#MediaField",
-            label: "form.attachmentsLabel",
-            widgetProps: {
-                mediaType: "file",
-                mode: "multiple",
-                maxCount: VEHICLE_RECORD_ATTACHMENTS_MAX,
-                accept: "application/pdf,image/*",
+        render: "#TitleWithCollapse",
+        props: {title: "form.amountsSectionTitle"},
+        children: [
+            {
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "premium",
+                            widget: "#Input",
+                            label: "form.premiumLabel",
+                            placeholder: "form.premiumPlaceholder",
+                            widgetProps: {type: "number", min: 0, step: "0.01"},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "deductible",
+                            widget: "#Input",
+                            label: "form.deductibleLabel",
+                            placeholder: "form.deductiblePlaceholder",
+                            widgetProps: {type: "number", min: 0, step: "0.01"},
+                        },
+                    },
+                ],
             },
-        },
+        ],
+    },
+    {
+        render: "#TitleWithCollapse",
+        props: {title: "form.attachmentsSectionTitle"},
+        children: [
+            {
+                render: "#Field",
+                field: {
+                    name: "attachments",
+                    widget: "#MediaField",
+                    // The section title is the heading. MediaField prints its own label, so this stays blank.
+                    label: "form.attachmentsBlankLabel",
+                    widgetProps: {
+                        mediaType: "file",
+                        mode: "multiple",
+                        maxCount: VEHICLE_RECORD_ATTACHMENTS_MAX,
+                        accept: "application/pdf,image/*",
+                    },
+                },
+            },
+        ],
     },
 ];
 
 const vehicleInsuranceEditFormNodes: ViewConfig["nodes"] = [
     {
-        render: "#FormGrid",
-        props: {columns: 2},
+        render: "#TitleWithCollapse",
+        props: {title: "form.identificationSectionTitle"},
         permissions: {
             readAny: [
                 "vehicle",
                 "insurer",
                 "policyNumber",
                 "coverage",
-                "validFrom",
-                "expiresAt",
-                "premium",
-                "deductible",
-                "status",
+                "notes",
             ],
             writeAny: [
                 "vehicle",
                 "insurer",
                 "policyNumber",
                 "coverage",
-                "validFrom",
-                "expiresAt",
-                "premium",
-                "deductible",
-                "status",
+                "notes",
             ],
         },
         children: [
             {
-                render: "#Field",
-                permissions: {read: "vehicle", write: "vehicle"},
-                field: {
-                    name: "vehicle",
-                    widget: "#ApiSelect",
-                    label: "form.vehicleLabel",
-                    placeholder: "form.vehiclePlaceholder",
-                    required: true,
-                    widgetProps: {
-                        apiUrl: "/api/carRental/vehicle/select",
-                        method: "POST",
-                        pageSize: 50,
-                        normalizeEmptyToUndefined: true,
-                        postBody: {includeInactive: true},
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        permissions: {read: "vehicle", write: "vehicle"},
+                        field: {
+                            name: "vehicle",
+                            widget: "#ApiSelect",
+                            label: "form.vehicleLabel",
+                            placeholder: "form.vehiclePlaceholder",
+                            required: true,
+                            widgetProps: vehicleSelectProps,
+                        },
                     },
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "insurer", write: "insurer"},
-                field: {
-                    name: "insurer",
-                    widget: "#Input",
-                    label: "form.insurerLabel",
-                    placeholder: "form.insurerPlaceholder",
-                    required: true,
-                    widgetProps: {maxLength: VEHICLE_INSURER_MAX},
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "policyNumber", write: "policyNumber"},
-                field: {
-                    name: "policyNumber",
-                    widget: "#Input",
-                    label: "form.policyNumberLabel",
-                    placeholder: "form.policyNumberPlaceholder",
-                    required: true,
-                    widgetProps: {maxLength: VEHICLE_POLICY_NUMBER_MAX},
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "coverage", write: "coverage"},
-                field: {
-                    name: "coverage",
-                    widget: "#SimpleSelect",
-                    label: "form.coverageLabel",
-                    placeholder: "form.coveragePlaceholder",
-                    required: true,
-                    widgetProps: {
-                        options: coverageOptions,
-                        className: "grow w-full",
+                    {
+                        render: "#Field",
+                        permissions: {read: "insurer", write: "insurer"},
+                        field: {
+                            name: "insurer",
+                            widget: "#Input",
+                            label: "form.insurerLabel",
+                            placeholder: "form.insurerPlaceholder",
+                            required: true,
+                            widgetProps: {maxLength: VEHICLE_INSURER_MAX},
+                        },
                     },
-                },
+                    {
+                        render: "#Field",
+                        permissions: {
+                            read: "policyNumber",
+                            write: "policyNumber",
+                        },
+                        field: {
+                            name: "policyNumber",
+                            widget: "#Input",
+                            label: "form.policyNumberLabel",
+                            placeholder: "form.policyNumberPlaceholder",
+                            required: true,
+                            widgetProps: {maxLength: VEHICLE_POLICY_NUMBER_MAX},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "coverage", write: "coverage"},
+                        field: {
+                            name: "coverage",
+                            widget: "#SimpleSelect",
+                            label: "form.coverageLabel",
+                            placeholder: "form.coveragePlaceholder",
+                            required: true,
+                            widgetProps: {
+                                options: coverageOptions,
+                                className: "grow w-full",
+                            },
+                        },
+                    },
+                ],
             },
             {
                 render: "#Field",
-                permissions: {read: "validFrom", write: "validFrom"},
+                permissions: {read: "notes", write: "notes"},
                 field: {
-                    name: "validFrom",
-                    widget: "#DateInput",
-                    label: "form.validFromLabel",
-                    placeholder: "form.validFromPlaceholder",
-                    required: true,
-                    widgetProps: {valueFormat: "yyyy-MM-dd"},
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "expiresAt", write: "expiresAt"},
-                field: {
-                    name: "expiresAt",
-                    widget: "#DateInput",
-                    label: "form.expiresAtLabel",
-                    placeholder: "form.expiresAtPlaceholder",
-                    required: true,
-                    widgetProps: {valueFormat: "yyyy-MM-dd"},
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "premium", write: "premium"},
-                field: {
-                    name: "premium",
-                    widget: "#Input",
-                    label: "form.premiumLabel",
-                    placeholder: "form.premiumPlaceholder",
-                    widgetProps: {type: "number", min: 0, step: "0.01"},
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "deductible", write: "deductible"},
-                field: {
-                    name: "deductible",
-                    widget: "#Input",
-                    label: "form.deductibleLabel",
-                    placeholder: "form.deductiblePlaceholder",
-                    widgetProps: {type: "number", min: 0, step: "0.01"},
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "status", write: "status"},
-                field: {
-                    name: "status",
-                    widget: "#SimpleSelect",
-                    label: "form.statusLabel",
-                    placeholder: "form.statusPlaceholder",
+                    name: "notes",
+                    widget: "#Textarea",
+                    label: "form.notesLabel",
+                    placeholder: "form.notesPlaceholder",
                     widgetProps: {
-                        options: statusOptions,
-                        className: "grow w-full",
+                        rows: 4,
+                        maxLength: VEHICLE_RECORD_NOTES_MAX,
+                        className:
+                            "field-sizing-fixed max-h-56 min-h-24 overflow-y-auto",
                     },
                 },
             },
         ],
     },
     {
-        render: "#Field",
-        permissions: {read: "notes", write: "notes"},
-        field: {
-            name: "notes",
-            widget: "#Textarea",
-            label: "form.notesLabel",
-            placeholder: "form.notesPlaceholder",
-            widgetProps: {
-                rows: 4,
-                maxLength: VEHICLE_RECORD_NOTES_MAX,
-                className:
-                    "field-sizing-fixed max-h-56 min-h-24 overflow-y-auto",
-            },
+        render: "#TitleWithCollapse",
+        props: {title: "form.validitySectionTitle"},
+        permissions: {
+            readAny: ["validFrom", "expiresAt"],
+            writeAny: ["validFrom", "expiresAt"],
         },
+        children: [
+            {
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        permissions: {read: "validFrom", write: "validFrom"},
+                        field: {
+                            name: "validFrom",
+                            widget: "#DateInput",
+                            label: "form.validFromLabel",
+                            placeholder: "form.validFromPlaceholder",
+                            required: true,
+                            widgetProps: {valueFormat: "yyyy-MM-dd"},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "expiresAt", write: "expiresAt"},
+                        field: {
+                            name: "expiresAt",
+                            widget: "#DateInput",
+                            label: "form.expiresAtLabel",
+                            placeholder: "form.expiresAtPlaceholder",
+                            required: true,
+                            widgetProps: {valueFormat: "yyyy-MM-dd"},
+                        },
+                    },
+                ],
+            },
+        ],
     },
     {
-        render: "#Field",
-        permissions: {read: "attachments", write: "attachments"},
-        field: {
-            name: "attachments",
-            widget: "#MediaField",
-            label: "form.attachmentsLabel",
-            widgetProps: {
-                mediaType: "file",
-                mode: "multiple",
-                maxCount: VEHICLE_RECORD_ATTACHMENTS_MAX,
-                accept: "application/pdf,image/*",
-            },
+        render: "#TitleWithCollapse",
+        props: {title: "form.amountsSectionTitle"},
+        permissions: {
+            readAny: ["premium", "deductible"],
+            writeAny: ["premium", "deductible"],
         },
+        children: [
+            {
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        permissions: {read: "premium", write: "premium"},
+                        field: {
+                            name: "premium",
+                            widget: "#Input",
+                            label: "form.premiumLabel",
+                            placeholder: "form.premiumPlaceholder",
+                            widgetProps: {type: "number", min: 0, step: "0.01"},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "deductible", write: "deductible"},
+                        field: {
+                            name: "deductible",
+                            widget: "#Input",
+                            label: "form.deductibleLabel",
+                            placeholder: "form.deductiblePlaceholder",
+                            widgetProps: {type: "number", min: 0, step: "0.01"},
+                        },
+                    },
+                ],
+            },
+        ],
+    },
+    {
+        render: "#TitleWithCollapse",
+        props: {title: "form.attachmentsSectionTitle"},
+        permissions: {readAny: ["attachments"], writeAny: ["attachments"]},
+        children: [
+            {
+                render: "#Field",
+                permissions: {read: "attachments", write: "attachments"},
+                field: {
+                    name: "attachments",
+                    widget: "#MediaField",
+                    // The section title is the heading. MediaField prints its own label, so this stays blank.
+                    label: "form.attachmentsBlankLabel",
+                    widgetProps: {
+                        mediaType: "file",
+                        mode: "multiple",
+                        maxCount: VEHICLE_RECORD_ATTACHMENTS_MAX,
+                        accept: "application/pdf,image/*",
+                    },
+                },
+            },
+        ],
     },
 ];
 

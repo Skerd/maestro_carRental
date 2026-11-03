@@ -12,6 +12,7 @@ import {MediaSimpleSnippet} from "@coreModule/database/schemas/media/media.snipp
 import {COLUMN_TYPE} from "armonia/src/modules/core/database/filter/typeOperators";
 import {
     VEHICLE_DAMAGE_AREAS,
+    VEHICLE_DAMAGE_CLAIM_NUMBER_MAX,
     VEHICLE_DAMAGE_SEVERITIES,
     VEHICLE_DAMAGE_STATUSES,
     VehicleDamageSchemaDef,
@@ -21,6 +22,10 @@ import type {IVehicle} from "../vehicle/vehicle";
 import {VehicleSimpleSnippet} from "../vehicle/vehicle.snippets";
 import type {IRentalReservation} from "../rentalReservation/rentalReservation";
 import {RentalReservationSimpleSnippet} from "../rentalReservation/rentalReservation.snippets";
+import type {IVehicleMaintenance} from "../vehicleMaintenance/vehicleMaintenance";
+import {VehicleMaintenanceSimpleSnippet} from "../vehicleMaintenance/vehicleMaintenance.snippets";
+import type {IVehicleInsurance} from "../vehicleInsurance/vehicleInsurance";
+import {VehicleInsuranceSimpleSnippet} from "../vehicleInsurance/vehicleInsurance.snippets";
 import {applyVehicleDamageIndexes} from "./vehicleDamage.indexes";
 import {vehicleDamageViews} from "./vehicleDamage.views";
 
@@ -34,14 +39,20 @@ export interface IVehicleDamage extends Document, IOwnershipPluginFields, ISoftD
     photos: IMedia[];
     status: (typeof VEHICLE_DAMAGE_STATUSES)[number];
     estimatedCost?: number;
-    repairCost?: number;
+    /** The repair record that fixes it; its cost is the repair cost. Set by the scheduleRepair action. */
+    repair?: IVehicleMaintenance;
+    /** Set when that repair is completed. */
+    repairedAt?: Date;
     /** Charged to the customer of the linked booking; set by the chargeToCustomer action. */
     chargedAmount?: number;
     chargedAt?: Date;
-    repairedAt?: Date;
+    /** The policy that covered the car when it happened, found at create; staff can change it. */
+    insurance?: IVehicleInsurance;
+    claimNumber?: string;
+    insurerPaidAmount?: number;
 }
 
-/** Written only by the chargeToCustomer action. */
+/** Written only by actions (repair, charge). */
 const DamageNoWritePermission = {self: {write: "no-permission"}, others: {write: "no-permission"}};
 
 const VehicleDamageSchema = new Schema<IVehicleDamage>(
@@ -77,15 +88,29 @@ const VehicleDamageSchema = new Schema<IVehicleDamage>(
         status: {
             type: SchemaTypes.String,
             enum: VEHICLE_DAMAGE_STATUSES,
-            required: true,
             default: "open",
+            permissions: DamageNoWritePermission,
             dynamicTableConfiguration: {enumTones: {open: "danger", in_repair: "warning", repaired: "success"}},
         },
         estimatedCost: {type: SchemaTypes.Number, min: 0},
-        repairCost: {type: SchemaTypes.Number, min: 0, dynamicTableConfiguration: {hideColumn: true}},
         chargedAmount: {type: SchemaTypes.Number, min: 0, permissions: DamageNoWritePermission},
         chargedAt: {type: SchemaTypes.Date, permissions: DamageNoWritePermission, dynamicTableConfiguration: {hideColumn: true, cellType: COLUMN_TYPE.DATE}},
-        repairedAt: {type: SchemaTypes.Date, dynamicTableConfiguration: {cellType: COLUMN_TYPE.DATE, hideColumn: true}},
+        repair: {
+            type: SchemaTypes.ObjectId,
+            ref: "VehicleMaintenance",
+            refAllowlist: VehicleMaintenanceSimpleSnippet,
+            permissions: DamageNoWritePermission,
+            dynamicTableConfiguration: {hideColumn: true, filterable: false},
+        },
+        repairedAt: {type: SchemaTypes.Date, permissions: DamageNoWritePermission, dynamicTableConfiguration: {cellType: COLUMN_TYPE.DATE, hideColumn: true}},
+        insurance: {
+            type: SchemaTypes.ObjectId,
+            ref: "VehicleInsurance",
+            refAllowlist: VehicleInsuranceSimpleSnippet,
+            dynamicTableConfiguration: {refDisplayKey: ["policyNumber"], hideColumn: true},
+        },
+        claimNumber: {type: SchemaTypes.String, trim: true, maxlength: VEHICLE_DAMAGE_CLAIM_NUMBER_MAX, dynamicTableConfiguration: {hideColumn: true}},
+        insurerPaidAmount: {type: SchemaTypes.Number, min: 0, dynamicTableConfiguration: {hideColumn: true}},
     },
     {accessMode: "loose"},
 );

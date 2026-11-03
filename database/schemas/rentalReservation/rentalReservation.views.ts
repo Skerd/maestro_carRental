@@ -90,7 +90,13 @@ export const rentalReservationSheetView: ViewConfig = {
                                 name: "category.name",
                                 widget: "#DisplayCard",
                                 label: "category",
-                                widgetProps: {icon: "#IconCategory"},
+                                widgetProps: {
+                                    icon: "#IconCategory",
+                                    linkedRefPath: "category",
+                                    linkedSheetModel: "vehiclecategories",
+                                    linkedSheetWidget: "#VehicleCategorySheetView",
+                                    linkedSheetEntityProp: "vehicleCategory",
+                                },
                             },
                         },
                         {
@@ -100,7 +106,13 @@ export const rentalReservationSheetView: ViewConfig = {
                                 name: "vehicle.plate",
                                 widget: "#DisplayCard",
                                 label: "vehicle",
-                                widgetProps: {icon: "#IconCar"},
+                                widgetProps: {
+                                    icon: "#IconCar",
+                                    linkedRefPath: "vehicle",
+                                    linkedSheetModel: "vehicles",
+                                    linkedSheetWidget: "#VehicleSheetView",
+                                    linkedSheetEntityProp: "vehicle",
+                                },
                             },
                         },
                         {
@@ -124,7 +136,14 @@ export const rentalReservationSheetView: ViewConfig = {
                                 name: "pickupLocation.name",
                                 widget: "#DisplayCard",
                                 label: "pickupLocation",
-                                widgetProps: {icon: "#IconMapPin"},
+                                widgetProps: {
+                                    icon: "#IconMapPin",
+                                    linkedRefPath: "pickupLocation",
+                                    linkedSheetModel: "rentallocations",
+                                    linkedSheetWidget:
+                                        "#RentalLocationSheetView",
+                                    linkedSheetEntityProp: "rentalLocation",
+                                },
                             },
                         },
                         {
@@ -160,7 +179,14 @@ export const rentalReservationSheetView: ViewConfig = {
                                 name: "returnLocation.name",
                                 widget: "#DisplayCard",
                                 label: "returnLocation",
-                                widgetProps: {icon: "#IconMapPin"},
+                                widgetProps: {
+                                    icon: "#IconMapPin",
+                                    linkedRefPath: "returnLocation",
+                                    linkedSheetModel: "rentallocations",
+                                    linkedSheetWidget:
+                                        "#RentalLocationSheetView",
+                                    linkedSheetEntityProp: "rentalLocation",
+                                },
                             },
                         },
                         {
@@ -184,6 +210,26 @@ export const rentalReservationSheetView: ViewConfig = {
                                 widget: "#DisplayCard",
                                 label: "customer",
                                 widgetProps: {icon: "#IconUser"},
+                            },
+                        },
+                    ],
+                },
+                {
+                    render: "#SheetGrid",
+                    props: {columns: 1},
+                    children: [
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "notes"},
+                            field: {
+                                name: "notes",
+                                widget: "#DisplayCard",
+                                label: "notes",
+                                widgetProps: {
+                                    icon: "#IconAlignLeft",
+                                    expandable: true,
+                                    maxLength: 250,
+                                },
                             },
                         },
                     ],
@@ -653,16 +699,6 @@ export const rentalReservationSheetView: ViewConfig = {
                 },
             ],
         },
-        {
-            render: "#DisplayCard",
-            permissions: {read: "notes"},
-            field: {
-                name: "notes",
-                widget: "#DisplayCard",
-                label: "notes",
-                widgetProps: {icon: "#IconNotes"},
-            },
-        },
         lifecycleSheetGroup,
     ],
 };
@@ -697,6 +733,8 @@ export const rentalReservationCreateFormView: ViewConfig = {
                                     method: "POST",
                                     pageSize: 50,
                                     normalizeEmptyToUndefined: true,
+                                    defaultOptionsFormExtraKey:
+                                        "categoryDefaultOptions",
                                     cascadeClearFormFields: ["vehicle"],
                                 },
                             },
@@ -720,6 +758,8 @@ export const rentalReservationCreateFormView: ViewConfig = {
                                         },
                                     ],
                                     enableWhenFormFieldsNonEmpty: ["category"],
+                                    defaultOptionsFormExtraKey:
+                                        "vehicleDefaultOptions",
                                 },
                             },
                         },
@@ -938,6 +978,14 @@ export const rentalReservationCreateFormView: ViewConfig = {
             },
         },
         {
+            render: "#TitleWithCollapse",
+            props: {title: "form.optionsSectionTitle"},
+            children: [
+                {
+                    render: "#FormGrid",
+                    props: {columns: 2},
+                    children: [
+        {
             render: "#Field",
             field: {
                 name: "businessAccount",
@@ -993,15 +1041,24 @@ export const rentalReservationCreateFormView: ViewConfig = {
                 widgetProps: {maxLength: RENTAL_PROMO_CODE_INPUT_MAX},
             },
         },
-        {
-            render: "#Field",
-            field: {
-                name: "notes",
-                widget: "#Textarea",
-                label: "form.notesLabel",
-                placeholder: "form.notesPlaceholder",
-                widgetProps: {rows: 3, maxLength: RENTAL_NOTES_MAX},
-            },
+                    ],
+                },
+                {
+                    render: "#Field",
+                    field: {
+                        name: "notes",
+                        widget: "#Textarea",
+                        label: "form.notesLabel",
+                        placeholder: "form.notesPlaceholder",
+                        widgetProps: {
+                            rows: 4,
+                            maxLength: RENTAL_NOTES_MAX,
+                            className:
+                                "field-sizing-fixed max-h-56 min-h-24 overflow-y-auto",
+                        },
+                    },
+                },
+            ],
         },
     ],
 };

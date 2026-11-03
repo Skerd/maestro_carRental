@@ -1,4 +1,4 @@
-import {Document, model, Schema, SchemaTypes} from "mongoose";
+import {Document, model, Schema, SchemaTypes, Types} from "mongoose";
 import {normalizeSchemaPermissions} from "@coreModule/database/utilities";
 import ownershipPlugin from "@coreModule/database/plugins/ownershipPlugin";
 import auditPlugin from "@coreModule/database/plugins/auditPlugin";
@@ -19,14 +19,21 @@ import {
 import {VEHICLE_RECORD_NOTES_MAX} from "armonia/src/modules/carRental/api/carRental/private/vehicle/vehicle.schema-def";
 import type {IVehicle} from "../vehicle/vehicle";
 import {VehicleSimpleSnippet} from "../vehicle/vehicle.snippets";
+import type {IVehicleDamage} from "../vehicleDamage/vehicleDamage";
+import {VehicleDamageSimpleSnippet} from "../vehicleDamage/vehicleDamage.snippets";
 import {applyVehicleMaintenanceIndexes} from "./vehicleMaintenance.indexes";
 import {vehicleMaintenanceViews} from "./vehicleMaintenance.views";
+
+/** Written only by the system (services and actions). */
+const NoWritePermission = {self: {write: "no-permission"}, others: {write: "no-permission"}};
 
 export interface IVehicleMaintenance extends Document, IOwnershipPluginFields, ISoftDeletePluginFields, ILifeCyclePluginFields {
     vehicle: IVehicle;
     type: (typeof VEHICLE_MAINTENANCE_TYPES)[number];
     status: (typeof VEHICLE_MAINTENANCE_STATUSES)[number];
     serviceDate: Date;
+    /** With a scheduled record: the car is out of bookings until then (see `block`). */
+    readyAt?: Date;
     odometerKm?: number;
     provider?: string;
     cost?: number;
@@ -34,6 +41,10 @@ export interface IVehicleMaintenance extends Document, IOwnershipPluginFields, I
     nextDueAt?: Date;
     nextDueKm?: number;
     attachments: IMedia[];
+    /** The damage reports this repair fixes; set by the damage scheduleRepair action. */
+    damages: IVehicleDamage[];
+    /** The block that keeps the car out of bookings until `readyAt`; ended on complete, removed on cancel. */
+    block?: Types.ObjectId;
 }
 
 const VehicleMaintenanceSchema = new Schema<IVehicleMaintenance>(
@@ -54,6 +65,7 @@ const VehicleMaintenanceSchema = new Schema<IVehicleMaintenance>(
             dynamicTableConfiguration: {enumTones: {scheduled: "info", completed: "success", cancelled: "neutral"}},
         },
         serviceDate: {type: SchemaTypes.Date, required: true, dynamicTableConfiguration: {cellType: COLUMN_TYPE.DATE}},
+        readyAt: {type: SchemaTypes.Date, dynamicTableConfiguration: {cellType: COLUMN_TYPE.DATE, hideColumn: true}},
         odometerKm: {type: SchemaTypes.Number, min: 0},
         provider: {type: SchemaTypes.String, trim: true, maxlength: VEHICLE_MAINTENANCE_PROVIDER_MAX},
         cost: {type: SchemaTypes.Number, min: 0},
@@ -66,6 +78,14 @@ const VehicleMaintenanceSchema = new Schema<IVehicleMaintenance>(
             refAllowlist: MediaSimpleSnippet,
             dynamicTableConfiguration: {sortable: false, filterable: false, hideColumn: true},
         },
+        damages: {
+            type: [{type: SchemaTypes.ObjectId, ref: "VehicleDamage"}],
+            default: [],
+            refAllowlist: VehicleDamageSimpleSnippet,
+            permissions: NoWritePermission,
+            dynamicTableConfiguration: {sortable: false, filterable: false, hideColumn: true},
+        },
+        block: {type: SchemaTypes.ObjectId, ref: "VehicleBlock", permissions: NoWritePermission, dynamicTableConfiguration: {hideColumn: true, filterable: false}},
     },
     {accessMode: "loose"},
 );

@@ -20,6 +20,7 @@ import {
 import {VEHICLE_RECORD_NOTES_MAX} from "armonia/src/modules/carRental/api/carRental/private/vehicle/vehicle.schema-def";
 import type {IVehicle} from "../vehicle/vehicle";
 import {VehicleSimpleSnippet} from "../vehicle/vehicle.snippets";
+import {VehicleDocumentSimpleSnippet} from "./vehicleDocument.snippets";
 import {applyVehicleDocumentIndexes} from "./vehicleDocument.indexes";
 import {vehicleDocumentViews} from "./vehicleDocument.views";
 
@@ -37,6 +38,9 @@ export interface IVehicleDocument extends Document, IOwnershipPluginFields, ISof
     notes?: string;
     /** Set once the fleet reminder job has warned about this expiry; cleared when the date moves. */
     expiryReminderSentAt?: Date;
+    /** The record this one renews (set at create only), and the one that renewed it. */
+    supersedes?: IVehicleDocument;
+    supersededBy?: IVehicleDocument;
 }
 
 const VehicleDocumentSchema = new Schema<IVehicleDocument>(
@@ -69,6 +73,20 @@ const VehicleDocumentSchema = new Schema<IVehicleDocument>(
         notes: {type: SchemaTypes.String, maxlength: VEHICLE_RECORD_NOTES_MAX, dynamicTableConfiguration: {hideColumn: true}},
         expiryReminderSentAt: {
             type: SchemaTypes.Date,
+            permissions: NoWritePermission,
+            dynamicTableConfiguration: {hideColumn: true, filterable: false},
+        },
+        supersedes: {
+            type: SchemaTypes.ObjectId,
+            ref: "VehicleDocument",
+            refAllowlist: VehicleDocumentSimpleSnippet,
+            permissions: NoWritePermission,
+            dynamicTableConfiguration: {hideColumn: true, filterable: false},
+        },
+        supersededBy: {
+            type: SchemaTypes.ObjectId,
+            ref: "VehicleDocument",
+            refAllowlist: VehicleDocumentSimpleSnippet,
             permissions: NoWritePermission,
             dynamicTableConfiguration: {hideColumn: true, filterable: false},
         },
