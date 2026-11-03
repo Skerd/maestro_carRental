@@ -127,9 +127,15 @@ describe("car rental demo seed", () => {
         expect(await VehicleBlock.countDocuments({})).toBe(5);
         expect(await RentalExtra.countDocuments({kind: "protection"})).toBe(2);
         expect(await RentalPromoCode.countDocuments({})).toBe(3);
+        // One of each outcome; the paid one can still be recharged.
         expect(
             await VehicleFine.countDocuments({status: "driver_identified"}),
-        ).toBe(4);
+        ).toBe(2);
+        expect(await VehicleFine.countDocuments({status: "transferred"})).toBe(1);
+        expect(await VehicleFine.countDocuments({status: "disputed"})).toBe(1);
+        expect(
+            await VehicleFine.countDocuments({paidAt: {$exists: true}}),
+        ).toBe(1);
         expect(await VehicleTransfer.countDocuments({status: "planned"})).toBe(
             2,
         );

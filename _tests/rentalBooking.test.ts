@@ -37,11 +37,17 @@ import {allPermissionTags, appFor, callerHeader, type TestCaller} from "@coreMod
 import Currency from "@coreModule/database/schemas/currency/currency";
 import PaymentTransaction from "@financeModule/database/schemas/paymentTransaction/paymentTransaction";
 import * as reservationRoute from "@carRentalModule/api/carRental/private/rentalReservation";
-import * as vehicleRoute from "@carRentalModule/api/carRental/private/vehicle";
+import * as vehicleRoute from "@carRentalModule/api/carRental/private/checked/vehicle";
 import * as vehicleBlockRoute from "@carRentalModule/api/carRental/private/vehicleBlock";
 import * as vehicleDamageRoute from "@carRentalModule/api/carRental/private/vehicleDamage";
 import * as vehicleFineRoute from "@carRentalModule/api/carRental/private/vehicleFine";
 import * as vehicleTransferRoute from "@carRentalModule/api/carRental/private/vehicleTransfer";
+import * as vehicleMaintenanceRoute from "@carRentalModule/api/carRental/private/vehicleMaintenance";
+import * as vehicleInsuranceRoute from "@carRentalModule/api/carRental/private/vehicleInsurance";
+import * as vehicleDocumentRoute from "@carRentalModule/api/carRental/private/vehicleDocument";
+import VehicleMaintenance from "@carRentalModule/database/schemas/vehicleMaintenance/vehicleMaintenance";
+import VehicleInsurance from "@carRentalModule/database/schemas/vehicleInsurance/vehicleInsurance";
+import VehicleDocument from "@carRentalModule/database/schemas/vehicleDocument/vehicleDocument";
 import * as plannerRoute from "@carRentalModule/api/carRental/private/rentalPlanner";
 import * as counterRoute from "@carRentalModule/api/carRental/private/rentalCounter";
 import VehicleTransfer from "@carRentalModule/database/schemas/vehicleTransfer/vehicleTransfer";
@@ -61,17 +67,22 @@ import {generateRentalAgreementPdf} from "@carRentalModule/utilities/pdf/rentalA
 import {settleRentalPayment} from "@carRentalModule/utilities/services/rentalLifecycle";
 import {runInTransaction} from "@coreModule/utilities/middlewares/runInTransaction";
 import {runRentalHoldExpiry} from "@carRentalModule/utilities/cronJobs/rentalHoldExpiryJob";
+import {buildRentalReport} from "@carRentalModule/utilities/services/rentalReports";
 
 // Transactions need a replica set; WiredTiger so concurrent requests really conflict
 let replSet: MongoMemoryReplSet;
 const companyId = new ObjectId();
 const otherCompanyId = new ObjectId();
 const userId = new ObjectId();
-const app = appFor([reservationRoute, vehicleRoute, vehicleBlockRoute, vehicleDamageRoute, vehicleFineRoute, vehicleTransferRoute, plannerRoute, counterRoute, storefrontRoute]);
+const app = appFor([
+    reservationRoute, vehicleRoute, vehicleBlockRoute, vehicleDamageRoute, vehicleFineRoute, vehicleTransferRoute, vehicleMaintenanceRoute, vehicleInsuranceRoute, vehicleDocumentRoute,
+    plannerRoute, counterRoute, storefrontRoute,
+]);
 const logger: any = {err: vi.fn(), warn: vi.fn(), debug: vi.fn(), start: vi.fn(), finish: vi.fn()};
 
 let admin: TestCaller;
 let outsider: TestCaller;
+let fleetAdmin: TestCaller;
 let locationId: string;
 let categoryId: string;
 let vehicleId: string;
@@ -99,16 +110,30 @@ const book = (body: Record<string, unknown>) => request(app).post("/api/carRenta
     ...body,
 });
 
+const insure = (vehicle: ObjectId, input: {validFrom?: string; expiresAt?: string; coverage?: string} = {}) => VehicleInsurance.create({
+    company: companyId,
+    vehicle,
+    insurer: "Helvetia",
+    policyNumber: `POL-${new ObjectId().toString().slice(-6)}`,
+    coverage: input.coverage ?? "full_casco",
+    validFrom: new Date(input.validFrom ?? "2020-01-01"),
+    expiresAt: new Date(input.expiresAt ?? "2030-01-01"),
+    status: "active",
+});
+
 beforeAll(async () => {
     replSet = await MongoMemoryReplSet.create({replSet: {count: 1, storageEngine: "wiredTiger"}});
     await mongoose.connect(replSet.getUri());
-    await Promise.all([RentalReservation.init(), Vehicle.init(), CarRentalConfig.init(), RentalPromoCode.init(), RentalExtra.init(), VehicleDamage.init(), VehicleFine.init(), Invoice.init(), InvoiceCounter.init(), VehicleTransfer.init()]);
+    // Every registered model (audit log, users…): an index still building aborts a transaction that touches it.
+    await Promise.all(Object.values(mongoose.models).map((model) => model.init()));
     admin = {
         userId: userId.toString(),
         companyId: companyId.toString(),
         isAdmin: true,
         permissions: allPermissionTags([RentalReservation, Vehicle, VehicleBlock, VehicleDamage, VehicleFine, VehicleTransfer]),
     };
+    // One header cannot carry every model's tags: the service log and the papers get their own caller.
+    fleetAdmin = {...admin, permissions: allPermissionTags([RentalReservation, VehicleMaintenance, VehicleInsurance, VehicleDocument])};
     outsider = {...admin, companyId: otherCompanyId.toString()};
     originCompany.current = {_id: companyId, name: "Rent Co"};
 }, 120000);
@@ -120,7 +145,8 @@ afterAll(async () => {
 
 beforeEach(async () => {
     // Raw collection deletes: the soft-delete plugin would only mark the rows deleted
-    await Promise.all([CarRentalConfig, RentalLocation, VehicleCategory, Vehicle, VehicleBlock, RentalReservation, PaymentTransaction, Currency, RentalPromoCode, RentalExtra, VehicleDamage, VehicleFine, Invoice, InvoiceCounter, VehicleTransfer]
+    await Promise.all([CarRentalConfig, RentalLocation, VehicleCategory, Vehicle, VehicleBlock, RentalReservation, PaymentTransaction, Currency, RentalPromoCode, RentalExtra, VehicleDamage, VehicleFine, Invoice, InvoiceCounter, VehicleTransfer,
+        VehicleMaintenance, VehicleInsurance, VehicleDocument]
         .map((model) => model.collection.deleteMany({})));
     vi.clearAllMocks();
     const currency = await Currency.create({name: "Swiss franc", symbol: "CHF", abbreviation: "CHF", decimalPlaces: 2, company: companyId});
@@ -144,6 +170,8 @@ beforeEach(async () => {
         company: companyId, name: "Compact", slug: "compact", seats: 5, transmission: "manual", fuelType: "petrol", dailyRate: 50, mileagePolicy: "unlimited", minDriverAge: 21,
     });
     const vehicle = await Vehicle.create({company: companyId, category: category._id, make: "VW", model: "Golf", plate: "ZH 1", homeLocation: location._id, status: "active"});
+    // A car is only handed over while insured to the return.
+    await insure(vehicle._id);
     locationId = location._id.toString();
     categoryId = category._id.toString();
     vehicleId = vehicle._id.toString();
@@ -628,11 +656,22 @@ describe("on the road", {timeout: 60000}, () => {
 
         const charged = await fines("/chargeCustomer", {_id: fine!._id.toString()});
         expect(charged.body).toMatchObject({status: "charged", chargedAmount: 145});
-        expect((await fines("/chargeCustomer", {_id: fine!._id.toString()})).body.error_code).toBe("rental_fine_already_charged");
+        expect((await fines("/chargeCustomer", {_id: fine!._id.toString()})).body.error_code).toBe("rental_fine_invalid_status");
         const stored = await RentalReservation.findById(id);
         expect(stored!.pricing.lines.filter((line) => line.code === "fine" || line.code === "fine_admin").map((line) => line.total)).toEqual([120, 25]);
         expect(stored!.amountPaid).toBe(545);
         expect(stripe.createPaymentIntent).toHaveBeenLastCalledWith(expect.objectContaining({amount: 145, offSession: expect.anything()}));
+
+        // The authority annulled it: before the return nothing was invoiced, so the lines go and the card is refunded.
+        const annulled = await fines("/annul", {_id: fine!._id.toString()});
+        expect(annulled.body).toMatchObject({status: "cancelled"});
+        expect(annulled.body.chargedAmount).toBeUndefined();
+        const after = await RentalReservation.findById(id);
+        expect(after!.pricing.lines.some((line) => line.code === "fine" || line.code === "fine_admin")).toBe(false);
+        expect(after!.amountPaid).toBe(400);
+        // The whole 145 card charge goes back.
+        expect(stripe.createRefund).toHaveBeenCalledWith(expect.objectContaining({gatewayTransactionId: "pi_off"}));
+        expect(after!.timeline.map((entry) => entry.event)).toContain("charge_removed");
     });
 
     it("refuses an extension into another customer's booking", async () => {
@@ -654,5 +693,211 @@ describe("on the road", {timeout: 60000}, () => {
         await runRentalHoldExpiry(companyId);
         expect((await RentalReservation.findById(body.data.reservation._id))!.status).toBe("expired");
         expect(stripe.cancelPaymentIntent).toHaveBeenCalledWith("pi_test");
+    });
+});
+
+describe("fleet workflows", {timeout: 60000}, () => {
+    const action = (name: string, body: Record<string, unknown>) =>
+        request(app).post(`/api/carRental/rentalReservation/${name}`).set(callerHeader(admin)).send(body);
+    const fleet = (path: string, body: Record<string, unknown>, caller: TestCaller = fleetAdmin) =>
+        request(app).post(`/api/carRental/${path}`).set(callerHeader(caller)).send(body);
+    const create = (entity: string, body: Record<string, unknown>, caller: TestCaller = fleetAdmin) =>
+        request(app).put(`/api/carRental/${entity}`).set(callerHeader(caller)).send(body);
+    const driver = {role: "primary", firstName: "Ada", lastName: "Lovelace", birthDate: "1990-12-10", licenseNumber: "CH-1", licenseExpiresAt: "2030-01-01"};
+    const damage = (body: Record<string, unknown> = {}) =>
+        create("vehicleDamage", {vehicle: vehicleId, reportedAt: "2027-05-01T10:00:00.000Z", area: "front", severity: "moderate", description: "Dent in the bumper", ...body}, admin);
+
+    it("sends damages to one repair that blocks the car, and repairs them when it is completed", async () => {
+        const dent = await damage({estimatedCost: 300});
+        expect(dent.body.status).toBe("open");
+        // Linked to the policy that covered the car on the day.
+        const policy = await VehicleInsurance.findOne({vehicle: vehicleId});
+        expect(String((await VehicleDamage.findById(dent.body._id))!.insurance)).toBe(String(policy!._id));
+        const scratch = await damage({area: "left", severity: "minor", description: "Scratch on the door"});
+
+        const scheduled = await fleet("vehicleDamage/scheduleRepair", {_id: dent.body._id, serviceDate: "2027-05-03 08:00", readyAt: "2027-05-05 18:00", provider: "Garage Meier"}, admin);
+        expect(scheduled.body.status).toBe("in_repair");
+        const repairId = scheduled.body.repair._id;
+        expect(await VehicleMaintenance.findById(repairId)).toMatchObject({type: "repair", status: "scheduled", cost: 300, provider: "Garage Meier"});
+        expect(await VehicleBlock.countDocuments({vehicle: vehicleId, reason: "repair", deletedAt: null})).toBe(1);
+        const joined = await fleet("vehicleDamage/scheduleRepair", {_id: scratch.body._id, repair: repairId}, admin);
+        expect(joined.body.repair._id).toBe(repairId);
+        expect((await fleet("vehicleDamage/scheduleRepair", {_id: scratch.body._id, repair: repairId}, admin)).body.error_code).toBe("vehicle_damage_not_open");
+
+        const completed = await fleet("vehicleMaintenance/complete", {_id: repairId});
+        expect(completed.body.status).toBe("completed");
+        const repaired = await VehicleDamage.find({_id: {$in: [dent.body._id, scratch.body._id]}});
+        expect(repaired.map((entry) => entry.status)).toEqual(["repaired", "repaired"]);
+        expect(repaired.every((entry) => entry.repairedAt)).toBe(true);
+        const block = await VehicleBlock.findOne({vehicle: vehicleId, reason: "repair"});
+        expect(block!.endAt.getTime()).toBeLessThanOrEqual(Date.now());
+        expect((await fleet("vehicleMaintenance/cancel", {_id: repairId})).body.error_code).toBe("vehicle_maintenance_not_scheduled");
+
+        // The repair's cost counts once, as repair; what the insurer paid back is recovered.
+        await VehicleDamage.updateOne({_id: dent.body._id}, {$set: {insurerPaidAmount: 250}});
+        const report = await buildRentalReport(new ObjectId(companyId), {from: "2027-05-01", to: "2027-05-31", timezone: "Europe/Zurich"});
+        expect(report.byVehicle[0]).toMatchObject({maintenanceCost: 0, repairCost: 300, recovered: 250, finesCost: 0});
+    });
+
+    it("frees the car and reopens the damage when a repair is cancelled", async () => {
+        const dent = await damage({severity: "major"});
+        expect((await Vehicle.findById(vehicleId))!.readiness).toBe("needs_check");
+        const scheduled = await fleet("vehicleDamage/scheduleRepair", {_id: dent.body._id, serviceDate: "2027-05-03 08:00", readyAt: "2027-05-05 18:00"}, admin);
+        const cancelled = await fleet("vehicleMaintenance/cancel", {_id: scheduled.body.repair._id});
+        expect(cancelled.body.status).toBe("cancelled");
+        expect(await VehicleDamage.findById(dent.body._id)).toMatchObject({status: "open", repair: undefined});
+        expect(await VehicleBlock.countDocuments({vehicle: vehicleId, reason: "repair", deletedAt: null})).toBe(0);
+        expect((await fleet("vehicleDamage/scheduleRepair", {_id: dent.body._id}, admin)).body.error_code).toBe("vehicle_repair_date_required");
+    });
+
+    it("refuses a repair window over a booking", async () => {
+        await book({});
+        const dent = await damage();
+        const clash = await fleet("vehicleDamage/scheduleRepair", {_id: dent.body._id, serviceDate: "2027-06-10 08:00", readyAt: "2027-06-12 18:00"}, admin);
+        expect(clash.body.error_code).toBe("vehicle_block_overlaps_reservation");
+        expect((await VehicleDamage.findById(dent.body._id))!.status).toBe("open");
+    });
+
+    it("keeps a transfer's or repair's block out of hand edits", async () => {
+        const basel = await RentalLocation.create({
+            company: companyId, name: "Basel", timezone: "Europe/Zurich",
+            openingHours: [0, 1, 2, 3, 4, 5, 6].map((dayOfWeek) => ({dayOfWeek, startTime: "07:00", endTime: "22:00"})),
+        });
+        await create("vehicleTransfer", {vehicle: vehicleId, fromLocation: locationId, toLocation: basel._id.toString(), departAt: "2027-05-01 08:00", arriveAt: "2027-05-01 11:00"}, admin);
+        const managed = await VehicleBlock.findOne({vehicle: vehicleId, reason: "transfer"});
+        expect(managed!.source).toBe("transfer");
+        const blocks = (method: "patch" | "delete", body: Record<string, unknown>) => request(app)[method]("/api/carRental/vehicleBlock").set(callerHeader(admin)).send(body);
+        expect((await blocks("patch", {_id: managed!._id.toString(), vehicle: vehicleId, startAt: "2027-05-01 08:00", endAt: "2027-05-01 11:00", reason: "other", note: "x"})).body.error_code).toBe("vehicle_block_managed");
+        expect((await blocks("delete", {_id: managed!._id.toString()})).body.error_code).toBe("vehicle_block_managed");
+
+        const own = await create("vehicleBlock", {vehicle: vehicleId, startAt: "2027-05-10 08:00", endAt: "2027-05-11 08:00", reason: "other"}, admin);
+        expect((await blocks("delete", {_id: own.body._id})).status).toBe(200);
+    });
+
+    it("takes a deleted damage off its repair, and puts it back when restored", async () => {
+        const dent = await damage();
+        const scheduled = await fleet("vehicleDamage/scheduleRepair", {_id: dent.body._id, serviceDate: "2027-05-03 08:00"}, admin);
+        const repairId = scheduled.body.repair._id;
+        await request(app).delete("/api/carRental/vehicleDamage").set(callerHeader(admin)).send({_id: dent.body._id});
+        expect((await VehicleMaintenance.findById(repairId))!.damages).toHaveLength(0);
+        await request(app).patch("/api/carRental/vehicleDamage/restore").set(callerHeader(admin)).send({_id: dent.body._id});
+        expect((await VehicleMaintenance.findById(repairId))!.damages.map(String)).toEqual([dent.body._id]);
+        expect((await VehicleDamage.findById(dent.body._id))!.status).toBe("in_repair");
+
+        // Cancelled while the damage was deleted: restored, the damage is open again.
+        await request(app).delete("/api/carRental/vehicleDamage").set(callerHeader(admin)).send({_id: dent.body._id});
+        await fleet("vehicleMaintenance/cancel", {_id: repairId});
+        await request(app).patch("/api/carRental/vehicleDamage/restore").set(callerHeader(admin)).send({_id: dent.body._id});
+        expect(await VehicleDamage.findById(dent.body._id)).toMatchObject({status: "open", repair: undefined});
+    });
+
+    it("credits the invoice when a fine charged after the return is annulled", async () => {
+        await CarRentalConfig.updateOne({company: companyId}, {$set: {fineAdminFee: 25}});
+        const {body} = await book({});
+        const id = body.data.reservation._id;
+        await action("saveDrivers", {_id: id, drivers: [driver]});
+        await action("handover", {_id: id, odometerKm: 12000, fuelLevel: "full"});
+        await RentalReservation.updateOne({_id: id}, {$set: {"handover.at": new Date("2027-06-09T08:15:00Z")}});
+        await action("returnVehicle", {_id: id, odometerKm: 12300, fuelLevel: "full"});
+        await RentalReservation.updateOne({_id: id}, {$set: {"returnInfo.at": new Date("2027-06-11T08:00:00Z")}});
+        const before = (await RentalReservation.findById(id))!.pricing.grandTotal;
+
+        const created = await create("vehicleFine", {reference: "TR-9", vehicle: vehicleId, offenceAt: "2027-06-10 14:30", type: "speeding", authority: "Kapo", amount: 120}, admin);
+        await fleet("vehicleFine/chargeCustomer", {_id: created.body._id}, admin);
+        const fineInvoice = await Invoice.findOne({sourceId: id, kind: "invoice"}).sort({number: -1});
+        expect(fineInvoice!.total).toBe(145);
+
+        const annulled = await fleet("vehicleFine/annul", {_id: created.body._id}, admin);
+        expect(annulled.body.status).toBe("cancelled");
+        const note = await Invoice.findOne({sourceId: id, kind: "credit_note"});
+        expect(note).toMatchObject({total: -145, creditedInvoice: fineInvoice!._id});
+        expect((await Invoice.findById(fineInvoice!._id))!.status).toBe("credited");
+        const stored = await RentalReservation.findById(id);
+        expect(stored!.pricing.grandTotal).toBe(before);
+        expect(stored!.invoicedLineCount).toBe(stored!.pricing.lines.length);
+    });
+
+    it("chains a renewal to the policy it renews, once", async () => {
+        const old = await VehicleInsurance.findOne({vehicle: vehicleId});
+        const renewal = {vehicle: vehicleId, insurer: "Helvetia", policyNumber: "POL-NEW", coverage: "full_casco", validFrom: "2030-01-01", expiresAt: "2031-01-01", supersedes: old!._id.toString()};
+        const renewed = await create("vehicleInsurance", renewal);
+        expect(renewed.status).toBe(200);
+        expect(renewed.body.supersedes._id).toBe(old!._id.toString());
+        expect(String((await VehicleInsurance.findById(old!._id))!.supersededBy)).toBe(renewed.body._id);
+        expect((await create("vehicleInsurance", {...renewal, policyNumber: "POL-TWICE"})).body.error_code).toBe("vehicle_record_not_renewable");
+        expect((await create("vehicleInsurance", {...renewal, policyNumber: "POL-OTHER", coverage: "third_party", supersedes: renewed.body._id})).body.error_code)
+            .toBe("vehicle_record_not_renewable");
+
+        // A deleted renewal no longer renews; restored, it does again.
+        const remove = () => request(app).delete("/api/carRental/vehicleInsurance").set(callerHeader(fleetAdmin)).send({_id: renewed.body._id});
+        await remove();
+        expect((await VehicleInsurance.findById(old!._id))!.supersededBy).toBeUndefined();
+        await request(app).patch("/api/carRental/vehicleInsurance/restore").set(callerHeader(fleetAdmin)).send({_id: renewed.body._id});
+        expect(String((await VehicleInsurance.findById(old!._id))!.supersededBy)).toBe(renewed.body._id);
+        await remove();
+        expect((await create("vehicleInsurance", {...renewal, policyNumber: "POL-AGAIN"})).status).toBe(200);
+    });
+
+    it("refuses the handover while a road paper runs out before the return, until it is renewed", async () => {
+        const {body} = await book({});
+        const id = body.data.reservation._id;
+        await action("saveDrivers", {_id: id, drivers: [driver]});
+        const inspection = await create("vehicleDocument", {vehicle: vehicleId, type: "technical_inspection", issuedAt: "2025-06-10", expiresAt: "2027-06-10"});
+        expect((await action("handover", {_id: id, odometerKm: 12000, fuelLevel: "full"})).body.error_code).toBe("rental_vehicle_papers_expired");
+
+        await create("vehicleDocument", {vehicle: vehicleId, type: "technical_inspection", issuedAt: "2027-06-01", expiresAt: "2029-06-01", supersedes: inspection.body._id});
+        const handedOver = await action("handover", {_id: id, odometerKm: 12000, fuelLevel: "full"});
+        expect(handedOver.body.status).toBe("in_progress");
+    });
+
+    it("refuses the handover of a car with no insurance to the return", async () => {
+        await VehicleInsurance.updateMany({vehicle: vehicleId}, {$set: {expiresAt: new Date("2027-06-10T00:00:00Z")}});
+        const {body} = await book({});
+        await action("saveDrivers", {_id: body.data.reservation._id, drivers: [driver]});
+        const refused = await action("handover", {_id: body.data.reservation._id, odometerKm: 12000, fuelLevel: "full"});
+        expect(refused.body.error_code).toBe("rental_vehicle_papers_expired");
+    });
+
+    it("names the driver to the authority and charges only the handling fee, invoiced after the return", async () => {
+        await CarRentalConfig.updateOne({company: companyId}, {$set: {fineAdminFee: 25}});
+        const {body} = await book({});
+        const id = body.data.reservation._id;
+        await action("saveDrivers", {_id: id, drivers: [driver]});
+        await action("handover", {_id: id, odometerKm: 12000, fuelLevel: "full"});
+        await RentalReservation.updateOne({_id: id}, {$set: {"handover.at": new Date("2027-06-09T08:15:00Z")}});
+        await action("returnVehicle", {_id: id, odometerKm: 12300, fuelLevel: "full"});
+        await RentalReservation.updateOne({_id: id}, {$set: {"returnInfo.at": new Date("2027-06-11T08:00:00Z")}});
+        const invoicesBefore = await Invoice.countDocuments({sourceId: id});
+
+        const created = await create("vehicleFine", {reference: "TR-1", vehicle: vehicleId, offenceAt: "2027-06-10 14:30", type: "speeding", authority: "Kapo", amount: 120}, admin);
+        expect(created.body).toMatchObject({status: "driver_identified", driverName: "Ada Lovelace"});
+        const nominated = await fleet("vehicleFine/nominateDriver", {_id: created.body._id}, admin);
+        expect(nominated.body).toMatchObject({status: "transferred", chargedAmount: 25});
+        const stored = await RentalReservation.findById(id);
+        expect(stored!.pricing.lines.filter((line) => line.code === "fine" || line.code === "fine_admin").map((line) => line.total)).toEqual([25]);
+        expect(await Invoice.countDocuments({sourceId: id})).toBe(invoicesBefore + 1);
+        expect((await fleet("vehicleFine/recordPayment", {_id: created.body._id, paidAt: "2027-07-01", paidAmount: 120}, admin)).body.error_code).toBe("rental_fine_invalid_status");
+    });
+
+    it("matches a fine during a transfer, and records what the company paid", async () => {
+        const basel = await RentalLocation.create({
+            company: companyId, name: "Basel", timezone: "Europe/Zurich",
+            openingHours: [0, 1, 2, 3, 4, 5, 6].map((dayOfWeek) => ({dayOfWeek, startTime: "07:00", endTime: "22:00"})),
+        });
+        await create("vehicleTransfer", {vehicle: vehicleId, fromLocation: locationId, toLocation: basel._id.toString(), departAt: "2027-05-01 08:00", arriveAt: "2027-05-01 11:00"}, admin);
+        const transfer = await VehicleTransfer.findOne({vehicle: vehicleId});
+        await fleet("vehicleTransfer/start", {_id: transfer!._id.toString()}, admin);
+
+        const created = await create("vehicleFine", {reference: "TR-2", vehicle: vehicleId, offenceAt: "2027-05-01 09:30", type: "speeding", authority: "Kapo", amount: 80}, admin);
+        expect(created.body).toMatchObject({status: "received", transfer: {_id: transfer!._id.toString()}});
+        expect(created.body.reservation).toBeUndefined();
+        const paid = await fleet("vehicleFine/recordPayment", {_id: created.body._id, paidAt: "2027-05-20", paidAmount: 70, paymentReference: "EBANK-1"}, admin);
+        expect(paid.body).toMatchObject({status: "paid_by_company", paidAmount: 70, paymentReference: "EBANK-1"});
+        expect((await fleet("vehicleFine/recordPayment", {_id: created.body._id, paidAt: "2027-05-21", paidAmount: 70}, admin)).body.error_code).toBe("rental_fine_invalid_status");
+
+        const contested = await create("vehicleFine", {reference: "TR-3", vehicle: vehicleId, offenceAt: "2027-03-01 09:30", type: "parking", authority: "Stadt", amount: 40}, admin);
+        expect((await fleet("vehicleFine/dispute", {_id: contested.body._id}, admin)).body.status).toBe("disputed");
+        expect((await fleet("vehicleFine/chargeCustomer", {_id: contested.body._id}, admin)).body.error_code).toBe("rental_fine_invalid_status");
+        expect((await fleet("vehicleFine/annul", {_id: contested.body._id}, admin)).body.status).toBe("cancelled");
     });
 });

@@ -20,7 +20,7 @@ vi.mock("@financeModule/environment", () => ({PAYMENTS: {STRIPE_ENABLED: false, 
 import {allPermissionTags, appFor, callerHeader, type TestCaller} from "@coreModule/_tests/httpHarness";
 import Currency from "@coreModule/database/schemas/currency/currency";
 import Media from "@coreModule/database/schemas/media/media";
-import * as vehicleRoute from "@carRentalModule/api/carRental/private/vehicle";
+import * as vehicleRoute from "@carRentalModule/api/carRental/private/checked/vehicle";
 import * as reservationRoute from "@carRentalModule/api/carRental/private/rentalReservation";
 import * as insuranceRoute from "@carRentalModule/api/carRental/private/vehicleInsurance";
 import * as maintenanceRoute from "@carRentalModule/api/carRental/private/vehicleMaintenance";
@@ -104,6 +104,16 @@ describe("service log", {timeout: 60000}, () => {
         expect(car!.odometerKm).toBe(18000);
     });
 
+    it("keeps the service interval when a later repair sets no next due", async () => {
+        await service({serviceDate: "2026-01-10", odometerKm: 10000, nextDueAt: "2027-01-10", nextDueKm: 25000});
+        await service({type: "repair", serviceDate: "2026-03-01", odometerKm: 12000});
+
+        const car = await Vehicle.findById(vehicleId);
+        expect(car!.nextServiceDueAt!.toISOString().slice(0, 10)).toBe("2027-01-10");
+        expect(car!.nextServiceDueKm).toBe(25000);
+        expect(car!.odometerKm).toBe(12000);
+    });
+
     it("recomputes after an edit and a delete, and re-arms the reminder", async () => {
         const older = await service({serviceDate: "2026-01-10", nextDueAt: "2027-01-10", nextDueKm: 25000});
         const latest = await service({serviceDate: "2026-06-01", nextDueAt: "2027-06-01", nextDueKm: 33000});
@@ -148,6 +158,63 @@ describe("insurance", {timeout: 60000}, () => {
         const stored = await VehicleInsurance.findById(created.body._id);
         expect(stored!.status).toBe("active");
         expect(stored!.expiryReminderSentAt ?? null).toBeNull();
+    });
+
+    const policy = (expiresAt: string, extra: Record<string, unknown> = {}) => request(app).put("/api/carRental/vehicleInsurance").set(callerHeader(admin)).send({
+        vehicle: vehicleId, insurer: "Sigal", policyNumber: `P-${expiresAt}`, coverage: "third_party", validFrom: "1990-01-01", expiresAt, ...extra,
+    });
+
+    it("stores a past end date as expired and a future one as active, ignoring a status sent by the client", async () => {
+        const old = await policy("2000-01-01", {status: "active"});
+        expect(old.status).toBe(200);
+        expect(old.body.status).toBe("expired");
+
+        const current = await policy("2099-01-01", {status: "cancelled", policyNumber: "P-future"});
+        expect(current.status).toBe(200);
+        expect(current.body.status).toBe("active");
+    });
+
+    it("follows the end date on edit, and refuses a status sent by the client", async () => {
+        const created = await policy("2099-01-01", {policyNumber: "P-edit"});
+        const expired = await request(app).patch("/api/carRental/vehicleInsurance").set(callerHeader(admin)).send({
+            _id: created.body._id, vehicle: vehicleId, insurer: "Sigal", policyNumber: "P-edit", coverage: "third_party",
+            validFrom: "1990-01-01", expiresAt: "2000-06-01", status: "active",
+        });
+        expect(expired.body.status).toBe("expired");
+
+        const still = await request(app).patch("/api/carRental/vehicleInsurance").set(callerHeader(admin)).send({
+            _id: created.body._id, vehicle: vehicleId, insurer: "Sigal", policyNumber: "P-edit", coverage: "third_party",
+            validFrom: "1990-01-01", expiresAt: "2000-06-01", status: "cancelled",
+        });
+        expect(still.body.status).toBe("expired");
+    });
+
+    it("cancels only through the action, locks edits, and restores from the end date", async () => {
+        const current = await policy("2099-01-01", {policyNumber: "P-live"});
+        const old = await policy("2000-01-01", {policyNumber: "P-old"});
+
+        const cancelled = await request(app).post("/api/carRental/vehicleInsurance/cancel").set(callerHeader(admin)).send({_id: current.body._id});
+        expect(cancelled.body.status).toBe("cancelled");
+        const locked = await request(app).patch("/api/carRental/vehicleInsurance").set(callerHeader(admin)).send({
+            _id: current.body._id, vehicle: vehicleId, insurer: "Other", policyNumber: "P-live", coverage: "full_casco",
+            validFrom: "1990-01-01", expiresAt: "2099-06-01",
+        });
+        expect(locked.body.error_code).toBe("vehicleInsurance_cancelled");
+        expect((await VehicleInsurance.findById(current.body._id))!.insurer).toBe("Sigal");
+
+        const again = await request(app).post("/api/carRental/vehicleInsurance/cancel").set(callerHeader(admin)).send({_id: current.body._id});
+        expect(again.body.error_code).toBe("vehicleInsurance_invalid_status");
+
+        const restored = await request(app).post("/api/carRental/vehicleInsurance/uncancel").set(callerHeader(admin)).send({_id: current.body._id});
+        expect(restored.body.status).toBe("active");
+        expect((await VehicleInsurance.findById(current.body._id))!.expiryReminderSentAt ?? null).toBeNull();
+
+        await request(app).post("/api/carRental/vehicleInsurance/cancel").set(callerHeader(admin)).send({_id: old.body._id});
+        const restoredOld = await request(app).post("/api/carRental/vehicleInsurance/uncancel").set(callerHeader(admin)).send({_id: old.body._id});
+        expect(restoredOld.body.status).toBe("expired");
+
+        const notCancelled = await request(app).post("/api/carRental/vehicleInsurance/uncancel").set(callerHeader(admin)).send({_id: current.body._id});
+        expect(notCancelled.body.error_code).toBe("vehicleInsurance_invalid_status");
     });
 });
 

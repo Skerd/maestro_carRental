@@ -14,6 +14,7 @@ import CarRentalConfig from "@carRentalModule/database/schemas/carRentalConfig/c
 import Vehicle from "@carRentalModule/database/schemas/vehicle/vehicle";
 import VehicleInsurance from "@carRentalModule/database/schemas/vehicleInsurance/vehicleInsurance";
 import VehicleDocument from "@carRentalModule/database/schemas/vehicleDocument/vehicleDocument";
+import VehicleFine from "@carRentalModule/database/schemas/vehicleFine/vehicleFine";
 import {runFleetReminders} from "@carRentalModule/utilities/cronJobs/fleetReminderJob";
 
 let replSet: MongoMemoryReplSet;
@@ -31,7 +32,7 @@ const codes = () => emitted.map((event) => event.code).sort();
 beforeAll(async () => {
     replSet = await MongoMemoryReplSet.create({replSet: {count: 1}});
     await mongoose.connect(replSet.getUri());
-    await Promise.all([Vehicle, VehicleInsurance, VehicleDocument, CarRentalConfig, Currency].map((model) => model.init()));
+    await Promise.all([Vehicle, VehicleInsurance, VehicleDocument, VehicleFine, CarRentalConfig, Currency].map((model) => model.init()));
 }, 120000);
 
 afterAll(async () => {
@@ -40,7 +41,7 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-    await Promise.all([Vehicle, VehicleInsurance, VehicleDocument, CarRentalConfig, Currency].map((model) => model.collection.deleteMany({})));
+    await Promise.all([Vehicle, VehicleInsurance, VehicleDocument, VehicleFine, CarRentalConfig, Currency].map((model) => model.collection.deleteMany({})));
     emitted.length = 0;
     const currency = await Currency.create({name: "Lek", symbol: "L", abbreviation: "ALL", decimalPlaces: 2, company: companyId});
     await CarRentalConfig.create({company: companyId, currency: currency._id, notifyUsers: [new ObjectId()]});
@@ -82,6 +83,40 @@ describe("fleet reminders", {timeout: 60000}, () => {
         expect((await VehicleInsurance.findById(lapsed._id))!.status).toBe("expired");
         expect((await VehicleDocument.findById(document._id))!.status).toBe("expired");
         expect((await VehicleDocument.findById(timeless._id))!.status).toBe("active");
+    });
+
+    it("tells the staff once when a policy or document lapses with no renewal", async () => {
+        const vehicle = await car();
+        await policy(vehicle._id, inDays(-1));
+        await VehicleDocument.create({company: companyId, vehicle: vehicle._id, type: "road_tax", expiresAt: inDays(-3)});
+        const renewed = await car();
+        const next = await policy(renewed._id, inDays(360), {validFrom: inDays(-1)});
+        await policy(renewed._id, inDays(-1), {supersededBy: next._id});
+
+        await runFleetReminders(companyId);
+        expect(codes()).toEqual(["VEHICLE_DOCUMENT_EXPIRED", "VEHICLE_INSURANCE_EXPIRED"]);
+        expect(emitted.every((event) => event.payload.plate === vehicle.plate)).toBe(true);
+
+        await runFleetReminders(companyId);
+        expect(emitted).toHaveLength(2);
+    });
+
+    it("warns once about an unpaid fine due within a week, unless the driver pays it or it is contested", async () => {
+        const vehicle = await car();
+        const fine = (fields: Record<string, unknown>) =>
+            VehicleFine.create({company: companyId, vehicle: vehicle._id, reference: `F-${Math.random()}`, offenceAt: inDays(-20), type: "parking", authority: "Bashkia", amount: 20, ...fields});
+        const due = await fine({dueDate: inDays(5)});
+        await fine({dueDate: inDays(5), status: "transferred"});
+        await fine({dueDate: inDays(5), status: "disputed"});
+        await fine({dueDate: inDays(5), paidAt: inDays(-1), paidAmount: 20});
+        await fine({dueDate: inDays(30)});
+
+        await runFleetReminders(companyId);
+        expect(codes()).toEqual(["VEHICLE_FINE_DUE"]);
+        expect(emitted[0].payload).toMatchObject({recordId: String(due._id), plate: vehicle.plate});
+
+        await runFleetReminders(companyId);
+        expect(emitted).toHaveLength(1);
     });
 
     it("flags a car due for service by date or by km, once", async () => {
