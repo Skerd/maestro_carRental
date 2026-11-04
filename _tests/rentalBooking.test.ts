@@ -1,5 +1,10 @@
 import {afterAll, beforeAll, beforeEach, describe, expect, it, vi} from "vitest";
 
+// carRental enforces action permissions (D14 rollout, D54), as in the dev profiles.
+vi.hoisted(() => {
+    process.env.ACTION_PERMISSION_ENFORCE = "carRental";
+});
+
 import {MongoMemoryReplSet} from "mongodb-memory-server";
 import mongoose from "mongoose";
 import {ObjectId} from "mongodb";
@@ -269,6 +274,16 @@ describe("staff work on reservations", {timeout: 60000}, () => {
         expect(foreign.status).not.toBe(200);
         const foreignCancel = await request(app).post("/api/carRental/rentalReservation/cancel").set(callerHeader(outsider)).send({_id: id});
         expect(foreignCancel.body.error_code).toBe("rental_reservation_not_found");
+    }));
+
+    it("refuses an action to a role that can read reservations but not run that action (D14)", () => asCompany(async () => {
+        const {body} = await book({});
+        const id = body.data.reservation._id;
+        const viewer: TestCaller = {...admin, isAdmin: false, permissions: admin.permissions!.filter((tag) => !tag.includes("[action:"))};
+
+        const refused = await request(app).post("/api/carRental/rentalReservation/recordPayment").set(callerHeader(viewer)).send({_id: id, amount: 50});
+        expect(refused.body.error_code).toBe("user_permissions_not_sufficient");
+        expect((await RentalReservation.findById(id).lean())!.paymentStatus).not.toBe("paid");
     }));
 
     it("records a counter payment and refunds it minus the late-cancellation fee", () => asCompany(async () => {
