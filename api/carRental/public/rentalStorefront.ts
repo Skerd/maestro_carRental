@@ -21,6 +21,7 @@ import {companyIdsWithModule} from "@coreModule/utilities/modules/companyModules
 import {portalCompanyRefs} from "@coreModule/utilities/marketing/portalCompanies";
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import {resolveCompanyByOrigin} from "@coreModule/utilities/marketing/resolveCompanyByOrigin";
+import {asCrossTenant, withTenant} from "@coreModule/utilities/endpoints/tenantScope";
 import {isPortalApexOrigin} from "@coreModule/utilities/marketing/portalOrigin";
 import {
     publicMediaUrl,
@@ -785,13 +786,11 @@ router.post(
                 origin,
                 languageCode,
             );
-            const reservations = await RentalReservation.find({
-                customer: user._id,
-                deletedAt: null,
-                company: {$in: await companyIdsWithModule("carRental")},
-            })
-                .sort({pickupAt: -1})
-                .limit(MY_RESERVATIONS_MAX);
+            const rentalCompanies = await companyIdsWithModule("carRental");
+            const reservations = await asCrossTenant("a portal customer's own bookings at every rental company", () =>
+                RentalReservation.find({customer: user._id, deletedAt: null, company: {$in: rentalCompanies}})
+                    .sort({pickupAt: -1})
+                    .limit(MY_RESERVATIONS_MAX));
             const companies = await portalCompanyRefs(
                 reservations.map(
                     (reservation) => nestedEntityToRef(reservation.company)!,
@@ -799,7 +798,8 @@ router.post(
             );
             const data = await Promise.all(
                 reservations.map(async (reservation) => ({
-                    reservation: await publicReservation(reservation),
+                    // Each booking's details are read as its own company's data.
+                    reservation: await withTenant(nestedEntityToRef(reservation.company)!, () => publicReservation(reservation), "carRental"),
                     company: companies.get(
                         String(nestedEntityToRef(reservation.company)),
                     ) ?? {name: "", slug: ""},

@@ -1,4 +1,8 @@
 import {afterAll, beforeAll, beforeEach, describe, expect, it, vi} from "vitest";
+
+vi.hoisted(() => {
+    process.env.TENANT_SCOPE_ENFORCE = "carRental";
+});
 import {MongoMemoryReplSet} from "mongodb-memory-server";
 import mongoose from "mongoose";
 import {ObjectId} from "mongodb";
@@ -38,7 +42,8 @@ import VehicleDamage from "@carRentalModule/database/schemas/vehicleDamage/vehic
 let replSet: MongoMemoryReplSet;
 const companyId = new ObjectId();
 const otherCompanyId = new ObjectId();
-const app = appFor([vehicleRoute, reservationRoute, insuranceRoute, maintenanceRoute, damageRoute, storefrontRoute]);
+// carRental pilots tenant-scope enforcement (D16): its routes run enforced, as in the dev profiles.
+const app = appFor([vehicleRoute, reservationRoute, insuranceRoute, maintenanceRoute, damageRoute, storefrontRoute].map((route) => ({...route, module: "carRental"})));
 
 let admin: TestCaller;
 let locationId: ObjectId;
