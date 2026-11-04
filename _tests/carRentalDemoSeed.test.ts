@@ -30,6 +30,7 @@ import VehicleMaintenance from "@carRentalModule/database/schemas/vehicleMainten
 import VehicleDamage from "@carRentalModule/database/schemas/vehicleDamage/vehicleDamage";
 import PaymentTransaction from "@financeModule/database/schemas/paymentTransaction/paymentTransaction";
 import {seedCarRentalDemoData} from "@carRentalModule/database/demo/carRentalCompanyDemo";
+import {withTenant} from "@coreModule/utilities/endpoints/tenantScope";
 
 let replSet: MongoMemoryReplSet;
 const company = {
@@ -37,6 +38,8 @@ const company = {
     name: "Demo Rent",
     createdBy: new ObjectId(),
 } as unknown as ICompany;
+/** The seed fills this company's data, as its setup does (D16); the checks read it as the company. */
+const asCompany = <T>(fn: () => PromiseLike<T>): Promise<T> => withTenant(company._id, fn);
 const MODELS = [
     Currency,
     Media,
@@ -83,13 +86,13 @@ beforeAll(async () => {
             throw new Error("offline");
         }),
     );
-    await Currency.create({
+    await asCompany(() => Currency.create({
         name: "Euro",
         symbol: "€",
         abbreviation: "EUR",
         decimalPlaces: 2,
         company: company._id,
-    });
+    }));
 }, 120000);
 
 afterAll(async () => {
@@ -99,7 +102,7 @@ afterAll(async () => {
 });
 
 describe("car rental demo seed", () => {
-    it("seeds a full fleet with bookings in every status and each car's paperwork", async () => {
+    it("seeds a full fleet with bookings in every status and each car's paperwork", () => asCompany(async () => {
         await seedCarRentalDemoData(undefined, company);
 
         expect(await Vehicle.countDocuments({company: company._id})).toBe(80);
@@ -194,11 +197,11 @@ describe("car rental demo seed", () => {
         const car = await Vehicle.findOne({plate: "AA101DM"});
         expect(car!.images.length).toBe(3);
         expect(car!.odometerKm).toBeGreaterThan(0);
-    }, 300000);
+    }), 300000);
 
-    it("changes nothing when it runs again", async () => {
+    it("changes nothing when it runs again", () => asCompany(async () => {
         const before = await counts();
         await seedCarRentalDemoData(undefined, company);
         expect(await counts()).toEqual(before);
-    }, 300000);
+    }), 300000);
 });

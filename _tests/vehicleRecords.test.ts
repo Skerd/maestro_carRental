@@ -1,8 +1,5 @@
 import {afterAll, beforeAll, beforeEach, describe, expect, it, vi} from "vitest";
 
-vi.hoisted(() => {
-    process.env.TENANT_SCOPE_ENFORCE = "carRental";
-});
 import {MongoMemoryReplSet} from "mongodb-memory-server";
 import mongoose from "mongoose";
 import {ObjectId} from "mongodb";
@@ -45,9 +42,12 @@ import RentalReservation from "@carRentalModule/database/schemas/rentalReservati
 import VehicleInsurance from "@carRentalModule/database/schemas/vehicleInsurance/vehicleInsurance";
 import VehicleMaintenance from "@carRentalModule/database/schemas/vehicleMaintenance/vehicleMaintenance";
 import VehicleDamage from "@carRentalModule/database/schemas/vehicleDamage/vehicleDamage";
+import {withTenant} from "@coreModule/utilities/endpoints/tenantScope";
 
 let replSet: MongoMemoryReplSet;
 const companyId = new ObjectId();
+/** The tests act on this company's data, as its requests and jobs do (D16). */
+const asCompany = <T>(fn: () => PromiseLike<T>): Promise<T> => withTenant(companyId, fn);
 const otherCompanyId = new ObjectId();
 // carRental pilots tenant-scope enforcement (D16): its routes run enforced, as in the dev profiles.
 const app = appFor([vehicleRoute, reservationRoute, insuranceRoute, maintenanceRoute, damageRoute, storefrontRoute].map((route) => ({...route, module: "carRental"})));
@@ -87,7 +87,7 @@ afterAll(async () => {
     await replSet.stop();
 });
 
-beforeEach(async () => {
+beforeEach(() => asCompany(async () => {
     // Raw collection deletes: the soft-delete plugin would only mark the rows deleted
     await Promise.all([CarRentalConfig, RentalLocation, VehicleCategory, Vehicle, RentalReservation, VehicleInsurance, VehicleMaintenance, VehicleDamage, Currency, Media]
         .map((model) => model.collection.deleteMany({})));
@@ -100,10 +100,10 @@ beforeEach(async () => {
     locationId = location._id;
     categoryId = category._id;
     vehicleId = (await vehicleFor(companyId, "AA100AA")).id;
-});
+}));
 
 describe("service log", {timeout: 60000}, () => {
-    it("copies the latest completed service's next due date and km onto the car", async () => {
+    it("copies the latest completed service's next due date and km onto the car", () => asCompany(async () => {
         expect((await service({serviceDate: "2026-01-10", odometerKm: 10000, nextDueAt: "2027-01-10", nextDueKm: 25000})).status).toBe(200);
         expect((await service({serviceDate: "2026-06-01", odometerKm: 18000, nextDueAt: "2027-06-01", nextDueKm: 33000})).status).toBe(200);
         // An older record added later does not take over, and a scheduled one never counts.
@@ -114,9 +114,9 @@ describe("service log", {timeout: 60000}, () => {
         expect(car!.nextServiceDueAt!.toISOString().slice(0, 10)).toBe("2027-06-01");
         expect(car!.nextServiceDueKm).toBe(33000);
         expect(car!.odometerKm).toBe(18000);
-    });
+    }));
 
-    it("keeps the service interval when a later repair sets no next due", async () => {
+    it("keeps the service interval when a later repair sets no next due", () => asCompany(async () => {
         await service({serviceDate: "2026-01-10", odometerKm: 10000, nextDueAt: "2027-01-10", nextDueKm: 25000});
         await service({type: "repair", serviceDate: "2026-03-01", odometerKm: 12000});
 
@@ -124,9 +124,9 @@ describe("service log", {timeout: 60000}, () => {
         expect(car!.nextServiceDueAt!.toISOString().slice(0, 10)).toBe("2027-01-10");
         expect(car!.nextServiceDueKm).toBe(25000);
         expect(car!.odometerKm).toBe(12000);
-    });
+    }));
 
-    it("recomputes after an edit and a delete, and re-arms the reminder", async () => {
+    it("recomputes after an edit and a delete, and re-arms the reminder", () => asCompany(async () => {
         const older = await service({serviceDate: "2026-01-10", nextDueAt: "2027-01-10", nextDueKm: 25000});
         const latest = await service({serviceDate: "2026-06-01", nextDueAt: "2027-06-01", nextDueKm: 33000});
         await Vehicle.updateOne({_id: vehicleId}, {$set: {serviceReminderSentAt: new Date()}});
@@ -144,18 +144,18 @@ describe("service log", {timeout: 60000}, () => {
         expect(car!.nextServiceDueAt!.toISOString().slice(0, 10)).toBe("2027-01-10");
         expect(car!.nextServiceDueKm).toBe(25000);
         expect(older.status).toBe(200);
-    });
+    }));
 
-    it("refuses a car of another company", async () => {
-        const foreign = await vehicleFor(otherCompanyId, "ZZ999ZZ");
+    it("refuses a car of another company", () => asCompany(async () => {
+        const foreign = await withTenant(otherCompanyId, () => vehicleFor(otherCompanyId, "ZZ999ZZ"));
         const response = await service({vehicle: foreign.id, serviceDate: "2026-01-10"});
         expect(response.body.error_code).toBe("vehicle_not_found");
         expect(await VehicleMaintenance.countDocuments({})).toBe(0);
-    });
+    }));
 });
 
 describe("insurance", {timeout: 60000}, () => {
-    it("re-arms the expiry reminder and reactivates the policy when its expiry moves into the future", async () => {
+    it("re-arms the expiry reminder and reactivates the policy when its expiry moves into the future", () => asCompany(async () => {
         const created = await request(app).put("/api/carRental/vehicleInsurance").set(callerHeader(admin)).send({
             vehicle: vehicleId, insurer: "Sigal", policyNumber: "P-1", coverage: "third_party", validFrom: "2025-01-01", expiresAt: "2026-01-01",
         });
@@ -170,13 +170,13 @@ describe("insurance", {timeout: 60000}, () => {
         const stored = await VehicleInsurance.findById(created.body._id);
         expect(stored!.status).toBe("active");
         expect(stored!.expiryReminderSentAt ?? null).toBeNull();
-    });
+    }));
 
     const policy = (expiresAt: string, extra: Record<string, unknown> = {}) => request(app).put("/api/carRental/vehicleInsurance").set(callerHeader(admin)).send({
         vehicle: vehicleId, insurer: "Sigal", policyNumber: `P-${expiresAt}`, coverage: "third_party", validFrom: "1990-01-01", expiresAt, ...extra,
     });
 
-    it("stores a past end date as expired and a future one as active, ignoring a status sent by the client", async () => {
+    it("stores a past end date as expired and a future one as active, ignoring a status sent by the client", () => asCompany(async () => {
         const old = await policy("2000-01-01", {status: "active"});
         expect(old.status).toBe(200);
         expect(old.body.status).toBe("expired");
@@ -184,9 +184,9 @@ describe("insurance", {timeout: 60000}, () => {
         const current = await policy("2099-01-01", {status: "cancelled", policyNumber: "P-future"});
         expect(current.status).toBe(200);
         expect(current.body.status).toBe("active");
-    });
+    }));
 
-    it("follows the end date on edit, and refuses a status sent by the client", async () => {
+    it("follows the end date on edit, and refuses a status sent by the client", () => asCompany(async () => {
         const created = await policy("2099-01-01", {policyNumber: "P-edit"});
         const expired = await request(app).patch("/api/carRental/vehicleInsurance").set(callerHeader(admin)).send({
             _id: created.body._id, vehicle: vehicleId, insurer: "Sigal", policyNumber: "P-edit", coverage: "third_party",
@@ -199,9 +199,9 @@ describe("insurance", {timeout: 60000}, () => {
             validFrom: "1990-01-01", expiresAt: "2000-06-01", status: "cancelled",
         });
         expect(still.body.status).toBe("expired");
-    });
+    }));
 
-    it("cancels only through the action, locks edits, and restores from the end date", async () => {
+    it("cancels only through the action, locks edits, and restores from the end date", () => asCompany(async () => {
         const current = await policy("2099-01-01", {policyNumber: "P-live"});
         const old = await policy("2000-01-01", {policyNumber: "P-old"});
 
@@ -227,11 +227,11 @@ describe("insurance", {timeout: 60000}, () => {
 
         const notCancelled = await request(app).post("/api/carRental/vehicleInsurance/uncancel").set(callerHeader(admin)).send({_id: current.body._id});
         expect(notCancelled.body.error_code).toBe("vehicleInsurance_invalid_status");
-    });
+    }));
 });
 
 describe("damage reports", {timeout: 60000}, () => {
-    it("ties a damage to a booking of the same car, and refuses another car's booking", async () => {
+    it("ties a damage to a booking of the same car, and refuses another car's booking", () => asCompany(async () => {
         const otherCar = await vehicleFor(companyId, "AA200AA");
         const own = await reservationFor(vehicleId, "R-1");
         const foreign = await reservationFor(otherCar.id, "R-2");
@@ -244,30 +244,30 @@ describe("damage reports", {timeout: 60000}, () => {
         expect(ok.status).toBe(200);
         expect(ok.body.reservation.number).toBe("R-1");
         expect(ok.body.status).toBe("open");
-    });
+    }));
 
-    it("lists only the chosen car's bookings in the booking picker", async () => {
+    it("lists only the chosen car's bookings in the booking picker", () => asCompany(async () => {
         const otherCar = await vehicleFor(companyId, "AA200AA");
         await reservationFor(vehicleId, "R-1");
         await reservationFor(otherCar.id, "R-2");
         const response = await request(app).post("/api/carRental/rentalReservation/select").set(callerHeader(admin)).send({vehicle: vehicleId, page: 1, limit: 20});
         expect(response.body.data.map((option: {label: string}) => option.label)).toEqual(["R-1"]);
-    });
+    }));
 });
 
 describe("vehicle picker", {timeout: 60000}, () => {
-    it("offers cars in maintenance only when asked to", async () => {
+    it("offers cars in maintenance only when asked to", () => asCompany(async () => {
         await vehicleFor(companyId, "AA300AA", "maintenance");
         const labels = async (body: Record<string, unknown>) =>
             (await request(app).post("/api/carRental/vehicle/select").set(callerHeader(admin)).send({page: 1, limit: 20, ...body})).body.data
                 .map((option: {label: string}) => option.label.split(" ")[0]).sort();
         expect(await labels({})).toEqual(["AA100AA"]);
         expect(await labels({includeInactive: true})).toEqual(["AA100AA", "AA300AA"]);
-    });
+    }));
 });
 
 describe("storefront media", {timeout: 60000}, () => {
-    it("returns a category's videos next to its photos", async () => {
+    it("returns a category's videos next to its photos", () => asCompany(async () => {
         const media = (type: "image" | "video") => {
             const [extension, mime] = type === "image" ? ["jpg", "image/jpeg"] : ["mp4", "video/mp4"];
             return Media.create({
@@ -283,5 +283,5 @@ describe("storefront media", {timeout: 60000}, () => {
         const [category] = response.body.data.categories;
         expect(category.images).toEqual([`/api/auxiliary/public/media/${photo.id}`]);
         expect(category.videos).toEqual([`/api/auxiliary/public/media/${clip.id}`]);
-    });
+    }));
 });

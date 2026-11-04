@@ -16,9 +16,12 @@ import VehicleInsurance from "@carRentalModule/database/schemas/vehicleInsurance
 import VehicleDocument from "@carRentalModule/database/schemas/vehicleDocument/vehicleDocument";
 import VehicleFine from "@carRentalModule/database/schemas/vehicleFine/vehicleFine";
 import {runFleetReminders} from "@carRentalModule/utilities/cronJobs/fleetReminderJob";
+import {withTenant} from "@coreModule/utilities/endpoints/tenantScope";
 
 let replSet: MongoMemoryReplSet;
 const companyId = new ObjectId();
+/** The tests act on this company's data, as its requests and jobs do (D16). */
+const asCompany = <T>(fn: () => PromiseLike<T>): Promise<T> => withTenant(companyId, fn);
 const DAY = 24 * 3600 * 1000;
 const inDays = (days: number) => new Date(Date.now() + days * DAY);
 
@@ -40,15 +43,15 @@ afterAll(async () => {
     await replSet.stop();
 });
 
-beforeEach(async () => {
+beforeEach(() => asCompany(async () => {
     await Promise.all([Vehicle, VehicleInsurance, VehicleDocument, VehicleFine, CarRentalConfig, Currency].map((model) => model.collection.deleteMany({})));
     emitted.length = 0;
     const currency = await Currency.create({name: "Lek", symbol: "L", abbreviation: "ALL", decimalPlaces: 2, company: companyId});
     await CarRentalConfig.create({company: companyId, currency: currency._id, notifyUsers: [new ObjectId()]});
-});
+}));
 
 describe("fleet reminders", {timeout: 60000}, () => {
-    it("warns once about a policy and a document expiring within 30 days", async () => {
+    it("warns once about a policy and a document expiring within 30 days", () => asCompany(async () => {
         const vehicle = await car();
         await policy(vehicle._id, inDays(10));
         await VehicleDocument.create({company: companyId, vehicle: vehicle._id, type: "technical_inspection", expiresAt: inDays(20)});
@@ -60,9 +63,9 @@ describe("fleet reminders", {timeout: 60000}, () => {
 
         await runFleetReminders(companyId);
         expect(emitted).toHaveLength(2);
-    });
+    }));
 
-    it("stays quiet when a newer policy of the same cover takes over, or the car is retired", async () => {
+    it("stays quiet when a newer policy of the same cover takes over, or the car is retired", () => asCompany(async () => {
         const renewedCar = await car();
         await policy(renewedCar._id, inDays(10));
         await policy(renewedCar._id, inDays(375));
@@ -71,9 +74,9 @@ describe("fleet reminders", {timeout: 60000}, () => {
 
         await runFleetReminders(companyId);
         expect(emitted).toEqual([]);
-    });
+    }));
 
-    it("marks active policies and documents past their expiry as expired", async () => {
+    it("marks active policies and documents past their expiry as expired", () => asCompany(async () => {
         const vehicle = await car();
         const lapsed = await policy(vehicle._id, inDays(-1));
         const document = await VehicleDocument.create({company: companyId, vehicle: vehicle._id, type: "road_tax", expiresAt: inDays(-3)});
@@ -83,9 +86,9 @@ describe("fleet reminders", {timeout: 60000}, () => {
         expect((await VehicleInsurance.findById(lapsed._id))!.status).toBe("expired");
         expect((await VehicleDocument.findById(document._id))!.status).toBe("expired");
         expect((await VehicleDocument.findById(timeless._id))!.status).toBe("active");
-    });
+    }));
 
-    it("tells the staff once when a policy or document lapses with no renewal", async () => {
+    it("tells the staff once when a policy or document lapses with no renewal", () => asCompany(async () => {
         const vehicle = await car();
         await policy(vehicle._id, inDays(-1));
         await VehicleDocument.create({company: companyId, vehicle: vehicle._id, type: "road_tax", expiresAt: inDays(-3)});
@@ -99,9 +102,9 @@ describe("fleet reminders", {timeout: 60000}, () => {
 
         await runFleetReminders(companyId);
         expect(emitted).toHaveLength(2);
-    });
+    }));
 
-    it("warns once about an unpaid fine due within a week, unless the driver pays it or it is contested", async () => {
+    it("warns once about an unpaid fine due within a week, unless the driver pays it or it is contested", () => asCompany(async () => {
         const vehicle = await car();
         const fine = (fields: Record<string, unknown>) =>
             VehicleFine.create({company: companyId, vehicle: vehicle._id, reference: `F-${Math.random()}`, offenceAt: inDays(-20), type: "parking", authority: "Bashkia", amount: 20, ...fields});
@@ -117,9 +120,9 @@ describe("fleet reminders", {timeout: 60000}, () => {
 
         await runFleetReminders(companyId);
         expect(emitted).toHaveLength(1);
-    });
+    }));
 
-    it("flags a car due for service by date or by km, once", async () => {
+    it("flags a car due for service by date or by km, once", () => asCompany(async () => {
         const byDate = await car({nextServiceDueAt: inDays(7)});
         const byKm = await car({odometerKm: 14_200, nextServiceDueKm: 15_000});
         await car({odometerKm: 9_000, nextServiceDueKm: 15_000, nextServiceDueAt: inDays(200)});
@@ -132,9 +135,9 @@ describe("fleet reminders", {timeout: 60000}, () => {
 
         await runFleetReminders(companyId);
         expect(emitted).toHaveLength(2);
-    });
+    }));
 
-    it("sends nothing when no staff are set to be notified", async () => {
+    it("sends nothing when no staff are set to be notified", () => asCompany(async () => {
         await CarRentalConfig.updateOne({company: companyId}, {$set: {notifyUsers: []}});
         const vehicle = await car({nextServiceDueAt: inDays(1)});
         await policy(vehicle._id, inDays(3));
@@ -142,5 +145,5 @@ describe("fleet reminders", {timeout: 60000}, () => {
         await runFleetReminders(companyId);
         expect(emitted).toEqual([]);
         expect((await Vehicle.findById(vehicle._id))!.serviceReminderSentAt).toBeInstanceOf(Date);
-    });
+    }));
 });

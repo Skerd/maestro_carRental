@@ -1,8 +1,5 @@
 import {afterAll, beforeAll, beforeEach, describe, expect, it, vi} from "vitest";
 
-vi.hoisted(() => {
-    process.env.TENANT_SCOPE_ENFORCE = "carRental";
-});
 import {MongoMemoryReplSet} from "mongodb-memory-server";
 import mongoose from "mongoose";
 import {ObjectId} from "mongodb";
@@ -79,10 +76,13 @@ import {settleRentalPayment} from "@carRentalModule/utilities/services/rentalLif
 import {runInTransaction} from "@coreModule/utilities/middlewares/runInTransaction";
 import {runRentalHoldExpiry} from "@carRentalModule/utilities/cronJobs/rentalHoldExpiryJob";
 import {buildRentalReport} from "@carRentalModule/utilities/services/rentalReports";
+import {withTenant} from "@coreModule/utilities/endpoints/tenantScope";
 
 // Transactions need a replica set; WiredTiger so concurrent requests really conflict
 let replSet: MongoMemoryReplSet;
 const companyId = new ObjectId();
+/** The tests act on this company's data, as its requests and jobs do (D16). */
+const asCompany = <T>(fn: () => PromiseLike<T>): Promise<T> => withTenant(companyId, fn);
 const otherCompanyId = new ObjectId();
 const userId = new ObjectId();
 // carRental pilots tenant-scope enforcement (D16): its routes run enforced, as in the dev profiles.
@@ -155,7 +155,7 @@ afterAll(async () => {
     await replSet.stop();
 });
 
-beforeEach(async () => {
+beforeEach(() => asCompany(async () => {
     // Raw collection deletes: the soft-delete plugin would only mark the rows deleted
     await Promise.all([CarRentalConfig, RentalLocation, VehicleCategory, Vehicle, VehicleBlock, RentalReservation, PaymentTransaction, Currency, RentalPromoCode, RentalExtra, VehicleDamage, VehicleFine, Invoice, InvoiceCounter, VehicleTransfer,
         VehicleMaintenance, VehicleInsurance, VehicleDocument]
@@ -187,10 +187,10 @@ beforeEach(async () => {
     locationId = location._id.toString();
     categoryId = category._id.toString();
     vehicleId = vehicle._id.toString();
-});
+}));
 
 describe("booking a car", {timeout: 60000}, () => {
-    it("confirms a pay-at-pickup booking with a full snapshot and a vehicle", async () => {
+    it("confirms a pay-at-pickup booking with a full snapshot and a vehicle", () => asCompany(async () => {
         const response = await book({});
         expect(response.status).toBe(200);
         expect(response.body.data.reservation).toMatchObject({status: "confirmed", categoryName: "Compact", pickupLocationName: "Zurich Airport"});
@@ -202,9 +202,9 @@ describe("booking a car", {timeout: 60000}, () => {
         // Pickup 10:00 Zurich summer time = 08:00 UTC; busy until return + 60 min turnaround
         expect(stored!.pickupAt.toISOString()).toBe("2027-06-09T08:00:00.000Z");
         expect(stored!.blockedUntil.toISOString()).toBe("2027-06-11T09:00:00.000Z");
-    });
+    }));
 
-    it("books the last car exactly once when two customers try at the same moment", async () => {
+    it("books the last car exactly once when two customers try at the same moment", () => asCompany(async () => {
         const responses = await Promise.all([book({}), book({}), book({})]);
         const statuses = responses.map((response) => response.status).sort();
         expect(statuses).toEqual([200, 409, 409]);
@@ -212,38 +212,38 @@ describe("booking a car", {timeout: 60000}, () => {
             expect(failed.body.error_code).toBe("rental_category_unavailable");
         }
         expect(await RentalReservation.countDocuments({})).toBe(1);
-    });
+    }));
 
-    it("lets a booking start after the turnaround and refuses one inside it", async () => {
+    it("lets a booking start after the turnaround and refuses one inside it", () => asCompany(async () => {
         expect((await book({})).status).toBe(200);
         // Previous return 10:00 + 60 min buffer: 10:30 clashes, 11:00 is free
         const clash = await book({...trip({pickupDate: "2027-06-11", pickupTime: "10:30", returnDate: "2027-06-12", returnTime: "10:30"}), expectedTotal: 50});
         expect(clash.body.error_code).toBe("rental_category_unavailable");
         const next = await book({...trip({pickupDate: "2027-06-11", pickupTime: "11:00", returnDate: "2027-06-12", returnTime: "11:00"}), expectedTotal: 50});
         expect(next.status).toBe(200);
-    });
+    }));
 
-    it("returns the same reservation for a retried request", async () => {
+    it("returns the same reservation for a retried request", () => asCompany(async () => {
         const idempotencyKey = `key-${new ObjectId().toString()}`;
         const first = await book({idempotencyKey});
         const second = await book({idempotencyKey});
         expect(second.status).toBe(200);
         expect(second.body.data.reservation._id).toBe(first.body.data.reservation._id);
         expect(await RentalReservation.countDocuments({})).toBe(1);
-    });
+    }));
 
-    it("refuses a price the server no longer agrees with", async () => {
+    it("refuses a price the server no longer agrees with", () => asCompany(async () => {
         const response = await book({expectedTotal: 80});
         expect(response.status).toBe(409);
         expect(response.body.error_code).toBe("rental_price_changed");
-    });
+    }));
 
-    it("refuses a pickup time skipped by the spring-forward change", async () => {
+    it("refuses a pickup time skipped by the spring-forward change", () => asCompany(async () => {
         const response = await book(trip({pickupDate: "2027-03-28", pickupTime: "02:30", returnDate: "2027-03-29", returnTime: "10:00"}));
         expect(response.body.error_code).toBe("rental_invalid_pickup_time");
-    });
+    }));
 
-    it("frees the car once an online hold runs out, before any sweeper runs", async () => {
+    it("frees the car once an online hold runs out, before any sweeper runs", () => asCompany(async () => {
         const held = await book({paymentChoice: "online"});
         expect(held.body.data.reservation.status).toBe("held");
         expect(held.body.data.payment.clientSecret).toBe("secret");
@@ -251,16 +251,16 @@ describe("booking a car", {timeout: 60000}, () => {
 
         await RentalReservation.updateOne({}, {$set: {holdExpiresAt: new Date(Date.now() - 1000)}});
         expect((await book({})).status).toBe(200);
-    });
+    }));
 
-    it("refuses public booking until it is switched on", async () => {
+    it("refuses public booking until it is switched on", () => asCompany(async () => {
         await CarRentalConfig.updateOne({company: companyId}, {$set: {publicBookingEnabled: false}});
         expect((await book({})).body.error_code).toBe("car_rental_not_configured");
-    });
+    }));
 });
 
 describe("staff work on reservations", {timeout: 60000}, () => {
-    it("never shows one company's reservation to another", async () => {
+    it("never shows one company's reservation to another", () => asCompany(async () => {
         const {body} = await book({});
         const id = body.data.reservation._id;
         const own = await request(app).post("/api/carRental/rentalReservation/single").set(callerHeader(admin)).send({_id: id});
@@ -269,9 +269,9 @@ describe("staff work on reservations", {timeout: 60000}, () => {
         expect(foreign.status).not.toBe(200);
         const foreignCancel = await request(app).post("/api/carRental/rentalReservation/cancel").set(callerHeader(outsider)).send({_id: id});
         expect(foreignCancel.body.error_code).toBe("rental_reservation_not_found");
-    });
+    }));
 
-    it("records a counter payment and refunds it minus the late-cancellation fee", async () => {
+    it("records a counter payment and refunds it minus the late-cancellation fee", () => asCompany(async () => {
         // Pickup tomorrow, inside the 48 h free-cancellation window
         const tomorrow = new Date(Date.now() + 26 * 3600 * 1000).toISOString().slice(0, 10);
         const dayAfter = new Date(Date.now() + 50 * 3600 * 1000).toISOString().slice(0, 10);
@@ -287,9 +287,9 @@ describe("staff work on reservations", {timeout: 60000}, () => {
         expect(cancelled.body.amountPaid).toBe(10);
         expect(cancelled.body.paymentStatus).toBe("partially_refunded");
         expect(await PaymentTransaction.countDocuments({sourceId: new ObjectId(id), type: "refund", amount: 40})).toBe(1);
-    });
+    }));
 
-    it("refuses to block a car over a booking, and to retire a car that has one", async () => {
+    it("refuses to block a car over a booking, and to retire a car that has one", () => asCompany(async () => {
         await book({});
         const block = await request(app).put("/api/carRental/vehicleBlock").set(callerHeader(admin)).send({
             vehicle: vehicleId, startAt: "2027-06-10T00:00:00.000Z", endAt: "2027-06-10T12:00:00.000Z", reason: "maintenance",
@@ -299,13 +299,13 @@ describe("staff work on reservations", {timeout: 60000}, () => {
         const retire = await request(app).patch("/api/carRental/vehicle").set(callerHeader(admin)).send({_id: vehicleId, make: "VW", model: "Golf", plate: "ZH 1", status: "retired"});
         expect(retire.body.error_code).toBe("vehicle_has_future_reservations");
         expect((await Vehicle.findById(vehicleId))!.status).toBe("active");
-    });
+    }));
 });
 
 describe("online payment arrives", {timeout: 60000}, () => {
     const intentFor = (amountMinor: number) => ({id: "pi_test", amountMinor, currencyCode: "chf"});
 
-    it("confirms a held booking", async () => {
+    it("confirms a held booking", () => asCompany(async () => {
         const {body} = await book({paymentChoice: "online"});
         await runInTransaction(logger, async (session) => {
             const reservation = await RentalReservation.findById(body.data.reservation._id).session(session);
@@ -313,9 +313,9 @@ describe("online payment arrives", {timeout: 60000}, () => {
         });
         const stored = await RentalReservation.findById(body.data.reservation._id);
         expect(stored).toMatchObject({status: "confirmed", paymentStatus: "paid", amountPaid: 100});
-    });
+    }));
 
-    it("cancels and refunds when the hold expired and the car was booked meanwhile", async () => {
+    it("cancels and refunds when the hold expired and the car was booked meanwhile", () => asCompany(async () => {
         const {body} = await book({paymentChoice: "online"});
         await RentalReservation.updateOne({_id: body.data.reservation._id}, {$set: {holdExpiresAt: new Date(Date.now() - 1000)}});
         expect((await book({})).status).toBe(200);
@@ -329,9 +329,9 @@ describe("online payment arrives", {timeout: 60000}, () => {
         const stored = await RentalReservation.findById(body.data.reservation._id);
         expect(stored).toMatchObject({status: "cancelled", cancellationReason: "payment_after_expiry", paymentStatus: "refunded"});
         expect(stripe.createRefund).toHaveBeenCalledTimes(1);
-    });
+    }));
 
-    it("leaves a booking untouched when the amount paid is not its price", async () => {
+    it("leaves a booking untouched when the amount paid is not its price", () => asCompany(async () => {
         const {body} = await book({paymentChoice: "online"});
         await runInTransaction(logger, async (session) => {
             const reservation = await RentalReservation.findById(body.data.reservation._id).session(session);
@@ -339,14 +339,14 @@ describe("online payment arrives", {timeout: 60000}, () => {
         });
         expect((await RentalReservation.findById(body.data.reservation._id))!.status).toBe("held");
         expect(logger.err).toHaveBeenCalled();
-    });
+    }));
 });
 
 describe("fees, promo codes and protection", {timeout: 60000}, () => {
     const quote = (body: Record<string, unknown>) =>
         request(app).post("/api/carRental/rentalStorefront/quote").set(callerHeader(admin)).send({...trip(), category: categoryId, ...body});
 
-    it("charges young drivers per day and refuses a driver under the category minimum", async () => {
+    it("charges young drivers per day and refuses a driver under the category minimum", () => asCompany(async () => {
         await CarRentalConfig.updateOne({company: companyId}, {$set: {youngDriverUnderAge: 25, youngDriverDailyFee: 15}});
         const young = await quote({driverBirthDate: "2004-01-01"});
         expect(young.body.data.lines).toContainEqual(expect.objectContaining({kind: "fee", code: "young_driver", quantity: 2, unitPrice: 15, total: 30}));
@@ -358,9 +358,9 @@ describe("fees, promo codes and protection", {timeout: 60000}, () => {
         const stored = await RentalReservation.findById(booked.body.data.reservation._id);
         expect(stored!.drivers).toMatchObject([{role: "primary", firstName: "Ada", birthDate: "2004-01-01"}]);
         expect((await book({driverBirthDate: "2008-01-01", expectedTotal: 130})).body.error_code).toBe("rental_driver_too_young");
-    });
+    }));
 
-    it("adds the return location's one-way fee, else the company's", async () => {
+    it("adds the return location's one-way fee, else the company's", () => asCompany(async () => {
         const other = await RentalLocation.create({
             company: companyId, name: "Basel", timezone: "Europe/Zurich", oneWayFee: 80,
             openingHours: [0, 1, 2, 3, 4, 5, 6].map((dayOfWeek) => ({dayOfWeek, startTime: "07:00", endTime: "22:00"})),
@@ -371,9 +371,9 @@ describe("fees, promo codes and protection", {timeout: 60000}, () => {
         await CarRentalConfig.updateOne({company: companyId}, {$set: {oneWayFee: 40}});
         expect((await quote({returnLocation: other._id.toString()})).body.data.grandTotal).toBe(140);
         expect((await quote({})).body.data.grandTotal).toBe(100);
-    });
+    }));
 
-    it("discounts the rental days with a promo code and stops it once it is used up", async () => {
+    it("discounts the rental days with a promo code and stops it once it is used up", () => asCompany(async () => {
         await RentalPromoCode.create({company: companyId, code: "SUMMER10", type: "percent", value: 10, usageLimit: 1});
         const discounted = await quote({promoCode: "summer10"});
         expect(discounted.body.data.lines).toContainEqual(expect.objectContaining({kind: "discount", code: "promo", total: -10}));
@@ -384,16 +384,16 @@ describe("fees, promo codes and protection", {timeout: 60000}, () => {
         expect((await RentalPromoCode.findOne({code: "SUMMER10"}))!.usageCount).toBe(1);
         expect((await quote({promoCode: "SUMMER10"})).body.error_code).toBe("rental_promo_code_used_up");
         expect((await quote({promoCode: "NOPE"})).body.error_code).toBe("rental_promo_code_invalid");
-    });
+    }));
 
-    it("refuses a promo code outside its pickup window or below its minimum days", async () => {
+    it("refuses a promo code outside its pickup window or below its minimum days", () => asCompany(async () => {
         await RentalPromoCode.create({company: companyId, code: "LONG", type: "fixed", value: 25, minRentalDays: 5});
         await RentalPromoCode.create({company: companyId, code: "WINTER", type: "fixed", value: 25, tripFrom: new Date("2027-12-01"), tripUntil: new Date("2028-02-28")});
         expect((await quote({promoCode: "LONG"})).body.error_code).toBe("rental_promo_code_not_applicable");
         expect((await quote({promoCode: "WINTER"})).body.error_code).toBe("rental_promo_code_not_applicable");
-    });
+    }));
 
-    it("takes the protection package's deposit and allows only one package", async () => {
+    it("takes the protection package's deposit and allows only one package", () => asCompany(async () => {
         const basic = await RentalExtra.create({company: companyId, name: "Super cover", kind: "protection", pricing: "per_day", price: 12, maxQuantity: 1, excessAmount: 0, depositAmount: 100});
         const other = await RentalExtra.create({company: companyId, name: "Medium cover", kind: "protection", pricing: "per_day", price: 8, maxQuantity: 1});
         const covered = await quote({extras: [{extra: basic._id.toString(), quantity: 1}]});
@@ -401,7 +401,7 @@ describe("fees, promo codes and protection", {timeout: 60000}, () => {
         expect(covered.body.data.grandTotal).toBe(124);
         const both = await quote({extras: [{extra: basic._id.toString(), quantity: 1}, {extra: other._id.toString(), quantity: 1}]});
         expect(both.body.error_code).toBe("rental_protection_one_only");
-    });
+    }));
 });
 
 describe("where cars are", {timeout: 60000}, () => {
@@ -410,15 +410,15 @@ describe("where cars are", {timeout: 60000}, () => {
     const driver = {role: "primary", firstName: "Ada", lastName: "Lovelace", birthDate: "1990-12-10", licenseNumber: "CH-1", licenseExpiresAt: "2030-01-01"};
     let baselId: string;
 
-    beforeEach(async () => {
+    beforeEach(() => asCompany(async () => {
         const basel = await RentalLocation.create({
             company: companyId, name: "Basel", timezone: "Europe/Zurich",
             openingHours: [0, 1, 2, 3, 4, 5, 6].map((dayOfWeek) => ({dayOfWeek, startTime: "07:00", endTime: "22:00"})),
         });
         baselId = basel._id.toString();
-    });
+    }));
 
-    it("puts the car where it was returned and asks for a transfer when it is booked elsewhere", async () => {
+    it("puts the car where it was returned and asks for a transfer when it is booked elsewhere", () => asCompany(async () => {
         const {body} = await book({returnLocation: baselId, expectedTotal: 100});
         const id = body.data.reservation._id;
         await action("saveDrivers", {_id: id, drivers: [driver]});
@@ -434,9 +434,9 @@ describe("where cars are", {timeout: 60000}, () => {
 
         const ready = await request(app).post("/api/carRental/vehicle/setReadiness").set(callerHeader(admin)).send({_id: vehicleId, readiness: "ready"});
         expect(ready.body.readiness).toBe("ready");
-    });
+    }));
 
-    it("lays out each car's bookings and blocks for the planner window", async () => {
+    it("lays out each car's bookings and blocks for the planner window", () => asCompany(async () => {
         const {body} = await book({});
         await request(app).put("/api/carRental/vehicleTransfer").set(callerHeader(admin)).send({
             vehicle: vehicleId, fromLocation: locationId, toLocation: baselId, departAt: "2027-06-12 08:00", arriveAt: "2027-06-12 11:00",
@@ -449,9 +449,9 @@ describe("where cars are", {timeout: 60000}, () => {
         expect(planner.body.data.blocks).toEqual([expect.objectContaining({reason: "transfer"})]);
         const elsewhere = await request(app).post("/api/carRental/rentalPlanner").set(callerHeader(admin)).send({from: "2027-06-08", days: 7, location: baselId});
         expect(elsewhere.body.data.vehicles).toEqual([]);
-    });
+    }));
 
-    it("lists the day's pickups at the counter, in the location's time zone", async () => {
+    it("lists the day's pickups at the counter, in the location's time zone", () => asCompany(async () => {
         const {body} = await book({});
         const counter = (date: string) => request(app).post("/api/carRental/rentalCounter").set(callerHeader(admin)).send({date, location: locationId});
         const day = await counter("2027-06-09");
@@ -459,9 +459,9 @@ describe("where cars are", {timeout: 60000}, () => {
         expect(day.body.data.pickups.map((entry: {_id: string}) => entry._id)).toEqual([body.data.reservation._id]);
         expect(day.body.data.returns).toEqual([]);
         expect((await counter("2027-06-10")).body.data.pickups).toEqual([]);
-    });
+    }));
 
-    it("blocks the car on a transfer and counts it at the destination once it arrives", async () => {
+    it("blocks the car on a transfer and counts it at the destination once it arrives", () => asCompany(async () => {
         const planned = await request(app).put("/api/carRental/vehicleTransfer").set(callerHeader(admin)).send({
             vehicle: vehicleId, fromLocation: locationId, toLocation: baselId, departAt: "2027-06-01 08:00", arriveAt: "2027-06-01 11:00",
         });
@@ -480,7 +480,7 @@ describe("where cars are", {timeout: 60000}, () => {
             vehicle: vehicleId, fromLocation: baselId, toLocation: baselId, departAt: "2027-07-01 08:00", arriveAt: "2027-07-01 11:00",
         });
         expect(same.body.error_code).toBe("rental_transfer_same_location");
-    });
+    }));
 });
 
 describe("on the road", {timeout: 60000}, () => {
@@ -492,7 +492,7 @@ describe("on the road", {timeout: 60000}, () => {
         licenseNumber: "CH-123456", licenseCountry: "Switzerland", licenseExpiresAt: "2030-01-31",
     };
 
-    it("hands over, extends, and takes back the car with extra charges", async () => {
+    it("hands over, extends, and takes back the car with extra charges", () => asCompany(async () => {
         const {body} = await book({});
         const id = body.data.reservation._id;
         const saved = await action("saveDrivers", {_id: id, drivers: [driver]});
@@ -512,9 +512,9 @@ describe("on the road", {timeout: 60000}, () => {
         expect(returned.body.status).toBe("completed");
         expect(returned.body.pricing.grandTotal).toBe(190);
         expect(returned.body.paymentStatus).toBe("unpaid");
-    });
+    }));
 
-    it("refuses the handover until every driver has a licence valid to the return day", async () => {
+    it("refuses the handover until every driver has a licence valid to the return day", () => asCompany(async () => {
         const {body} = await book({});
         const id = body.data.reservation._id;
         const handover = () => action("handover", {_id: id, odometerKm: 12000, fuelLevel: "full"});
@@ -526,9 +526,9 @@ describe("on the road", {timeout: 60000}, () => {
         expect((await handover()).body.error_code).toBe("rental_driver_license_expired");
         await action("saveDrivers", {_id: id, drivers: [driver, {...driver, role: "additional", firstName: "Charles", licenseExpiresAt: "2027-06-11"}]});
         expect((await handover()).body.status).toBe("in_progress");
-    });
+    }));
 
-    it("refuses a driver list without one main driver or with a driver under the minimum age", async () => {
+    it("refuses a driver list without one main driver or with a driver under the minimum age", () => asCompany(async () => {
         const {body} = await book({});
         const id = body.data.reservation._id;
         const twoMain = await action("saveDrivers", {_id: id, drivers: [driver, {...driver, firstName: "Charles"}]});
@@ -538,9 +538,9 @@ describe("on the road", {timeout: 60000}, () => {
         expect(young.body.error_code).toBe("rental_driver_too_young");
         const birthday = await action("saveDrivers", {_id: id, drivers: [{...driver, birthDate: "2006-06-09"}]});
         expect(birthday.status).toBe(200);
-    });
+    }));
 
-    it("keeps the damage the customer saw at pickup and files new damage found at the return", async () => {
+    it("keeps the damage the customer saw at pickup and files new damage found at the return", () => asCompany(async () => {
         const {body} = await book({});
         const id = body.data.reservation._id;
         await action("saveDrivers", {_id: id, drivers: [driver]});
@@ -569,9 +569,9 @@ describe("on the road", {timeout: 60000}, () => {
 
         const pdf = await generateRentalAgreementPdf((await RentalReservation.findById(id))!, "en-US");
         expect(pdf.subarray(0, 5).toString()).toBe("%PDF-");
-    });
+    }));
 
-    it("charges damage to the customer, never beyond the protection package's excess", async () => {
+    it("charges damage to the customer, never beyond the protection package's excess", () => asCompany(async () => {
         const cover = await RentalExtra.create({company: companyId, name: "Medium cover", kind: "protection", pricing: "per_rental", price: 20, maxQuantity: 1, excessAmount: 200});
         const {body} = await book({extras: [{extra: cover._id.toString(), quantity: 1}], expectedTotal: 120});
         const id = body.data.reservation._id;
@@ -599,9 +599,9 @@ describe("on the road", {timeout: 60000}, () => {
         expect(invoices.map((invoice) => invoice.total)).toEqual([120, 200]);
         expect(invoices[0].lines.map((line) => line.description)).toEqual(["Compact", "Medium cover"]);
         expect(invoices[1]).toMatchObject({number: expect.stringMatching(/^INV-\d{4}-000002$/), sourceNumber: stored!.number});
-    });
+    }));
 
-    it("holds a cash deposit and keeps part of it for what is owed", async () => {
+    it("holds a cash deposit and keeps part of it for what is owed", () => asCompany(async () => {
         const {body} = await book({});
         const id = body.data.reservation._id;
         const taken = await action("takeDeposit", {_id: id, method: "cash", amount: 300});
@@ -613,9 +613,9 @@ describe("on the road", {timeout: 60000}, () => {
         const settled = await action("settleDeposit", {_id: id, keepAmount: 60});
         expect(settled.body.deposit).toMatchObject({status: "captured", capturedAmount: 60});
         expect(settled.body.amountPaid).toBe(60);
-    });
+    }));
 
-    it("holds the card for a short rental, then releases the hold", async () => {
+    it("holds the card for a short rental, then releases the hold", () => asCompany(async () => {
         const {body} = await book({});
         const id = body.data.reservation._id;
         const taken = await action("takeDeposit", {_id: id, method: "card", amount: 250});
@@ -628,9 +628,9 @@ describe("on the road", {timeout: 60000}, () => {
         const released = await action("settleDeposit", {_id: id, keepAmount: 0});
         expect(released.body.deposit.status).toBe("released");
         expect(stripe.cancelPaymentIntent).toHaveBeenCalledWith("pi_test");
-    });
+    }));
 
-    it("saves the card for a long rental and charges it later without the customer", async () => {
+    it("saves the card for a long rental and charges it later without the customer", () => asCompany(async () => {
         const {body} = await book({...trip({returnDate: "2027-06-17"}), expectedTotal: 400});
         const id = body.data.reservation._id;
         const taken = await action("takeDeposit", {_id: id, method: "card", amount: 500});
@@ -643,9 +643,9 @@ describe("on the road", {timeout: 60000}, () => {
         expect(charged.body.amountPaid).toBe(100);
         expect(stripe.createPaymentIntent).toHaveBeenLastCalledWith(expect.objectContaining({amount: 100, offSession: {customerId: "cus_test", paymentMethodId: "pm_test"}}));
         expect(await PaymentTransaction.countDocuments({gatewayTransactionId: "pi_off", status: "succeeded"})).toBe(1);
-    });
+    }));
 
-    it("matches a fine to the driver at the time and charges it with the handling fee to the saved card", async () => {
+    it("matches a fine to the driver at the time and charges it with the handling fee to the saved card", () => asCompany(async () => {
         await CarRentalConfig.updateOne({company: companyId}, {$set: {fineAdminFee: 25}});
         const {body} = await book({...trip({returnDate: "2027-06-17"}), expectedTotal: 400});
         const id = body.data.reservation._id;
@@ -684,28 +684,28 @@ describe("on the road", {timeout: 60000}, () => {
         // The whole 145 card charge goes back.
         expect(stripe.createRefund).toHaveBeenCalledWith(expect.objectContaining({gatewayTransactionId: "pi_off"}));
         expect(after!.timeline.map((entry) => entry.event)).toContain("charge_removed");
-    });
+    }));
 
-    it("refuses an extension into another customer's booking", async () => {
+    it("refuses an extension into another customer's booking", () => asCompany(async () => {
         const first = await book({});
         await book({...trip({pickupDate: "2027-06-11", pickupTime: "12:00", returnDate: "2027-06-12", returnTime: "12:00"}), expectedTotal: 50});
         const extended = await action("extend", {_id: first.body.data.reservation._id, returnDate: "2027-06-11", returnTime: "18:00"});
         expect(extended.body.error_code).toBe("vehicle_unavailable");
-    });
+    }));
 
-    it("records a no-show only after the pickup time has passed", async () => {
+    it("records a no-show only after the pickup time has passed", () => asCompany(async () => {
         const {body} = await book({});
         const early = await action("noShow", {_id: body.data.reservation._id});
         expect(early.body.error_code).toBe("rental_no_show_too_early");
-    });
+    }));
 
-    it("expires a lapsed hold and cancels its payment intent", async () => {
+    it("expires a lapsed hold and cancels its payment intent", () => asCompany(async () => {
         const {body} = await book({paymentChoice: "online"});
         await RentalReservation.updateOne({_id: body.data.reservation._id}, {$set: {holdExpiresAt: new Date(Date.now() - 1000)}});
         await runRentalHoldExpiry(companyId);
         expect((await RentalReservation.findById(body.data.reservation._id))!.status).toBe("expired");
         expect(stripe.cancelPaymentIntent).toHaveBeenCalledWith("pi_test");
-    });
+    }));
 });
 
 describe("fleet workflows", {timeout: 60000}, () => {
@@ -719,7 +719,7 @@ describe("fleet workflows", {timeout: 60000}, () => {
     const damage = (body: Record<string, unknown> = {}) =>
         create("vehicleDamage", {vehicle: vehicleId, reportedAt: "2027-05-01T10:00:00.000Z", area: "front", severity: "moderate", description: "Dent in the bumper", ...body}, admin);
 
-    it("sends damages to one repair that blocks the car, and repairs them when it is completed", async () => {
+    it("sends damages to one repair that blocks the car, and repairs them when it is completed", () => asCompany(async () => {
         const dent = await damage({estimatedCost: 300});
         expect(dent.body.status).toBe("open");
         // Linked to the policy that covered the car on the day.
@@ -749,9 +749,9 @@ describe("fleet workflows", {timeout: 60000}, () => {
         await VehicleDamage.updateOne({_id: dent.body._id}, {$set: {insurerPaidAmount: 250}});
         const report = await buildRentalReport(new ObjectId(companyId), {from: "2027-05-01", to: "2027-05-31", timezone: "Europe/Zurich"});
         expect(report.byVehicle[0]).toMatchObject({maintenanceCost: 0, repairCost: 300, recovered: 250, finesCost: 0});
-    });
+    }));
 
-    it("frees the car and reopens the damage when a repair is cancelled", async () => {
+    it("frees the car and reopens the damage when a repair is cancelled", () => asCompany(async () => {
         const dent = await damage({severity: "major"});
         expect((await Vehicle.findById(vehicleId))!.readiness).toBe("needs_check");
         const scheduled = await fleet("vehicleDamage/scheduleRepair", {_id: dent.body._id, serviceDate: "2027-05-03 08:00", readyAt: "2027-05-05 18:00"}, admin);
@@ -760,17 +760,17 @@ describe("fleet workflows", {timeout: 60000}, () => {
         expect(await VehicleDamage.findById(dent.body._id)).toMatchObject({status: "open", repair: undefined});
         expect(await VehicleBlock.countDocuments({vehicle: vehicleId, reason: "repair", deletedAt: null})).toBe(0);
         expect((await fleet("vehicleDamage/scheduleRepair", {_id: dent.body._id}, admin)).body.error_code).toBe("vehicle_repair_date_required");
-    });
+    }));
 
-    it("refuses a repair window over a booking", async () => {
+    it("refuses a repair window over a booking", () => asCompany(async () => {
         await book({});
         const dent = await damage();
         const clash = await fleet("vehicleDamage/scheduleRepair", {_id: dent.body._id, serviceDate: "2027-06-10 08:00", readyAt: "2027-06-12 18:00"}, admin);
         expect(clash.body.error_code).toBe("vehicle_block_overlaps_reservation");
         expect((await VehicleDamage.findById(dent.body._id))!.status).toBe("open");
-    });
+    }));
 
-    it("keeps a transfer's or repair's block out of hand edits", async () => {
+    it("keeps a transfer's or repair's block out of hand edits", () => asCompany(async () => {
         const basel = await RentalLocation.create({
             company: companyId, name: "Basel", timezone: "Europe/Zurich",
             openingHours: [0, 1, 2, 3, 4, 5, 6].map((dayOfWeek) => ({dayOfWeek, startTime: "07:00", endTime: "22:00"})),
@@ -784,9 +784,9 @@ describe("fleet workflows", {timeout: 60000}, () => {
 
         const own = await create("vehicleBlock", {vehicle: vehicleId, startAt: "2027-05-10 08:00", endAt: "2027-05-11 08:00", reason: "other"}, admin);
         expect((await blocks("delete", {_id: own.body._id})).status).toBe(200);
-    });
+    }));
 
-    it("takes a deleted damage off its repair, and puts it back when restored", async () => {
+    it("takes a deleted damage off its repair, and puts it back when restored", () => asCompany(async () => {
         const dent = await damage();
         const scheduled = await fleet("vehicleDamage/scheduleRepair", {_id: dent.body._id, serviceDate: "2027-05-03 08:00"}, admin);
         const repairId = scheduled.body.repair._id;
@@ -801,9 +801,9 @@ describe("fleet workflows", {timeout: 60000}, () => {
         await fleet("vehicleMaintenance/cancel", {_id: repairId});
         await request(app).patch("/api/carRental/vehicleDamage/restore").set(callerHeader(admin)).send({_id: dent.body._id});
         expect(await VehicleDamage.findById(dent.body._id)).toMatchObject({status: "open", repair: undefined});
-    });
+    }));
 
-    it("credits the invoice when a fine charged after the return is annulled", async () => {
+    it("credits the invoice when a fine charged after the return is annulled", () => asCompany(async () => {
         await CarRentalConfig.updateOne({company: companyId}, {$set: {fineAdminFee: 25}});
         const {body} = await book({});
         const id = body.data.reservation._id;
@@ -827,9 +827,9 @@ describe("fleet workflows", {timeout: 60000}, () => {
         const stored = await RentalReservation.findById(id);
         expect(stored!.pricing.grandTotal).toBe(before);
         expect(stored!.invoicedLineCount).toBe(stored!.pricing.lines.length);
-    });
+    }));
 
-    it("chains a renewal to the policy it renews, once", async () => {
+    it("chains a renewal to the policy it renews, once", () => asCompany(async () => {
         const old = await VehicleInsurance.findOne({vehicle: vehicleId});
         const renewal = {vehicle: vehicleId, insurer: "Helvetia", policyNumber: "POL-NEW", coverage: "full_casco", validFrom: "2030-01-01", expiresAt: "2031-01-01", supersedes: old!._id.toString()};
         const renewed = await create("vehicleInsurance", renewal);
@@ -848,9 +848,9 @@ describe("fleet workflows", {timeout: 60000}, () => {
         expect(String((await VehicleInsurance.findById(old!._id))!.supersededBy)).toBe(renewed.body._id);
         await remove();
         expect((await create("vehicleInsurance", {...renewal, policyNumber: "POL-AGAIN"})).status).toBe(200);
-    });
+    }));
 
-    it("refuses the handover while a road paper runs out before the return, until it is renewed", async () => {
+    it("refuses the handover while a road paper runs out before the return, until it is renewed", () => asCompany(async () => {
         const {body} = await book({});
         const id = body.data.reservation._id;
         await action("saveDrivers", {_id: id, drivers: [driver]});
@@ -860,17 +860,17 @@ describe("fleet workflows", {timeout: 60000}, () => {
         await create("vehicleDocument", {vehicle: vehicleId, type: "technical_inspection", issuedAt: "2027-06-01", expiresAt: "2029-06-01", supersedes: inspection.body._id});
         const handedOver = await action("handover", {_id: id, odometerKm: 12000, fuelLevel: "full"});
         expect(handedOver.body.status).toBe("in_progress");
-    });
+    }));
 
-    it("refuses the handover of a car with no insurance to the return", async () => {
+    it("refuses the handover of a car with no insurance to the return", () => asCompany(async () => {
         await VehicleInsurance.updateMany({vehicle: vehicleId}, {$set: {expiresAt: new Date("2027-06-10T00:00:00Z")}});
         const {body} = await book({});
         await action("saveDrivers", {_id: body.data.reservation._id, drivers: [driver]});
         const refused = await action("handover", {_id: body.data.reservation._id, odometerKm: 12000, fuelLevel: "full"});
         expect(refused.body.error_code).toBe("rental_vehicle_papers_expired");
-    });
+    }));
 
-    it("names the driver to the authority and charges only the handling fee, invoiced after the return", async () => {
+    it("names the driver to the authority and charges only the handling fee, invoiced after the return", () => asCompany(async () => {
         await CarRentalConfig.updateOne({company: companyId}, {$set: {fineAdminFee: 25}});
         const {body} = await book({});
         const id = body.data.reservation._id;
@@ -889,9 +889,9 @@ describe("fleet workflows", {timeout: 60000}, () => {
         expect(stored!.pricing.lines.filter((line) => line.code === "fine" || line.code === "fine_admin").map((line) => line.total)).toEqual([25]);
         expect(await Invoice.countDocuments({sourceId: id})).toBe(invoicesBefore + 1);
         expect((await fleet("vehicleFine/recordPayment", {_id: created.body._id, paidAt: "2027-07-01", paidAmount: 120}, admin)).body.error_code).toBe("rental_fine_invalid_status");
-    });
+    }));
 
-    it("matches a fine during a transfer, and records what the company paid", async () => {
+    it("matches a fine during a transfer, and records what the company paid", () => asCompany(async () => {
         const basel = await RentalLocation.create({
             company: companyId, name: "Basel", timezone: "Europe/Zurich",
             openingHours: [0, 1, 2, 3, 4, 5, 6].map((dayOfWeek) => ({dayOfWeek, startTime: "07:00", endTime: "22:00"})),
@@ -911,5 +911,5 @@ describe("fleet workflows", {timeout: 60000}, () => {
         expect((await fleet("vehicleFine/dispute", {_id: contested.body._id}, admin)).body.status).toBe("disputed");
         expect((await fleet("vehicleFine/chargeCustomer", {_id: contested.body._id}, admin)).body.error_code).toBe("rental_fine_invalid_status");
         expect((await fleet("vehicleFine/annul", {_id: contested.body._id}, admin)).body.status).toBe("cancelled");
-    });
+    }));
 });
