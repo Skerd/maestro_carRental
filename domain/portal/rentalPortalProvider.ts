@@ -143,7 +143,9 @@ function tripOf(params: PortalBrowseParams): RentalPortalTripType | null {
         returnDate: filterValue(params.filters, "returnDate"),
         returnTime: filterValue(params.filters, "returnTime"),
     });
-    return parsed.success ? parsed.data : null;
+    // The schema is built from RentalPortalTripDef, the same def RentalPortalTripType is inferred from;
+    // buildCreateZodSchema only types its result as ZodObject<any>.
+    return parsed.success ? (parsed.data as RentalPortalTripType) : null;
 }
 
 /** The car rental section of the portal: companies by their locations' cities, their car classes, free cars for a trip. */
