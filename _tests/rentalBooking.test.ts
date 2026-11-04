@@ -14,10 +14,17 @@ vi.mock("@coreModule/utilities/middlewares/authMW", async () =>
 vi.mock("@coreModule/utilities/middlewares/rateLimiter", () => ({
     rateLimiter: () => (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
-const {originCompany} = vi.hoisted(() => ({originCompany: {current: null as unknown}}));
-vi.mock("@coreModule/utilities/marketing/resolveCompanyByOrigin", () => ({
-    resolveCompanyByOrigin: async () => originCompany.current,
-}));
+const {originCompany} = vi.hoisted(() => ({originCompany: {current: null as {_id: {toString(): string}; name?: string} | null}}));
+vi.mock("@coreModule/utilities/marketing/resolveCompanyByOrigin", async () => {
+    // Records the tenant like the real resolver (D16).
+    const {setRequestTenant} = await import("@coreModule/utilities/endpoints/tenantScope");
+    return {
+        resolveCompanyByOrigin: async () => {
+            if (originCompany.current) setRequestTenant(originCompany.current._id.toString());
+            return originCompany.current;
+        },
+    };
+});
 vi.mock("@carRentalModule/utilities/emails/sendRentalCustomerMail", () => ({sendRentalCustomerMail: vi.fn(async () => undefined)}));
 const {stripe} = vi.hoisted(() => ({
     stripe: {
