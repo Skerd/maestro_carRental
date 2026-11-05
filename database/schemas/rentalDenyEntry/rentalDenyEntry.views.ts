@@ -9,9 +9,9 @@ import {
 const API_URL = "/api/carRental/rentalDenyEntry";
 
 export const rentalDenyEntrySheetView: ViewConfig = {
-    model: "rentaldenyentrys",
+    model: "rentaldenyentries",
     viewType: "sheet",
-    accessModel: "rentaldenyentrys",
+    accessModel: "rentaldenyentries",
     apiUrl: API_URL,
     header: {
         titleField: "reason",
@@ -197,20 +197,20 @@ const rentalDenyEntryEditFormNodes: ViewConfig["nodes"] = [
 ];
 
 export const rentalDenyEntryCreateFormView: ViewConfig = {
-    model: "rentaldenyentrys",
+    model: "rentaldenyentries",
     viewType: "form",
     viewMode: "create",
-    accessModel: "rentaldenyentrys",
+    accessModel: "rentaldenyentries",
     apiUrl: API_URL,
     method: "PUT",
     nodes: rentalDenyEntryCreateFormNodes,
 };
 
 export const rentalDenyEntryEditFormView: ViewConfig = {
-    model: "rentaldenyentrys",
+    model: "rentaldenyentries",
     viewType: "form",
     viewMode: "edit",
-    accessModel: "rentaldenyentrys",
+    accessModel: "rentaldenyentries",
     apiUrl: API_URL,
     method: "PATCH",
     nodes: rentalDenyEntryEditFormNodes,

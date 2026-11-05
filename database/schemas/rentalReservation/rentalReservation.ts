@@ -422,6 +422,8 @@ const RentalReservationSchema = new Schema<IRentalReservation>(
                 },
             ],
             default: [],
+            // Licence and ID numbers and their scans: identity data (SEC-06), read through the reservation itself.
+            sensitivity: "identity",
             // Changed only through the saveDrivers action.
             permissions: NoWritePermission,
             dynamicTableConfiguration: {

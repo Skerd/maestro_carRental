@@ -58,6 +58,8 @@ import VehicleInsurance from "@carRentalModule/database/schemas/vehicleInsurance
 import VehicleDocument from "@carRentalModule/database/schemas/vehicleDocument/vehicleDocument";
 import * as plannerRoute from "@carRentalModule/api/carRental/private/rentalPlanner";
 import * as counterRoute from "@carRentalModule/api/carRental/private/rentalCounter";
+import * as denyEntryRoute from "@carRentalModule/api/carRental/private/rentalDenyEntry";
+import RentalDenyEntry from "@carRentalModule/database/schemas/rentalDenyEntry/rentalDenyEntry";
 import VehicleTransfer from "@carRentalModule/database/schemas/vehicleTransfer/vehicleTransfer";
 import VehicleFine from "@carRentalModule/database/schemas/vehicleFine/vehicleFine";
 import Invoice, {InvoiceCounter} from "@financeModule/database/schemas/invoice/invoice";
@@ -88,7 +90,7 @@ const userId = new ObjectId();
 // carRental pilots tenant-scope enforcement (D16): its routes run enforced, as in the dev profiles.
 const app = appFor([
     reservationRoute, vehicleRoute, vehicleBlockRoute, vehicleDamageRoute, vehicleFineRoute, vehicleTransferRoute, vehicleMaintenanceRoute, vehicleInsuranceRoute, vehicleDocumentRoute,
-    plannerRoute, counterRoute, storefrontRoute,
+    plannerRoute, counterRoute, storefrontRoute, denyEntryRoute,
 ].map((route) => ({...route, module: "carRental"})));
 const logger: any = {err: vi.fn(), warn: vi.fn(), debug: vi.fn(), start: vi.fn(), finish: vi.fn()};
 
@@ -501,6 +503,19 @@ describe("on the road", {timeout: 60000}, () => {
         role: "primary", firstName: "Ada", lastName: "Lovelace", birthDate: "1990-12-10",
         licenseNumber: "CH-123456", licenseCountry: "Switzerland", licenseExpiresAt: "2030-01-31",
     };
+
+    it("keeps drivers' licences out of the reservation list; the reservation's own read returns them (SEC-06)", () => asCompany(async () => {
+        const {body} = await book({});
+        const id = body.data.reservation._id;
+        await action("saveDrivers", {_id: id, drivers: [driver]});
+
+        const listed = await request(app).post("/api/carRental/rentalReservation").set(callerHeader(admin)).send({limit: 10, offset: 0});
+        expect(listed.body.data).toHaveLength(1);
+        expect(listed.body.data[0].drivers ?? []).toEqual([]); // the mapper turns a field left out into []
+
+        const opened = await request(app).post("/api/carRental/rentalReservation/single").set(callerHeader(admin)).send({_id: id});
+        expect(opened.body.drivers).toEqual([driver]);
+    }));
 
     it("hands over, extends, and takes back the car with extra charges", () => asCompany(async () => {
         const {body} = await book({});
@@ -921,5 +936,21 @@ describe("fleet workflows", {timeout: 60000}, () => {
         expect((await fleet("vehicleFine/dispute", {_id: contested.body._id}, admin)).body.status).toBe("disputed");
         expect((await fleet("vehicleFine/chargeCustomer", {_id: contested.body._id}, admin)).body.error_code).toBe("rental_fine_invalid_status");
         expect((await fleet("vehicleFine/annul", {_id: contested.body._id}, admin)).body.status).toBe("cancelled");
+    }));
+});
+
+describe("deny list", () => {
+    it("lists entries without licence numbers; an entry's own read has it (SEC-06)", () => asCompany(async () => {
+        const manager = {...admin, permissions: allPermissionTags([RentalDenyEntry])};
+        const created = await request(app).put("/api/carRental/rentalDenyEntry").set(callerHeader(manager)).send({licenseNumber: "zz-deny-1", reason: "Licence reported lost"});
+        expect(created.status).toBe(200);
+
+        const listed = await request(app).post("/api/carRental/rentalDenyEntry").set(callerHeader(manager)).send({limit: 10, offset: 0});
+        expect(listed.status).toBe(200);
+        expect(listed.body.data).toHaveLength(1);
+        expect(listed.body.data[0].licenseNumber).toBeUndefined();
+
+        const opened = await request(app).post("/api/carRental/rentalDenyEntry/single").set(callerHeader(manager)).send({_id: created.body._id});
+        expect(opened.body.licenseNumber).toBe("ZZ-DENY-1");
     }));
 });

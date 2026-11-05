@@ -26,7 +26,8 @@ export interface IRentalDenyEntry extends Document, IOwnershipPluginFields, ISof
 const RentalDenyEntrySchema = new Schema<IRentalDenyEntry>(
     {
         email: {type: SchemaTypes.String, trim: true, maxlength: RENTAL_DENY_ENTRY_EMAIL_MAX},
-        licenseNumber: {type: SchemaTypes.String, trim: true, maxlength: RENTAL_DENY_ENTRY_LICENSE_NUMBER_MAX},
+        // Identity data (SEC-06): read through the entry itself, never in the list.
+        licenseNumber: {type: SchemaTypes.String, trim: true, maxlength: RENTAL_DENY_ENTRY_LICENSE_NUMBER_MAX, sensitivity: "identity", dynamicTableConfiguration: {hideColumn: true}},
         reason: {type: SchemaTypes.String, required: true, trim: true, minlength: 1, maxlength: RENTAL_DENY_ENTRY_REASON_MAX, dynamicTableConfiguration: {hideColumn: true}},
         isActive: {type: SchemaTypes.Boolean, default: true},
     },

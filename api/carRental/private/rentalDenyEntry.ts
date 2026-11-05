@@ -34,7 +34,7 @@ function denyIdentity(
 export const basePath = "/api/carRental/rentalDenyEntry";
 
 export const {router} = createCrudRouter({
-    collectionName: "rentaldenyentrys",
+    collectionName: "rentaldenyentries",
     model: RentalDenyEntry,
     service: rentalDenyEntryService,
     entityName: "RentalDenyEntry",
