@@ -232,7 +232,7 @@ const vehicleTransferCreateFormNodes: ViewConfig["nodes"] = [
                             label: "form.departAtLabel",
                             placeholder: "form.departAtPlaceholder",
                             required: true,
-                            widgetProps: {valueFormat: "yyyy-MM-dd HH:mm"},
+                            widgetProps: {valueFormat: "YYYY-MM-DD HH:mm"},
                         },
                     },
                     {
@@ -243,7 +243,7 @@ const vehicleTransferCreateFormNodes: ViewConfig["nodes"] = [
                             label: "form.arriveAtLabel",
                             placeholder: "form.arriveAtPlaceholder",
                             required: true,
-                            widgetProps: {valueFormat: "yyyy-MM-dd HH:mm"},
+                            widgetProps: {valueFormat: "YYYY-MM-DD HH:mm"},
                         },
                     },
                 ],
@@ -398,7 +398,7 @@ const vehicleTransferEditFormNodes: ViewConfig["nodes"] = [
                             required: true,
                             widgetProps: {
                                 disabled: true,
-                                valueFormat: "yyyy-MM-dd HH:mm",
+                                valueFormat: "YYYY-MM-DD HH:mm",
                             },
                         },
                     },
@@ -413,7 +413,7 @@ const vehicleTransferEditFormNodes: ViewConfig["nodes"] = [
                             required: true,
                             widgetProps: {
                                 disabled: true,
-                                valueFormat: "yyyy-MM-dd HH:mm",
+                                valueFormat: "YYYY-MM-DD HH:mm",
                             },
                         },
                     },

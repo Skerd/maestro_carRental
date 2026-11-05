@@ -293,7 +293,7 @@ const rentalPromoCodeCreateFormNodes: ViewConfig["nodes"] = [
                     widget: "#DateInput",
                     label: "form.bookableFromLabel",
                     placeholder: "form.bookableFromPlaceholder",
-                    widgetProps: {valueFormat: "yyyy-MM-dd"},
+                    widgetProps: {valueFormat: "YYYY-MM-DD"},
                 },
             },
             {
@@ -303,7 +303,7 @@ const rentalPromoCodeCreateFormNodes: ViewConfig["nodes"] = [
                     widget: "#DateInput",
                     label: "form.bookableUntilLabel",
                     placeholder: "form.bookableUntilPlaceholder",
-                    widgetProps: {valueFormat: "yyyy-MM-dd"},
+                    widgetProps: {valueFormat: "YYYY-MM-DD"},
                 },
             },
             {
@@ -313,7 +313,7 @@ const rentalPromoCodeCreateFormNodes: ViewConfig["nodes"] = [
                     widget: "#DateInput",
                     label: "form.tripFromLabel",
                     placeholder: "form.tripFromPlaceholder",
-                    widgetProps: {valueFormat: "yyyy-MM-dd"},
+                    widgetProps: {valueFormat: "YYYY-MM-DD"},
                 },
             },
             {
@@ -323,7 +323,7 @@ const rentalPromoCodeCreateFormNodes: ViewConfig["nodes"] = [
                     widget: "#DateInput",
                     label: "form.tripUntilLabel",
                     placeholder: "form.tripUntilPlaceholder",
-                    widgetProps: {valueFormat: "yyyy-MM-dd"},
+                    widgetProps: {valueFormat: "YYYY-MM-DD"},
                 },
             },
             {
@@ -479,7 +479,7 @@ const rentalPromoCodeEditFormNodes: ViewConfig["nodes"] = [
                     widget: "#DateInput",
                     label: "form.bookableFromLabel",
                     placeholder: "form.bookableFromPlaceholder",
-                    widgetProps: {valueFormat: "yyyy-MM-dd"},
+                    widgetProps: {valueFormat: "YYYY-MM-DD"},
                 },
             },
             {
@@ -490,7 +490,7 @@ const rentalPromoCodeEditFormNodes: ViewConfig["nodes"] = [
                     widget: "#DateInput",
                     label: "form.bookableUntilLabel",
                     placeholder: "form.bookableUntilPlaceholder",
-                    widgetProps: {valueFormat: "yyyy-MM-dd"},
+                    widgetProps: {valueFormat: "YYYY-MM-DD"},
                 },
             },
             {
@@ -501,7 +501,7 @@ const rentalPromoCodeEditFormNodes: ViewConfig["nodes"] = [
                     widget: "#DateInput",
                     label: "form.tripFromLabel",
                     placeholder: "form.tripFromPlaceholder",
-                    widgetProps: {valueFormat: "yyyy-MM-dd"},
+                    widgetProps: {valueFormat: "YYYY-MM-DD"},
                 },
             },
             {
@@ -512,7 +512,7 @@ const rentalPromoCodeEditFormNodes: ViewConfig["nodes"] = [
                     widget: "#DateInput",
                     label: "form.tripUntilLabel",
                     placeholder: "form.tripUntilPlaceholder",
-                    widgetProps: {valueFormat: "yyyy-MM-dd"},
+                    widgetProps: {valueFormat: "YYYY-MM-DD"},
                 },
             },
             {

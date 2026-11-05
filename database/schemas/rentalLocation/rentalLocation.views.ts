@@ -551,7 +551,7 @@ const rentalLocationCreateFormNodes: ViewConfig["nodes"] = [
                                     widget: "#DateInput",
                                     label: "form.closureDateLabel",
                                     required: true,
-                                    widgetProps: {valueFormat: "yyyy-MM-dd"},
+                                    widgetProps: {valueFormat: "YYYY-MM-DD"},
                                 },
                             },
                             {
@@ -870,7 +870,7 @@ const rentalLocationEditFormNodes: ViewConfig["nodes"] = [
                                     widget: "#DateInput",
                                     label: "form.closureDateLabel",
                                     required: true,
-                                    widgetProps: {valueFormat: "yyyy-MM-dd"},
+                                    widgetProps: {valueFormat: "YYYY-MM-DD"},
                                 },
                             },
                             {

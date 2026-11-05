@@ -802,7 +802,7 @@ export const rentalReservationCreateFormView: ViewConfig = {
                                 widget: "#DateInput",
                                 label: "form.pickupDateLabel",
                                 required: true,
-                                widgetProps: {valueFormat: "yyyy-MM-dd"},
+                                widgetProps: {valueFormat: "YYYY-MM-DD"},
                             },
                         },
                         {
@@ -825,7 +825,7 @@ export const rentalReservationCreateFormView: ViewConfig = {
                                 widget: "#DateInput",
                                 label: "form.returnDateLabel",
                                 required: true,
-                                widgetProps: {valueFormat: "yyyy-MM-dd"},
+                                widgetProps: {valueFormat: "YYYY-MM-DD"},
                             },
                         },
                         {

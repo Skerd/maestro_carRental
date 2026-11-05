@@ -362,7 +362,7 @@ const vehicleMaintenanceCreateFormNodes: ViewConfig["nodes"] = [
                             label: "form.serviceDateLabel",
                             placeholder: "form.serviceDatePlaceholder",
                             required: true,
-                            widgetProps: {valueFormat: "yyyy-MM-dd"},
+                            widgetProps: {valueFormat: "YYYY-MM-DD"},
                         },
                     },
                     {
@@ -393,7 +393,7 @@ const vehicleMaintenanceCreateFormNodes: ViewConfig["nodes"] = [
                                     label: "form.readyAtLabel",
                                     placeholder: "form.readyAtPlaceholder",
                                     widgetProps: {
-                                        valueFormat: "yyyy-MM-dd HH:mm",
+                                        valueFormat: "YYYY-MM-DD HH:mm",
                                     },
                                 },
                             },
@@ -428,7 +428,7 @@ const vehicleMaintenanceCreateFormNodes: ViewConfig["nodes"] = [
                             widget: "#DateInput",
                             label: "form.nextDueAtLabel",
                             placeholder: "form.nextDueAtPlaceholder",
-                            widgetProps: {valueFormat: "yyyy-MM-dd"},
+                            widgetProps: {valueFormat: "YYYY-MM-DD"},
                         },
                     },
                     {
@@ -567,7 +567,7 @@ const vehicleMaintenanceEditFormNodes: ViewConfig["nodes"] = [
                             label: "form.serviceDateLabel",
                             placeholder: "form.serviceDatePlaceholder",
                             required: true,
-                            widgetProps: {valueFormat: "yyyy-MM-dd"},
+                            widgetProps: {valueFormat: "YYYY-MM-DD"},
                         },
                     },
                     {
@@ -616,7 +616,7 @@ const vehicleMaintenanceEditFormNodes: ViewConfig["nodes"] = [
                             widget: "#DateInput",
                             label: "form.nextDueAtLabel",
                             placeholder: "form.nextDueAtPlaceholder",
-                            widgetProps: {valueFormat: "yyyy-MM-dd"},
+                            widgetProps: {valueFormat: "YYYY-MM-DD"},
                         },
                     },
                     {

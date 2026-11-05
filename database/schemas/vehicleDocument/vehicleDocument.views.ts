@@ -324,7 +324,7 @@ const vehicleDocumentCreateFormNodes: ViewConfig["nodes"] = [
                             widget: "#DateInput",
                             label: "form.issuedAtLabel",
                             placeholder: "form.issuedAtPlaceholder",
-                            widgetProps: {valueFormat: "yyyy-MM-dd"},
+                            widgetProps: {valueFormat: "YYYY-MM-DD"},
                         },
                     },
                     {
@@ -334,7 +334,7 @@ const vehicleDocumentCreateFormNodes: ViewConfig["nodes"] = [
                             widget: "#DateInput",
                             label: "form.expiresAtLabel",
                             placeholder: "form.expiresAtPlaceholder",
-                            widgetProps: {valueFormat: "yyyy-MM-dd"},
+                            widgetProps: {valueFormat: "YYYY-MM-DD"},
                         },
                     },
                     {
@@ -493,7 +493,7 @@ const vehicleDocumentEditFormNodes: ViewConfig["nodes"] = [
                             widget: "#DateInput",
                             label: "form.issuedAtLabel",
                             placeholder: "form.issuedAtPlaceholder",
-                            widgetProps: {valueFormat: "yyyy-MM-dd"},
+                            widgetProps: {valueFormat: "YYYY-MM-DD"},
                         },
                     },
                     {
@@ -504,7 +504,7 @@ const vehicleDocumentEditFormNodes: ViewConfig["nodes"] = [
                             widget: "#DateInput",
                             label: "form.expiresAtLabel",
                             placeholder: "form.expiresAtPlaceholder",
-                            widgetProps: {valueFormat: "yyyy-MM-dd"},
+                            widgetProps: {valueFormat: "YYYY-MM-DD"},
                         },
                     },
                     {

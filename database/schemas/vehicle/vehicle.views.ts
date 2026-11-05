@@ -536,7 +536,7 @@ const vehicleCreateFormNodes: ViewConfig["nodes"] = [
                             widget: "#DateInput",
                             label: "form.acquiredAtLabel",
                             placeholder: "form.acquiredAtPlaceholder",
-                            widgetProps: {valueFormat: "yyyy-MM-dd"},
+                            widgetProps: {valueFormat: "YYYY-MM-DD"},
                         },
                     },
                     {
@@ -814,7 +814,7 @@ const vehicleEditFormNodes: ViewConfig["nodes"] = [
                             widget: "#DateInput",
                             label: "form.acquiredAtLabel",
                             placeholder: "form.acquiredAtPlaceholder",
-                            widgetProps: {valueFormat: "yyyy-MM-dd"},
+                            widgetProps: {valueFormat: "YYYY-MM-DD"},
                         },
                     },
                     {

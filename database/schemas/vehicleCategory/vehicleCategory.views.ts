@@ -699,7 +699,7 @@ const vehicleCategoryCreateFormNodes: ViewConfig["nodes"] = [
                                             label: "form.seasonStartLabel",
                                             required: true,
                                             widgetProps: {
-                                                valueFormat: "yyyy-MM-dd",
+                                                valueFormat: "YYYY-MM-DD",
                                             },
                                         },
                                     },
@@ -711,7 +711,7 @@ const vehicleCategoryCreateFormNodes: ViewConfig["nodes"] = [
                                             label: "form.seasonEndLabel",
                                             required: true,
                                             widgetProps: {
-                                                valueFormat: "yyyy-MM-dd",
+                                                valueFormat: "YYYY-MM-DD",
                                             },
                                         },
                                     },
@@ -1148,7 +1148,7 @@ const vehicleCategoryEditFormNodes: ViewConfig["nodes"] = [
                                             label: "form.seasonStartLabel",
                                             required: true,
                                             widgetProps: {
-                                                valueFormat: "yyyy-MM-dd",
+                                                valueFormat: "YYYY-MM-DD",
                                             },
                                         },
                                     },
@@ -1160,7 +1160,7 @@ const vehicleCategoryEditFormNodes: ViewConfig["nodes"] = [
                                             label: "form.seasonEndLabel",
                                             required: true,
                                             widgetProps: {
-                                                valueFormat: "yyyy-MM-dd",
+                                                valueFormat: "YYYY-MM-DD",
                                             },
                                         },
                                     },
