@@ -1,4 +1,5 @@
-import {roundMoney} from "@coreModule/utilities/helpers/money";
+import {addMoney, multiplyMoney, percentOfMoney, roundToCurrency, subtractMoney} from "armonia/src/modules/core/helpers/money";
+import {invoiceTotals} from "@financeModule/database/schemas/invoice/invoice.service";
 import {localDateOf} from "@coreModule/utilities/time/timeWindows";
 import type {
     RentalPriceLineCode,
@@ -110,7 +111,7 @@ function rateLines(label: string, rates: number[]): QuoteLine[] {
         kind: "rental",
         quantity,
         unitPrice,
-        total: roundMoney(unitPrice * quantity),
+        total: multiplyMoney(unitPrice, quantity),
     }));
 }
 
@@ -154,13 +155,11 @@ export function computeRentalQuote(input: {
     if (category.weeklyRate !== undefined && rentalDays >= 7) {
         const weeks = Math.floor(rentalDays / 7);
         const remainder = dayRates.slice(weeks * 7);
-        const weeklyTotal = roundMoney(
-            weeks * category.weeklyRate +
-                remainder.reduce((sum, rate) => sum + rate, 0),
+        const weeklyTotal = addMoney(
+            multiplyMoney(category.weeklyRate, weeks),
+            ...remainder,
         );
-        const dailyTotal = roundMoney(
-            dayRates.reduce((sum, rate) => sum + rate, 0),
-        );
+        const dailyTotal = addMoney(...dayRates);
         if (weeklyTotal < dailyTotal) {
             lines = [
                 {
@@ -168,7 +167,7 @@ export function computeRentalQuote(input: {
                     kind: "rental",
                     quantity: weeks,
                     unitPrice: category.weeklyRate,
-                    total: roundMoney(weeks * category.weeklyRate),
+                    total: multiplyMoney(category.weeklyRate, weeks),
                 },
                 ...rateLines(category.name, remainder),
             ];
@@ -185,7 +184,7 @@ export function computeRentalQuote(input: {
             kind: "extra",
             quantity,
             unitPrice: extra.price,
-            total: roundMoney(extra.price * quantity),
+            total: multiplyMoney(extra.price, quantity),
         });
     }
     const discount = input.discount
@@ -216,7 +215,7 @@ export function feeLines(fees: QuoteFee[], rentalDays: number): QuoteLine[] {
                 code: fee.code,
                 quantity,
                 unitPrice: fee.amount,
-                total: roundMoney(fee.amount * quantity),
+                total: multiplyMoney(fee.amount, quantity),
             };
         });
 }
@@ -226,24 +225,18 @@ function discountLine(
     discount: QuoteDiscount,
     lines: QuoteLine[],
 ): QuoteLine | null {
-    const rental = roundMoney(
-        lines
-            .filter((line) => line.kind === "rental")
-            .reduce((sum, line) => sum + line.total, 0),
+    const rental = addMoney(
+        ...lines.filter((line) => line.kind === "rental").map((line) => line.total),
     );
-    const already = roundMoney(
-        lines
-            .filter((line) => line.kind === "discount")
-            .reduce((sum, line) => sum + Math.abs(line.total), 0),
+    const already = addMoney(
+        ...lines.filter((line) => line.kind === "discount").map((line) => Math.abs(line.total)),
     );
-    const base = roundMoney(Math.max(0, rental - already));
-    const amount = roundMoney(
-        Math.min(
-            base,
-            discount.type === "percent"
-                ? (base * discount.value) / 100
-                : discount.value,
-        ),
+    const base = Math.max(0, subtractMoney(rental, already));
+    const amount = Math.min(
+        base,
+        discount.type === "percent"
+            ? percentOfMoney(base, discount.value)
+            : roundToCurrency(discount.value),
     );
     if (amount <= 0) return null;
     return {
@@ -281,15 +274,7 @@ export function totalsFor(
     vatRate: number,
     pricesIncludeVat: boolean,
 ): {subtotal: number; vatAmount: number; grandTotal: number} {
-    const subtotal = roundMoney(
-        lines.reduce((sum, line) => sum + line.total, 0),
-    );
-    const rate = vatRate / 100;
-    const vatAmount = pricesIncludeVat
-        ? roundMoney(subtotal - subtotal / (1 + rate))
-        : roundMoney(subtotal * rate);
-    const grandTotal = pricesIncludeVat
-        ? subtotal
-        : roundMoney(subtotal + vatAmount);
-    return {subtotal, vatAmount, grandTotal};
+    // The invoice's rule (D35), so a booking's total and its invoice can never differ.
+    const {subtotal, vatAmount, total} = invoiceTotals(lines, vatRate, pricesIncludeVat);
+    return {subtotal, vatAmount, grandTotal: total};
 }

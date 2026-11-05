@@ -2,7 +2,7 @@ import type {ClientSession} from "mongoose";
 import type {ObjectId} from "mongodb";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import type {serverLogger} from "@coreModule/loggers/serverLog";
-import {roundMoney} from "@coreModule/utilities/helpers/money";
+import {addMoney, roundToCurrency} from "armonia/src/modules/core/helpers/money";
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import PaymentTransaction from "@financeModule/database/schemas/paymentTransaction/paymentTransaction";
 import {paymentTransactionService} from "@financeModule/database/schemas/paymentTransaction/paymentTransaction.service";
@@ -45,7 +45,7 @@ async function recordCardCharge(reservation: IRentalReservation, intentId: strin
         ctx,
     );
     await paymentTransactionService.markSucceeded(intentId, undefined, ctx);
-    reservation.amountPaid = roundMoney(reservation.amountPaid + amount);
+    reservation.amountPaid = addMoney(reservation.amountPaid, amount);
     reservation.paymentStatus = paymentStatusFor(reservation, false);
 }
 
@@ -62,7 +62,7 @@ export async function takeDeposit(
     if (reservation.deposit && reservation.deposit.status !== "failed") {
         throw apiValidationException("rental_deposit_already_taken", "", null, ctx.languageCode);
     }
-    const amount = roundMoney(input.amount ?? reservation.pricing.depositAmount);
+    const amount = roundToCurrency(input.amount ?? reservation.pricing.depositAmount);
     if (amount <= 0) throw apiValidationException("rental_deposit_amount_required", "", null, ctx.languageCode);
     const now = input.now ?? new Date();
 
@@ -142,7 +142,7 @@ export async function refreshDeposit(reservation: IRentalReservation, ctx: Ctx):
 export async function settleDeposit(reservation: IRentalReservation, keepAmount: number, input: {by?: ObjectId; now?: Date}, ctx: Ctx): Promise<void> {
     const deposit = reservation.deposit;
     if (!deposit || deposit.status !== "held") throw apiValidationException("rental_deposit_not_held", "", null, ctx.languageCode);
-    const keep = roundMoney(keepAmount);
+    const keep = roundToCurrency(keepAmount);
     if (keep > deposit.amount + 0.005) throw apiValidationException("rental_deposit_keep_too_high", "", null, ctx.languageCode, [String(deposit.amount)]);
     if (keep > amountDue(reservation) + 0.005) {
         throw apiValidationException("rental_payment_exceeds_due", "", null, ctx.languageCode, [String(amountDue(reservation))]);

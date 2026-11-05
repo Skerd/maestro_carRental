@@ -3,7 +3,7 @@ import {
     localDayInterval,
     type TimeInterval,
 } from "@coreModule/utilities/time/timeWindows";
-import {roundMoney} from "@coreModule/utilities/helpers/money";
+import {addMoney, roundToCurrency} from "armonia/src/modules/core/helpers/money";
 import type {
     RentalReportGroup,
     RentalReportVehicle,
@@ -35,8 +35,14 @@ export function overlapHours(
     return to > from ? (to.getTime() - from.getTime()) / HOUR : 0;
 }
 
+/** Hours, days and ratios are not money: plain rounding for display. */
+function roundTo(value: number, places: number): number {
+    const factor = 10 ** places;
+    return Math.round(value * factor) / factor;
+}
+
 function rate(part: number, whole: number): number {
-    return whole > 0 ? roundMoney((part / whole) * 100) / 100 : 0;
+    return whole > 0 ? roundTo(part / whole, 4) : 0;
 }
 
 function groupOf(
@@ -54,7 +60,7 @@ function groupOf(
         };
         current.rented += row.rented;
         current.available += row.available;
-        current.revenue = roundMoney(current.revenue + row.revenue);
+        current.revenue = addMoney(current.revenue, row.revenue);
         byName.set(row.name, current);
     }
     return [...byName.entries()].map(([name, row]) => ({
@@ -176,7 +182,7 @@ export async function buildRentalReport(
             const id = String(row.vehicle);
             totals.set(
                 id,
-                roundMoney((totals.get(id) ?? 0) + (row.amount ?? 0)),
+                addMoney(totals.get(id) ?? 0, row.amount ?? 0),
             );
         }
         return totals;
@@ -249,9 +255,9 @@ export async function buildRentalReport(
             const amount = reservation.pricing.grandTotal;
             revenue.set(
                 vehicleId,
-                roundMoney((revenue.get(vehicleId) ?? 0) + amount),
+                addMoney(revenue.get(vehicleId) ?? 0, amount),
             );
-            revenueTotal = roundMoney(revenueTotal + amount);
+            revenueTotal = addMoney(revenueTotal, amount);
             rentedDays += Math.max(
                 1,
                 (reservation.returnAt.getTime() -
@@ -272,8 +278,8 @@ export async function buildRentalReport(
             plate: vehicle.plate,
             categoryName: categoryName.get(String(vehicle.category)) ?? "",
             branchName: locationName.get(String(vehicle.homeLocation)) ?? "",
-            rentedHours: roundMoney(rented),
-            availableHours: roundMoney(available),
+            rentedHours: roundTo(rented, 2),
+            availableHours: roundTo(available, 2),
             utilisation: rate(rented, available),
             revenue: earned,
             maintenanceCost: maintenanceCost.get(id) ?? 0,
@@ -306,12 +312,12 @@ export async function buildRentalReport(
             utilisation: rate(rentedTotal, availableHours),
             revenue: revenueTotal,
             averageDailyRate:
-                rentedDays > 0 ? roundMoney(revenueTotal / rentedDays) : 0,
+                rentedDays > 0 ? roundToCurrency(revenueTotal / rentedDays) : 0,
             revenuePerAvailableCarDay:
                 availableCarDays > 0
-                    ? roundMoney(revenueTotal / availableCarDays)
+                    ? roundToCurrency(revenueTotal / availableCarDays)
                     : 0,
-            leadTimeDays: leadCount > 0 ? roundMoney(leadTotal / leadCount) : 0,
+            leadTimeDays: leadCount > 0 ? roundTo(leadTotal / leadCount, 2) : 0,
             cancellationRate: rate(cancelled, decided),
             noShowRate: rate(noShow, decided),
             searches: stats.reduce((sum, row) => sum + row.searches, 0),

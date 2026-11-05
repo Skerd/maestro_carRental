@@ -1,4 +1,4 @@
-import {roundMoney} from "@coreModule/utilities/helpers/money";
+import {multiplyMoney} from "armonia/src/modules/core/helpers/money";
 import {RENTAL_FUEL_LEVELS, type RentalPriceLineCode} from "armonia/src/modules/carRental/api/carRental/private/rentalReservation/rentalReservation.constants";
 import type {ICarRentalConfig} from "@carRentalModule/database/schemas/carRentalConfig/carRentalConfig";
 import type {IRentalReservation} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation";
@@ -30,13 +30,13 @@ export function suggestReturnCharges(
     if (handover && snapshot.mileagePolicy === "limited" && snapshot.includedKmPerDay && snapshot.extraKmPrice) {
         const over = reading.odometerKm - handover.odometerKm - snapshot.includedKmPerDay * pricing.rentalDays;
         if (over > 0) {
-            suggested.push({code: "extra_km", label: rentalPricingLabel(languageCode, "extraKm", {km: String(over)}), amount: roundMoney(over * snapshot.extraKmPrice)});
+            suggested.push({code: "extra_km", label: rentalPricingLabel(languageCode, "extraKm", {km: String(over)}), amount: multiplyMoney(snapshot.extraKmPrice, over)});
         }
     }
 
     const quarters = handover ? RENTAL_FUEL_LEVELS.indexOf(handover.fuelLevel) - RENTAL_FUEL_LEVELS.indexOf(reading.fuelLevel) : 0;
     if (quarters > 0 && settings.fuelPricePerQuarter) {
-        suggested.push({code: "fuel", label: rentalPricingLabel(languageCode, "fuel", {quarters: String(quarters)}), amount: roundMoney(quarters * settings.fuelPricePerQuarter)});
+        suggested.push({code: "fuel", label: rentalPricingLabel(languageCode, "fuel", {quarters: String(quarters)}), amount: multiplyMoney(settings.fuelPricePerQuarter, quarters)});
         if (settings.refuelServiceFee) {
             suggested.push({code: "refuel_service", label: rentalPricingLabel(languageCode, "refuelService"), amount: settings.refuelServiceFee});
         }
@@ -45,8 +45,8 @@ export function suggestReturnCharges(
     const lateMinutes = (reading.returnedAt.getTime() - reservation.returnAt.getTime()) / MINUTE - settings.lateGraceMinutes;
     if (lateMinutes > 0 && settings.lateFeePerHour) {
         const hours = Math.ceil(lateMinutes / 60);
-        const cap = dailyRate ? Math.ceil(hours / 24) * dailyRate : Infinity;
-        suggested.push({code: "late_return", label: rentalPricingLabel(languageCode, "lateReturn", {hours: String(hours)}), amount: roundMoney(Math.min(hours * settings.lateFeePerHour, cap))});
+        const cap = dailyRate ? multiplyMoney(dailyRate, Math.ceil(hours / 24)) : Infinity;
+        suggested.push({code: "late_return", label: rentalPricingLabel(languageCode, "lateReturn", {hours: String(hours)}), amount: Math.min(multiplyMoney(settings.lateFeePerHour, hours), cap)});
     }
 
     const presets: ReturnCharge[] = [];

@@ -2,7 +2,7 @@ import type {ObjectId} from "mongodb";
 import type {ClientSession} from "mongoose";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import type {serverLogger} from "@coreModule/loggers/serverLog";
-import {roundMoney} from "@coreModule/utilities/helpers/money";
+import {addMoney, roundToCurrency, subtractMoney} from "armonia/src/modules/core/helpers/money";
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import Currency from "@coreModule/database/schemas/currency/currency";
 import {paymentTransactionService} from "@financeModule/database/schemas/paymentTransaction/paymentTransaction.service";
@@ -25,9 +25,7 @@ type Ctx = {
 export function amountDue(
     reservation: Pick<IRentalReservation, "pricing" | "amountPaid">,
 ): number {
-    return roundMoney(
-        Math.max(0, reservation.pricing.grandTotal - reservation.amountPaid),
-    );
+    return Math.max(0, subtractMoney(reservation.pricing.grandTotal, reservation.amountPaid));
 }
 
 /** Payment status that follows from what was paid and refunded; never set it any other way. */
@@ -194,12 +192,12 @@ export async function recordCounterPayment(
         note,
         ctx,
     );
-    reservation.amountPaid = roundMoney(reservation.amountPaid + amount);
+    reservation.amountPaid = addMoney(reservation.amountPaid, amount);
     reservation.paymentStatus = paymentStatusFor(reservation, false);
     reservation.timeline.push({
         event: "payment_received",
         at: now,
-        note: note ?? `manual ${roundMoney(amount)}`,
+        note: note ?? `manual ${roundToCurrency(amount)}`,
     });
 }
 
@@ -225,7 +223,7 @@ export async function refundRentalPayments(
         ctx,
     );
     if (refunded > 0) {
-        reservation.amountPaid = roundMoney(reservation.amountPaid - refunded);
+        reservation.amountPaid = subtractMoney(reservation.amountPaid, refunded);
         reservation.paymentStatus = paymentStatusFor(reservation, true);
         reservation.timeline.push({
             event: "refunded",

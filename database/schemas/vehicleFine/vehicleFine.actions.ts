@@ -17,6 +17,7 @@ import {addReservationCharges, removeReservationCharges} from "@carRentalModule/
 import {chargeSavedCard} from "@carRentalModule/utilities/services/rentalDeposit";
 import {matchFine} from "@carRentalModule/utilities/services/rentalFines";
 import {rentalPricingLabel} from "@carRentalModule/utilities/services/rentalPricingLabels";
+import {addMoney} from "armonia/src/modules/core/helpers/money";
 
 type ActionParams<F> = TransactionRequiredParams & F;
 type FineStatus = IVehicleFine["status"];
@@ -49,7 +50,7 @@ async function chargeBooking(
 ): Promise<void> {
     const {session, languageCode} = params;
     const ctx = {session, logger: params.logger, languageCode, auditUserId: params.actionUserCtx.userId};
-    const total = charges.reduce((sum, charge) => sum + charge.amount, 0);
+    const total = addMoney(...charges.map((charge) => charge.amount));
     await addReservationCharges(reservation, charges, {by: new ObjectId(params.actionUserCtx.userId)}, ctx);
     if (await chargeSavedCard(reservation, total, ctx)) await reservation.save({session});
     fine.chargedAmount = total;

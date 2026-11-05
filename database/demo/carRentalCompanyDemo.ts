@@ -22,7 +22,7 @@ import {
 } from "@coreModule/database/demo/demoMedia";
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import {runInTransaction} from "@coreModule/utilities/middlewares/runInTransaction";
-import {roundMoney} from "@coreModule/utilities/helpers/money";
+import {multiplyMoney, subtractMoney} from "armonia/src/modules/core/helpers/money";
 import {
     addLocalDays,
     localDateOf,
@@ -504,8 +504,9 @@ async function playOutcome(
     by: ObjectId,
 ): Promise<void> {
     const pay = async (share: number, when: Date) => {
-        const amount = roundMoney(
-            reservation.pricing.grandTotal * share - reservation.amountPaid,
+        const amount = subtractMoney(
+            multiplyMoney(reservation.pricing.grandTotal, share),
+            reservation.amountPaid,
         );
         if (amount > 0)
             await recordCounterPayment(

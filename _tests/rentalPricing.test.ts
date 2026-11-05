@@ -346,3 +346,30 @@ describe("overlapHours", () => {
         ).toBe(0);
     });
 });
+
+describe("quote money (D35)", () => {
+    it("adds VAT exactly once, where float math was a cent short", () => {
+        const quote = computeRentalQuote({
+            category: {...category, dailyRate: 35},
+            extras: [],
+            pickupAt: at("2026-06-01T10:00:00Z"),
+            returnAt: at("2026-06-04T10:00:00Z"),
+            timeZone: "Europe/Zurich",
+            settings: {vatRate: 7.7, pricesIncludeVat: false, lateGraceMinutes: 59},
+        });
+        // 105.00 + 7.7 % = 105.00 + 8.085
+        expect(quote).toMatchObject({rentalDays: 3, subtotal: 105, vatAmount: 8.09, grandTotal: 113.09});
+    });
+
+    it("sums extras without float drift", () => {
+        const quote = computeRentalQuote({
+            category: {...category, dailyRate: 0.1},
+            extras: [{name: "Seat", price: 0.2, pricing: "per_rental", quantity: 1}],
+            pickupAt: at("2026-06-01T10:00:00Z"),
+            returnAt: at("2026-06-02T10:00:00Z"),
+            timeZone: "Europe/Zurich",
+            settings,
+        });
+        expect(quote.grandTotal).toBe(0.3);
+    });
+});

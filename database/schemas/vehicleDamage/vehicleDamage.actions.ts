@@ -1,7 +1,7 @@
 import {ObjectId} from "mongodb";
 import {action} from "@coreModule/api/actionDecorator";
 import type {TransactionRequiredParams} from "@coreModule/utilities/middlewares/transactionUtils";
-import {roundMoney} from "@coreModule/utilities/helpers/money";
+import {addMoney, roundToCurrency, subtractMoney} from "armonia/src/modules/core/helpers/money";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import {chargeVehicleDamageFormSchema} from "armonia/src/modules/carRental/api/carRental/private/vehicleDamage/chargeVehicleDamage.form.validator";
 import {scheduleVehicleDamageRepairFormSchema} from "armonia/src/modules/carRental/api/carRental/private/vehicleDamage/scheduleVehicleDamageRepair.form.validator";
@@ -104,10 +104,10 @@ export class VehicleDamageActions {
             _id: {$in: reservation.extras.map((line) => nestedEntityToRef(line.extra))},
             kind: "protection",
         }).select("excessAmount").session(session);
-        let amount = roundMoney(params.amount);
+        let amount = roundToCurrency(params.amount);
         if (protection?.excessAmount !== undefined) {
-            const charged = reservation.pricing.lines.filter((line) => line.code === "damage").reduce((sum, line) => sum + line.total, 0);
-            amount = roundMoney(Math.min(amount, Math.max(0, protection.excessAmount - charged)));
+            const charged = addMoney(...reservation.pricing.lines.filter((line) => line.code === "damage").map((line) => line.total));
+            amount = Math.min(amount, Math.max(0, subtractMoney(protection.excessAmount, charged)));
             if (amount <= 0) throw apiValidationException("vehicle_damage_excess_reached", "", null, languageCode);
         }
 

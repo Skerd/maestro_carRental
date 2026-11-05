@@ -2,7 +2,7 @@ import type {ClientSession} from "mongoose";
 import {ObjectId} from "mongodb";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import type {serverLogger} from "@coreModule/loggers/serverLog";
-import {roundMoney} from "@coreModule/utilities/helpers/money";
+import {addMoney, percentOfMoney, roundToCurrency, subtractMoney} from "armonia/src/modules/core/helpers/money";
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import {runAfterCommit} from "@coreModule/utilities/middlewares/transactionUtils";
 import {getPaymentAdapter} from "@financeModule/utilities/services/payment/paymentService";
@@ -92,10 +92,9 @@ export function cancellationFeeFor(
     now: Date,
 ): number {
     if (now < freeCancellationUntil(reservation)) return 0;
-    return roundMoney(
-        (reservation.pricing.grandTotal *
-            reservation.policy.cancellationFeePercent) /
-            100,
+    return percentOfMoney(
+        reservation.pricing.grandTotal,
+        reservation.policy.cancellationFeePercent,
     );
 }
 
@@ -148,7 +147,7 @@ export async function cancelRentalReservation(
     await releasePromoCode(reservation, ctx.session);
     const refunded = await refundRentalPayments(
         reservation,
-        roundMoney(reservation.amountPaid - fee),
+        subtractMoney(reservation.amountPaid, fee),
         input.reason ?? "cancelled",
         ctx,
     );
@@ -308,7 +307,7 @@ export async function returnRentalReservation(
     await recordReturnDamages(reservation, newDamages, {companyId, now}, ctx);
 
     for (const charge of input.extraCharges ?? []) {
-        const amount = roundMoney(charge.amount);
+        const amount = roundToCurrency(charge.amount);
         reservation.pricing.lines.push({
             label: charge.label,
             kind: "charge",
@@ -440,7 +439,7 @@ export async function settleRentalPayment(
         return;
     }
 
-    reservation.amountPaid = roundMoney(reservation.amountPaid + due);
+    reservation.amountPaid = addMoney(reservation.amountPaid, due);
     reservation.paymentStatus = paymentStatusFor(reservation, false);
     reservation.timeline.push({event: "payment_received", at: now});
 
@@ -529,7 +528,7 @@ export async function addReservationCharges(
     assertStatus(reservation, ["in_progress", "completed"], ctx.languageCode);
     const notes: string[] = [];
     for (const charge of charges) {
-        const amount = roundMoney(charge.amount);
+        const amount = roundToCurrency(charge.amount);
         reservation.pricing.lines.push({
             label: charge.label,
             kind: "charge",
@@ -619,7 +618,7 @@ export async function removeReservationCharges(
         await creditInvoicedLines(reservation, credited, ctx);
         reservation.invoicedLineCount = lines.length;
     }
-    const overpaid = roundMoney(reservation.amountPaid - reservation.pricing.grandTotal);
+    const overpaid = subtractMoney(reservation.amountPaid, reservation.pricing.grandTotal);
     if (overpaid > 0) await refundRentalPayments(reservation, overpaid, input.reason, ctx);
     else reservation.paymentStatus = paymentStatusFor(reservation, false);
     await reservation.save({session: ctx.session});
@@ -734,9 +733,7 @@ export async function extendRentalReservation(
         });
     const longer = quoteFor(newReturnAt);
     const original = quoteFor(reservation.returnAt);
-    const extension = roundMoney(
-        Math.max(0, longer.subtotal - original.subtotal),
-    );
+    const extension = Math.max(0, subtractMoney(longer.subtotal, original.subtotal));
     if (extension > 0) {
         reservation.pricing.lines.push({
             label: category.name,
