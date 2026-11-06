@@ -3,6 +3,8 @@ import type {Decimal128} from "mongodb";
 import {ICurrency} from "@coreModule/database/schemas/currency/currency";
 import {IUser} from "@coreModule/database/schemas/user/user";
 import {normalizeSchemaPermissions} from "@coreModule/database/utilities";
+import {validateSchemaDefAgainstMongoose} from "@coreModule/database/utilities/validateSchemaDefAgainstMongoose";
+import {RentalReservationSchemaDef} from "armonia/src/modules/carRental/api/carRental/private/rentalReservation/rentalReservation.schema-def";
 import ownershipPlugin from "@coreModule/database/plugins/ownershipPlugin";
 import auditPlugin from "@coreModule/database/plugins/auditPlugin";
 import softDeletePlugin from "@coreModule/database/plugins/softDeletePlugin";
@@ -86,9 +88,9 @@ export type IRentalReservationExtra = {
     extra: IRentalExtra | Types.ObjectId;
     name: string;
     pricing: RentalExtraPricing;
-    unitPrice: number;
+    unitPrice: Decimal128;
     quantity: number;
-    total: number;
+    total: Decimal128;
 };
 
 export type IRentalReservationSnapshot = {
@@ -120,8 +122,8 @@ export type IRentalVehicleCheck = {
 export type IRentalDeposit = {
     method: (typeof RENTAL_DEPOSIT_METHODS)[number];
     status: (typeof RENTAL_DEPOSIT_STATUSES)[number];
-    amount: number;
-    capturedAmount: number;
+    amount: Decimal128;
+    capturedAmount: Decimal128;
     intentId?: string;
     setupIntentId?: string;
     stripeCustomerId?: string;
@@ -193,7 +195,7 @@ export interface IRentalReservation
     };
     paymentChoice: RentalPaymentChoice;
     paymentStatus: RentalPaymentStatus;
-    amountPaid: number;
+    amountPaid: Decimal128;
     stripePaymentIntentId?: string;
     /** Later online payments (the balance, an extension). The first intent stays in `stripePaymentIntentId`. */
     balanceIntentIds: string[];
@@ -268,8 +270,8 @@ const RentalReservationSchema = new Schema<IRentalReservation>(
             type: SchemaTypes.String,
             enum: RENTAL_RESERVATION_STATUSES,
             required: true,
-            // Writable by permission only so roles can be granted the lifecycle actions
-            // (they gate on write:status); the CRUD edit route itself changes nothing.
+            // Changed only by the lifecycle actions (each has its own action permission, D14);
+            // the CRUD edit route itself changes nothing.
             dynamicTableConfiguration: {
                 enumTones: {
                     held: "warning",
@@ -449,9 +451,9 @@ const RentalReservationSchema = new Schema<IRentalReservation>(
                         enum: RENTAL_EXTRA_PRICINGS,
                         required: true,
                     },
-                    unitPrice: {type: SchemaTypes.Number, required: true},
+                    unitPrice: {type: SchemaTypes.Decimal128, required: true},
                     quantity: {type: SchemaTypes.Number, required: true},
-                    total: {type: SchemaTypes.Number, required: true},
+                    total: {type: SchemaTypes.Decimal128, required: true},
                 },
             ],
             default: [],
@@ -587,8 +589,8 @@ const RentalReservationSchema = new Schema<IRentalReservation>(
                 },
             },
         },
-        // Writable by permission only: recording a payment gates on write:amountPaid.
-        amountPaid: {type: SchemaTypes.Number, default: 0},
+        // Changed only by the payment actions (D14 action permissions).
+        amountPaid: {type: SchemaTypes.Decimal128, default: 0},
         stripePaymentIntentId: {
             type: SchemaTypes.String,
             permissions: NoWritePermission,
@@ -646,8 +648,8 @@ const RentalReservationSchema = new Schema<IRentalReservation>(
                     enum: RENTAL_DEPOSIT_STATUSES,
                     required: true,
                 },
-                amount: {type: SchemaTypes.Number, required: true, min: 0},
-                capturedAmount: {type: SchemaTypes.Number, default: 0},
+                amount: {type: SchemaTypes.Decimal128, required: true},
+                capturedAmount: {type: SchemaTypes.Decimal128, default: 0},
                 intentId: {type: SchemaTypes.String},
                 setupIntentId: {type: SchemaTypes.String},
                 stripeCustomerId: {type: SchemaTypes.String},
@@ -770,3 +772,7 @@ normalizeSchemaPermissions(RentalReservation);
 export default RentalReservation;
 
 addModelData(RentalReservation, rentalReservationViews);
+// Server-owned: computed from the request (times, prices, snapshot, policy) or moved by the actions.
+validateSchemaDefAgainstMongoose(RentalReservationSchema, RentalReservationSchemaDef, "RentalReservation", [
+    "status", "pickupAt", "returnAt", "blockedUntil", "pricing", "snapshot", "policy", "paymentStatus",
+]);

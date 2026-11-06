@@ -9,6 +9,7 @@ import {apiValidationException} from "armonia/src/modules/core/helpers/exception
 import RentalReservation from "@carRentalModule/database/schemas/rentalReservation/rentalReservation";
 import {generateRentalAgreementPdf} from "@carRentalModule/utilities/pdf/rentalAgreementPdf";
 
+import {rentalReservationService} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation.service";
 export const basePath = "/api/carRental/rentalAgreementPdf";
 export const router = Router();
 
@@ -22,7 +23,7 @@ router.get(
         const readFields = SchemaGuard.sanitizeFields(RentalReservation, getModelCollectedData("rentalreservations").readFields!, "read", actionUserCtx, languageCode);
         if (!readFields.pricing || !readFields.drivers) throw apiValidationException("user_permissions_not_sufficient", "", null, languageCode);
         const reservation = ObjectId.isValid(queryParams.reservationId)
-            ? await RentalReservation.findOne({_id: new ObjectId(queryParams.reservationId), company: company._id, deletedAt: null})
+            ? await rentalReservationService.findOne({_id: new ObjectId(queryParams.reservationId), company: company._id, deletedAt: null}, {})
             : null;
         if (!reservation?.handover) throw apiValidationException("rental_reservation_not_found", "", null, languageCode);
         const buffer = await generateRentalAgreementPdf(reservation, languageCode);

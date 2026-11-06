@@ -2,7 +2,7 @@ import type {ClientSession} from "mongoose";
 import {ObjectId} from "mongodb";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import type {serverLogger} from "@coreModule/loggers/serverLog";
-import {addMoney, percentOfMoney, roundToCurrency, subtractMoney} from "armonia/src/modules/core/helpers/money";
+import {DEFAULT_DECIMAL_PLACES, minorToNumber, percentOfMoney, roundToCurrency, subtractMoney, toMinor} from "armonia/src/modules/core/helpers/money";
 import {decimalToNumber, nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import type {MoneyInput} from "armonia/src/modules/core/helpers/money";
 import {runAfterCommit} from "@coreModule/utilities/middlewares/transactionUtils";
@@ -20,37 +20,41 @@ import Vehicle from "@carRentalModule/database/schemas/vehicle/vehicle";
 import VehicleCategory from "@carRentalModule/database/schemas/vehicleCategory/vehicleCategory";
 import {localToUtc} from "@coreModule/utilities/time/timeWindows";
 import {carRentalConfigService} from "@carRentalModule/database/schemas/carRentalConfig/carRentalConfig.service";
+import {vehicleService} from "@carRentalModule/database/schemas/vehicle/vehicle.service";
+import {vehicleCategoryService} from "@carRentalModule/database/schemas/vehicleCategory/vehicleCategory.service";
+import {rentalLocationService} from "@carRentalModule/database/schemas/rentalLocation/rentalLocation.service";
 import RentalLocation from "@carRentalModule/database/schemas/rentalLocation/rentalLocation";
-import {assertCustomerAllowed} from "./rentalDeny";
-import {assertVehiclePapersValid} from "./vehicleRecords";
-import {applyDriverFees, assertDriversReadyForHandover} from "./rentalDrivers";
-import {computeRentalQuote} from "./rentalQuote";
-import {isLocationOpenAt} from "./rentalTrip";
-import {loadSelectedExtras, quoteTrip} from "./rentalReservationService";
-import {releasePromoCode} from "./rentalPromo";
-import {generateRentalAgreementPdf} from "../pdf/rentalAgreementPdf";
-import {creditInvoicedLines, invoiceAttachment, invoiceNewLines} from "./rentalInvoices";
-import {rentalPricingLabel} from "./rentalPricingLabels";
+import {assertCustomerAllowed} from "@carRentalModule/utilities/services/rentalDeny";
+import {assertVehiclePapersValid} from "@carRentalModule/utilities/services/vehicleRecords";
+import {applyDriverFees, assertDriversReadyForHandover} from "@carRentalModule/utilities/services/rentalDrivers";
+import {computeRentalQuote} from "@carRentalModule/utilities/services/rentalQuote";
+import {isLocationOpenAt} from "@carRentalModule/utilities/services/rentalTrip";
+import {loadSelectedExtras, quoteTrip} from "@carRentalModule/workflows/rentalReservationService";
+import {releasePromoCode} from "@carRentalModule/utilities/services/rentalPromo";
+import {generateRentalAgreementPdf} from "@carRentalModule/utilities/pdf/rentalAgreementPdf";
+import {creditInvoicedLines, invoiceAttachment, invoiceNewLines} from "@carRentalModule/utilities/services/rentalInvoices";
+import {rentalPricingLabel} from "@carRentalModule/utilities/services/rentalPricingLabels";
 import {
     acknowledgedDamageIds,
     companyMediaIds,
     recordReturnDamages,
     type MediaIdsInput,
     type NewDamageInput,
-} from "./rentalInspection";
-import {busyUntil, busyVehicleIds, lockVehicle} from "./rentalAvailability";
+} from "@carRentalModule/utilities/services/rentalInspection";
+import {busyUntil, busyVehicleIds, lockVehicle} from "@carRentalModule/utilities/services/rentalAvailability";
 import {
+    addToAmountPaid,
     amountDue,
     paymentStatusFor,
     refundRentalPayments,
     reservationCurrency,
-} from "./rentalPayments";
-import {storedPriceLine, storedTotalsFor} from "./rentalQuote";
+} from "@carRentalModule/utilities/services/rentalPayments";
+import {storedAmount, storedPriceLine, storedTotalsFor} from "@carRentalModule/utilities/services/rentalQuote";
 import {
     formatAmount,
     notifyRentalCustomer,
     notifyRentalStaff,
-} from "./rentalNotify";
+} from "@carRentalModule/utilities/services/rentalNotify";
 import {NotificationEventCodes} from "@carRentalModule/domain/notifications/notificationEventCodes";
 
 const HOUR = 3600 * 1000;
@@ -91,11 +95,13 @@ export function freeCancellationUntil(
 export function cancellationFeeFor(
     reservation: Pick<IRentalReservation, "pickupAt" | "policy" | "pricing">,
     now: Date,
+    decimals: number = DEFAULT_DECIMAL_PLACES,
 ): number {
     if (now < freeCancellationUntil(reservation)) return 0;
     return percentOfMoney(
         reservation.pricing.grandTotal,
         reservation.policy.cancellationFeePercent,
+        decimals,
     );
 }
 
@@ -128,7 +134,8 @@ export async function cancelRentalReservation(
 ): Promise<{fee: number; refunded: number}> {
     assertStatus(reservation, ["held", "confirmed"], ctx.languageCode);
     const now = input.now ?? new Date();
-    const fee = input.applyFee ? cancellationFeeFor(reservation, now) : 0;
+    const {decimalPlaces} = await reservationCurrency(reservation, ctx.session);
+    const fee = input.applyFee ? cancellationFeeFor(reservation, now, decimalPlaces) : 0;
 
     reservation.status = "cancelled";
     reservation.cancelledAt = now;
@@ -148,7 +155,7 @@ export async function cancelRentalReservation(
     await releasePromoCode(reservation, ctx.session);
     const refunded = await refundRentalPayments(
         reservation,
-        subtractMoney(reservation.amountPaid, fee),
+        subtractMoney(reservation.amountPaid, fee, decimalPlaces),
         input.reason ?? "cancelled",
         ctx,
     );
@@ -200,12 +207,13 @@ export async function handOverRentalReservation(
     assertStatus(reservation, ["confirmed"], ctx.languageCode);
     const companyId = nestedEntityToRef(reservation.company)!;
     const [vehicle, category] = await Promise.all([
-        Vehicle.findOne({_id: reservation.vehicle, company: companyId}).session(
-            ctx.session,
+        vehicleService.findOne({_id: reservation.vehicle, company: companyId}, {session: ctx.session}),
+        vehicleCategoryService.findOne(
+            {_id: reservation.category, company: companyId},
+            {session: ctx.session},
+            undefined,
+            "minDriverAge",
         ),
-        VehicleCategory.findOne({_id: reservation.category, company: companyId})
-            .select("minDriverAge")
-            .session(ctx.session),
     ]);
     assertDriversReadyForHandover(
         reservation,
@@ -224,7 +232,7 @@ export async function handOverRentalReservation(
     );
     const now = input.now ?? new Date();
     if (vehicle) {
-        await assertVehiclePapersValid(vehicle, {from: now, until: reservation.returnAt}, {companyId, session: ctx.session, languageCode: ctx.languageCode});
+        await assertVehiclePapersValid({_id: vehicle._id, plate: vehicle.plate}, {from: now, until: reservation.returnAt}, {companyId, session: ctx.session, languageCode: ctx.languageCode});
     }
     const [photos, acknowledgedDamages, [signature]] = await Promise.all([
         companyMediaIds(input.photos, companyId, ctx),
@@ -328,7 +336,7 @@ export async function returnRentalReservation(
             decimalPlaces,
         ),
     );
-    reservation.paymentStatus = paymentStatusFor(reservation, false);
+    reservation.paymentStatus = paymentStatusFor(reservation, false, decimalPlaces);
 
     reservation.status = "completed";
     reservation.returnInfo = {
@@ -359,7 +367,7 @@ export async function returnRentalReservation(
         );
     }
     // The car is wherever it was returned; for a one-way rental that is another location.
-    await Vehicle.updateOne(
+    await vehicleService.updateOne(
         {_id: reservation.vehicle, company: companyId},
         {
             $set: {
@@ -428,7 +436,7 @@ export async function settleRentalPayment(
     if (reservation.paymentStatus === "paid") return;
     const adapter = getPaymentAdapter("stripe");
     const currency = await reservationCurrency(reservation, ctx.session);
-    const due = amountDue(reservation);
+    const due = amountDue(reservation, currency.decimalPlaces);
     if (
         !adapter ||
         due <= 0 ||
@@ -442,8 +450,8 @@ export async function settleRentalPayment(
         return;
     }
 
-    reservation.amountPaid = addMoney(reservation.amountPaid, due);
-    reservation.paymentStatus = paymentStatusFor(reservation, false);
+    addToAmountPaid(reservation, due, currency.decimalPlaces);
+    reservation.paymentStatus = paymentStatusFor(reservation, false, currency.decimalPlaces);
     reservation.timeline.push({event: "payment_received", at: now});
 
     if (reservation.status === "held" || reservation.status === "expired") {
@@ -493,7 +501,7 @@ export async function settleRentalPayment(
     if (reservation.status === "cancelled") {
         await refundRentalPayments(
             reservation,
-            reservation.amountPaid,
+            minorToNumber(toMinor(reservation.amountPaid, currency.decimalPlaces), currency.decimalPlaces),
             "payment_after_cancellation",
             ctx,
         );
@@ -560,7 +568,7 @@ export async function addReservationCharges(
             decimalPlaces,
         ),
     );
-    reservation.paymentStatus = paymentStatusFor(reservation, false);
+    reservation.paymentStatus = paymentStatusFor(reservation, false, decimalPlaces);
     await reservation.save({session: ctx.session});
     // After the return the booking is invoiced already, so a later charge gets its own invoice.
     const invoice =
@@ -625,9 +633,9 @@ export async function removeReservationCharges(
         await creditInvoicedLines(reservation, credited, ctx);
         reservation.invoicedLineCount = lines.length;
     }
-    const overpaid = subtractMoney(reservation.amountPaid, reservation.pricing.grandTotal);
+    const overpaid = minorToNumber(toMinor(reservation.amountPaid, decimalPlaces) - toMinor(reservation.pricing.grandTotal, decimalPlaces), decimalPlaces);
     if (overpaid > 0) await refundRentalPayments(reservation, overpaid, input.reason, ctx);
-    else reservation.paymentStatus = paymentStatusFor(reservation, false);
+    else reservation.paymentStatus = paymentStatusFor(reservation, false, decimalPlaces);
     await reservation.save({session: ctx.session});
 }
 
@@ -644,14 +652,8 @@ export async function extendRentalReservation(
     const companyId = nestedEntityToRef(reservation.company)!;
     const [config, returnLocation, category] = await Promise.all([
         carRentalConfigService.getOrCreateForCompany(companyId, ctx),
-        RentalLocation.findOne({
-            _id: reservation.returnLocation,
-            company: companyId,
-        }).session(ctx.session),
-        VehicleCategory.findOne({
-            _id: reservation.category,
-            company: companyId,
-        }).session(ctx.session),
+        rentalLocationService.findOne({_id: reservation.returnLocation, company: companyId}, {session: ctx.session}),
+        vehicleCategoryService.findOne({_id: reservation.category, company: companyId}, {session: ctx.session}),
     ]);
     if (!returnLocation || !category)
         throw apiValidationException(
@@ -726,7 +728,7 @@ export async function extendRentalReservation(
                 ({name, pricing, unitPrice, quantity}) => ({
                     name,
                     pricing,
-                    price: unitPrice,
+                    price: minorToNumber(toMinor(unitPrice, decimalPlaces), decimalPlaces),
                     quantity,
                 }),
             ),
@@ -742,7 +744,7 @@ export async function extendRentalReservation(
         });
     const longer = quoteFor(newReturnAt);
     const original = quoteFor(reservation.returnAt);
-    const extension = Math.max(0, subtractMoney(longer.subtotal, original.subtotal));
+    const extension = Math.max(0, subtractMoney(longer.subtotal, original.subtotal, decimalPlaces));
     if (extension > 0) {
         reservation.pricing.lines.push(storedPriceLine({
             label: category.name,
@@ -790,18 +792,9 @@ export async function addRentalExtras(
     const [config, category, pickupLocation, returnLocation, extras] =
         await Promise.all([
             carRentalConfigService.getOrCreateForCompany(companyId, ctx),
-            VehicleCategory.findOne({
-                _id: reservation.category,
-                company: companyId,
-            }).session(ctx.session),
-            RentalLocation.findOne({
-                _id: reservation.pickupLocation,
-                company: companyId,
-            }).session(ctx.session),
-            RentalLocation.findOne({
-                _id: reservation.returnLocation,
-                company: companyId,
-            }).session(ctx.session),
+            vehicleCategoryService.findOne({_id: reservation.category, company: companyId}, {session: ctx.session}),
+            rentalLocationService.findOne({_id: reservation.pickupLocation, company: companyId}, {session: ctx.session}),
+            rentalLocationService.findOne({_id: reservation.returnLocation, company: companyId}, {session: ctx.session}),
             loadSelectedExtras(companyId, selections, {
                 languageCode: ctx.languageCode,
                 session: ctx.session,
@@ -832,9 +825,9 @@ export async function addRentalExtras(
         extra: extra._id,
         name: extra.name,
         pricing: extra.pricing,
-        unitPrice: extra.price,
+        unitPrice: storedAmount(extra.price, decimalPlaces),
         quantity,
-        total: extraLines.find((line) => line.label === extra.name)?.total ?? 0,
+        total: storedAmount(extraLines.find((line) => line.label === extra.name)?.total ?? 0, decimalPlaces),
     }));
     reservation.pricing.lines = [
         ...reservation.pricing.lines.filter((line) => line.kind !== "extra"),
@@ -849,7 +842,7 @@ export async function addRentalExtras(
             decimalPlaces,
         ),
     );
-    reservation.paymentStatus = paymentStatusFor(reservation, false);
+    reservation.paymentStatus = paymentStatusFor(reservation, false, decimalPlaces);
     reservation.timeline.push({
         event: "charge_added",
         at: now,

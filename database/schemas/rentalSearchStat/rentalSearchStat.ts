@@ -1,4 +1,7 @@
 import {Document, model, Schema, SchemaTypes, Types} from "mongoose";
+import ownershipPlugin from "@coreModule/database/plugins/ownershipPlugin";
+import softDeletePlugin from "@coreModule/database/plugins/softDeletePlugin";
+import lifeCyclePlugin from "@coreModule/database/plugins/lifeCyclePlugin";
 
 /**
  * One counter per company, local day, category and pickup branch. The public
@@ -22,6 +25,9 @@ const RentalSearchStatSchema = new Schema<IRentalSearchStat>({
     unavailable: {type: SchemaTypes.Number, default: 0},
 });
 
+ownershipPlugin(RentalSearchStatSchema);
+softDeletePlugin(RentalSearchStatSchema);
+lifeCyclePlugin(RentalSearchStatSchema);
 RentalSearchStatSchema.index(
     {company: 1, day: 1, category: 1, location: 1},
     {unique: true},

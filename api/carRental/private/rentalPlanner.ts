@@ -14,12 +14,13 @@ import {
     type RentalPlannerResponse,
 } from "armonia/src/modules/carRental/api/carRental/private/rentalPlanner/rentalPlanner";
 import RentalReservation from "@carRentalModule/database/schemas/rentalReservation/rentalReservation";
-import RentalLocation from "@carRentalModule/database/schemas/rentalLocation/rentalLocation";
-import Vehicle from "@carRentalModule/database/schemas/vehicle/vehicle";
-import VehicleBlock from "@carRentalModule/database/schemas/vehicleBlock/vehicleBlock";
 import type {IVehicleCategory} from "@carRentalModule/database/schemas/vehicleCategory/vehicleCategory";
 import {projectedLocations} from "@carRentalModule/utilities/services/rentalAvailability";
 
+import {rentalLocationService} from "@carRentalModule/database/schemas/rentalLocation/rentalLocation.service";
+import {rentalReservationService} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation.service";
+import {vehicleBlockService} from "@carRentalModule/database/schemas/vehicleBlock/vehicleBlock.service";
+import {vehicleService} from "@carRentalModule/database/schemas/vehicle/vehicle.service";
 export const basePath = "/api/carRental/rentalPlanner";
 export const router = Router();
 
@@ -38,31 +39,27 @@ router.post(
         const readFields = SchemaGuard.sanitizeFields(RentalReservation, getModelCollectedData("rentalreservations").readFields!, "read", actionUserCtx, languageCode);
         if (!readFields.pickupAt || !readFields.vehicle) throw apiValidationException("user_permissions_not_sufficient", "", null, languageCode);
 
-        const location = await RentalLocation.findOne({company: company._id, deletedAt: null, ...(params.location ? {_id: new ObjectId(params.location)} : {})})
-            .sort({name: 1}).select("timezone");
+        const location = await rentalLocationService.findFirstTimezone({company: company._id, deletedAt: null, ...(params.location ? {_id: new ObjectId(params.location)} : {})});
         const timezone = location?.timezone ?? "UTC";
         const from = localToUtc(params.from, "00:00", timezone) ?? new Date(`${params.from}T00:00:00Z`);
         const to = localToUtc(addLocalDays(params.from, params.days), "00:00", timezone) ?? new Date(from.getTime() + params.days * 86400000);
 
-        const vehicles = await Vehicle.find({company: company._id, status: "active", deletedAt: null, ...(params.category ? {category: new ObjectId(params.category)} : {})})
-            .populate<{category: IVehicleCategory}>({path: "category", select: "name sortOrder"})
-            .select("plate make model category readiness homeLocation currentLocation")
-            .sort({plate: 1});
+        const vehicles = await vehicleService.findForPlanner({company: company._id, status: "active", deletedAt: null, ...(params.category ? {category: new ObjectId(params.category)} : {})});
         const located = await projectedLocations(vehicles, from, company._id);
         const shown = params.location ? vehicles.filter((vehicle) => located.get(String(vehicle._id)) === params.location) : vehicles;
         const ids = shown.map((vehicle) => vehicle._id);
-        const locationNames = new Map((await RentalLocation.find({company: company._id}).select("name")).map((entry) => [String(entry._id), entry.name]));
+        const locationNames = new Map((await rentalLocationService.find({company: company._id}, {}, undefined, "name")).map((entry) => [String(entry._id), entry.name]));
 
         const [reservations, blocks] = await Promise.all([
-            RentalReservation.find({
+            rentalReservationService.find({
                 company: company._id,
                 vehicle: {$in: ids},
                 deletedAt: null,
                 status: {$in: ["held", "confirmed", "in_progress", "completed"]},
                 pickupAt: {$lt: to},
                 returnAt: {$gt: from},
-            }).select("number vehicle status pickupAt returnAt contact needsTransfer"),
-            VehicleBlock.find({company: company._id, vehicle: {$in: ids}, deletedAt: null, startAt: {$lt: to}, endAt: {$gt: from}}).select("vehicle startAt endAt reason"),
+            }, {}, undefined, "number vehicle status pickupAt returnAt contact needsTransfer"),
+            vehicleBlockService.find({company: company._id, vehicle: {$in: ids}, deletedAt: null, startAt: {$lt: to}, endAt: {$gt: from}}, {}, undefined, "vehicle startAt endAt reason"),
         ]);
 
         return {

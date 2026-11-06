@@ -74,7 +74,7 @@ import RentalPromoCode from "@carRentalModule/database/schemas/rentalPromoCode/r
 import RentalExtra from "@carRentalModule/database/schemas/rentalExtra/rentalExtra";
 import VehicleDamage from "@carRentalModule/database/schemas/vehicleDamage/vehicleDamage";
 import {generateRentalAgreementPdf} from "@carRentalModule/utilities/pdf/rentalAgreementPdf";
-import {settleRentalPayment} from "@carRentalModule/utilities/services/rentalLifecycle";
+import {settleRentalPayment} from "@carRentalModule/workflows/rentalLifecycle";
 import {runInTransaction} from "@coreModule/utilities/middlewares/runInTransaction";
 import {runRentalHoldExpiry} from "@carRentalModule/utilities/cronJobs/rentalHoldExpiryJob";
 import {buildRentalReport} from "@carRentalModule/utilities/services/rentalReports";
@@ -320,7 +320,8 @@ describe("online payment arrives", {timeout: 60000}, () => {
             await settleRentalPayment(reservation!, intentFor(10000), {session, logger, languageCode: "en-US"});
         });
         const stored = await RentalReservation.findById(body.data.reservation._id);
-        expect(stored).toMatchObject({status: "confirmed", paymentStatus: "paid", amountPaid: 100});
+        expect(stored).toMatchObject({status: "confirmed", paymentStatus: "paid"});
+        expect(String(stored!.amountPaid)).toBe("100.00");
     }));
 
     it("cancels and refunds when the hold expired and the car was booked meanwhile", () => asCompany(async () => {
@@ -693,7 +694,7 @@ describe("on the road", {timeout: 60000}, () => {
         expect((await fines("/chargeCustomer", {_id: fine!._id.toString()})).body.error_code).toBe("rental_fine_invalid_status");
         const stored = await RentalReservation.findById(id);
         expect(stored!.pricing.lines.filter((line) => line.code === "fine" || line.code === "fine_admin").map((line) => String(line.total))).toEqual(["120.00", "25.00"]);
-        expect(stored!.amountPaid).toBe(545);
+        expect(String(stored!.amountPaid)).toBe("545.00");
         expect(stripe.createPaymentIntent).toHaveBeenLastCalledWith(expect.objectContaining({amount: 145, offSession: expect.anything()}));
 
         // The authority annulled it: before the return nothing was invoiced, so the lines go and the card is refunded.
@@ -702,7 +703,7 @@ describe("on the road", {timeout: 60000}, () => {
         expect(annulled.body.chargedAmount).toBeUndefined();
         const after = await RentalReservation.findById(id);
         expect(after!.pricing.lines.some((line) => line.code === "fine" || line.code === "fine_admin")).toBe(false);
-        expect(after!.amountPaid).toBe(400);
+        expect(String(after!.amountPaid)).toBe("400.00");
         // The whole 145 card charge goes back.
         expect(stripe.createRefund).toHaveBeenCalledWith(expect.objectContaining({gatewayTransactionId: "pi_off"}));
         expect(after!.timeline.map((entry) => entry.event)).toContain("charge_removed");

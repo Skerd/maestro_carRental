@@ -15,13 +15,15 @@ import {CONSTANTS} from "@coreModule/environment";
 import {getLogger, serverLogger} from "@coreModule/loggers/serverLog";
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import type {IVehicle} from "@carRentalModule/database/schemas/vehicle/vehicle";
-import Vehicle from "@carRentalModule/database/schemas/vehicle/vehicle";
-import VehicleInsurance, {type IVehicleInsurance} from "@carRentalModule/database/schemas/vehicleInsurance/vehicleInsurance";
-import VehicleDocument, {type IVehicleDocument} from "@carRentalModule/database/schemas/vehicleDocument/vehicleDocument";
-import VehicleFine from "@carRentalModule/database/schemas/vehicleFine/vehicleFine";
+import {type IVehicleInsurance} from "@carRentalModule/database/schemas/vehicleInsurance/vehicleInsurance";
+import {type IVehicleDocument} from "@carRentalModule/database/schemas/vehicleDocument/vehicleDocument";
 import {NotificationEventCodes} from "@carRentalModule/domain/notifications/notificationEventCodes";
 import {notifyFleetStaff} from "@carRentalModule/utilities/services/rentalNotify";
 
+import {vehicleInsuranceService} from "@carRentalModule/database/schemas/vehicleInsurance/vehicleInsurance.service";
+import {vehicleDocumentService} from "@carRentalModule/database/schemas/vehicleDocument/vehicleDocument.service";
+import {vehicleService} from "@carRentalModule/database/schemas/vehicle/vehicle.service";
+import {vehicleFineService} from "@carRentalModule/database/schemas/vehicleFine/vehicleFine.service";
 const DAY_MS = 24 * 3600 * 1000;
 const EXPIRY_WARNING_DAYS = 30;
 const SERVICE_WARNING_DAYS = 14;
@@ -46,7 +48,7 @@ type DocumentRow = Omit<IVehicleDocument, "vehicle"> & {vehicle: IVehicle | null
 /** Renewed, or another active policy of the same coverage runs longer. */
 async function policyRenewed(policy: PolicyRow): Promise<boolean> {
     if (policy.supersededBy) return true;
-    const newer = await VehicleInsurance.exists({
+    const newer = await vehicleInsuranceService.exists({
         _id: {$ne: policy._id},
         company: nestedEntityToRef(policy.company),
         vehicle: policy.vehicle!._id,
@@ -61,7 +63,7 @@ async function policyRenewed(policy: PolicyRow): Promise<boolean> {
 /** Renewed, or another active document of the same type runs longer. */
 async function documentRenewed(document: DocumentRow): Promise<boolean> {
     if (document.supersededBy) return true;
-    const newer = await VehicleDocument.exists({
+    const newer = await vehicleDocumentService.exists({
         _id: {$ne: document._id},
         company: nestedEntityToRef(document.company),
         vehicle: document.vehicle!._id,
@@ -101,9 +103,9 @@ export async function runFleetReminders(company: ObjectId, parentLogger?: server
     let expired = 0;
     let lapsed = 0;
     await eachBatch(
-        () => VehicleInsurance.find(expiredFilter).populate<{vehicle: IVehicle | null}>("vehicle", "plate status").limit(BATCH_SIZE).exec(),
+        () => vehicleInsuranceService.findWithVehicle(expiredFilter, BATCH_SIZE),
         async (policy) => {
-            const claimed = await VehicleInsurance.updateOne({_id: policy._id, status: "active"}, {$set: {status: "expired"}});
+            const claimed = await vehicleInsuranceService.updateOne({_id: policy._id, status: "active"}, {$set: {status: "expired"}});
             if (!claimed.modifiedCount) return;
             expired += 1;
             if (!policy.vehicle || policy.vehicle.status === "retired" || (await policyRenewed(policy))) return;
@@ -112,9 +114,9 @@ export async function runFleetReminders(company: ObjectId, parentLogger?: server
         },
     );
     await eachBatch(
-        () => VehicleDocument.find(expiredFilter).populate<{vehicle: IVehicle | null}>("vehicle", "plate status").limit(BATCH_SIZE).exec(),
+        () => vehicleDocumentService.findWithVehicle(expiredFilter, BATCH_SIZE),
         async (document) => {
-            const claimed = await VehicleDocument.updateOne({_id: document._id, status: "active"}, {$set: {status: "expired"}});
+            const claimed = await vehicleDocumentService.updateOne({_id: document._id, status: "active"}, {$set: {status: "expired"}});
             if (!claimed.modifiedCount) return;
             expired += 1;
             if (!document.vehicle || document.vehicle.status === "retired" || (await documentRenewed(document))) return;
@@ -128,9 +130,9 @@ export async function runFleetReminders(company: ObjectId, parentLogger?: server
     let warned = 0;
 
     await eachBatch(
-        () => VehicleInsurance.find(expiringFilter).populate<{vehicle: IVehicle | null}>("vehicle", "plate status").limit(BATCH_SIZE).exec(),
+        () => vehicleInsuranceService.findWithVehicle(expiringFilter, BATCH_SIZE),
         async (policy) => {
-            const claimed = await VehicleInsurance.updateOne({_id: policy._id, expiryReminderSentAt: null}, {$set: {expiryReminderSentAt: now}});
+            const claimed = await vehicleInsuranceService.updateOne({_id: policy._id, expiryReminderSentAt: null}, {$set: {expiryReminderSentAt: now}});
             if (!claimed.modifiedCount || !policy.vehicle || policy.vehicle.status === "retired" || (await policyRenewed(policy))) return;
             await notifyFleetStaff(NotificationEventCodes.VEHICLE_INSURANCE_EXPIRING, company, policyPayload(policy), languageCode);
             warned += 1;
@@ -138,9 +140,9 @@ export async function runFleetReminders(company: ObjectId, parentLogger?: server
     );
 
     await eachBatch(
-        () => VehicleDocument.find(expiringFilter).populate<{vehicle: IVehicle | null}>("vehicle", "plate status").limit(BATCH_SIZE).exec(),
+        () => vehicleDocumentService.findWithVehicle(expiringFilter, BATCH_SIZE),
         async (document) => {
-            const claimed = await VehicleDocument.updateOne({_id: document._id, expiryReminderSentAt: null}, {$set: {expiryReminderSentAt: now}});
+            const claimed = await vehicleDocumentService.updateOne({_id: document._id, expiryReminderSentAt: null}, {$set: {expiryReminderSentAt: now}});
             if (!claimed.modifiedCount || !document.vehicle || document.vehicle.status === "retired" || (await documentRenewed(document))) return;
             await notifyFleetStaff(NotificationEventCodes.VEHICLE_DOCUMENT_EXPIRING, company, documentPayload(document), languageCode);
             warned += 1;
@@ -163,9 +165,9 @@ export async function runFleetReminders(company: ObjectId, parentLogger?: server
         ],
     };
     await eachBatch(
-        () => Vehicle.find(serviceFilter).select("company plate nextServiceDueAt nextServiceDueKm odometerKm").limit(BATCH_SIZE).exec(),
+        () => vehicleService.findServiceDue(serviceFilter, BATCH_SIZE),
         async (vehicle) => {
-            const claimed = await Vehicle.updateOne({_id: vehicle._id, serviceReminderSentAt: null}, {$set: {serviceReminderSentAt: now}});
+            const claimed = await vehicleService.updateOne({_id: vehicle._id, serviceReminderSentAt: null}, {$set: {serviceReminderSentAt: now}});
             if (!claimed.modifiedCount) return;
             await notifyFleetStaff(
                 NotificationEventCodes.VEHICLE_SERVICE_DUE,
@@ -194,9 +196,9 @@ export async function runFleetReminders(company: ObjectId, parentLogger?: server
         dueDate: {$lte: new Date(now.getTime() + FINE_WARNING_DAYS * DAY_MS)},
     };
     await eachBatch(
-        () => VehicleFine.find(fineFilter).populate<{vehicle: IVehicle | null}>("vehicle", "plate").limit(BATCH_SIZE).exec(),
+        () => vehicleFineService.findWithVehiclePlate(fineFilter, BATCH_SIZE),
         async (fine) => {
-            const claimed = await VehicleFine.updateOne({_id: fine._id, dueReminderSentAt: null}, {$set: {dueReminderSentAt: now}});
+            const claimed = await vehicleFineService.updateOne({_id: fine._id, dueReminderSentAt: null}, {$set: {dueReminderSentAt: now}});
             if (!claimed.modifiedCount || !fine.vehicle) return;
             await notifyFleetStaff(
                 NotificationEventCodes.VEHICLE_FINE_DUE,

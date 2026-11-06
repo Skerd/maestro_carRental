@@ -8,12 +8,12 @@ import {vehicleTransferService} from "@carRentalModule/database/schemas/vehicleT
 import {vehicleTransferToDTO, vehicleTransfersToDTO} from "@carRentalModule/utilities/mappers/vehicleTransfer/vehicleTransferMapper.dto";
 import {vehicleTransfersToSelect} from "@carRentalModule/utilities/mappers/vehicleTransfer/vehicleTransferMapper.select";
 import {VehicleTransferActions} from "@carRentalModule/database/schemas/vehicleTransfer/vehicleTransfer.actions";
-import RentalLocation from "@carRentalModule/database/schemas/rentalLocation/rentalLocation";
-import VehicleBlock from "@carRentalModule/database/schemas/vehicleBlock/vehicleBlock";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import {assertCompanyVehicle} from "@carRentalModule/utilities/services/vehicleRecords";
 import {assertNoBookingClash} from "@carRentalModule/utilities/services/rentalAvailability";
 
+import {rentalLocationService} from "@carRentalModule/database/schemas/rentalLocation/rentalLocation.service";
+import {vehicleBlockService} from "@carRentalModule/database/schemas/vehicleBlock/vehicleBlock.service";
 export const basePath = "/api/carRental/vehicleTransfer";
 
 export const {router} = createCrudRouter({
@@ -38,12 +38,12 @@ export const {router} = createCrudRouter({
         const vehicleId = await assertCompanyVehicle(params.vehicle, {companyId: company._id, session, languageCode});
         const data = await buildCreateDataFromSchemaDef(VehicleTransferSchemaDef)(params);
         if (String(data.fromLocation) === String(data.toLocation)) throw apiValidationException("rental_transfer_same_location", "", null, languageCode);
-        const locations = await RentalLocation.countDocuments({_id: {$in: [data.fromLocation, data.toLocation]}, company: company._id, deletedAt: null}).session(session);
+        const locations = await rentalLocationService.count({_id: {$in: [data.fromLocation, data.toLocation]}, company: company._id, deletedAt: null}, {session: session});
         if (locations !== 2) throw apiValidationException("rental_location_not_found", "", null, languageCode);
         const start = new Date(data.departAt);
         const end = new Date(data.arriveAt);
         await assertNoBookingClash(vehicleId, {start, end}, {companyId: company._id, session, languageCode});
-        const [block] = await VehicleBlock.create([{company: company._id, vehicle: vehicleId, startAt: start, endAt: end, reason: "transfer", source: "transfer"}], {session});
+        const [block] = await vehicleBlockService.createMany([{company: company._id, vehicle: vehicleId, startAt: start, endAt: end, reason: "transfer", source: "transfer"}], {session});
         return {...data, status: "planned", block: block._id};
     },
     // The trip's times and places are fixed: a changed plan is a new transfer. Driver, km and notes can change.

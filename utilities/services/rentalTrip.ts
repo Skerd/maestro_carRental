@@ -3,8 +3,9 @@ import type {ClientSession} from "mongoose";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import {expandWeeklyHours, localDateOf, localToUtc} from "@coreModule/utilities/time/timeWindows";
 import type {ICarRentalConfig} from "@carRentalModule/database/schemas/carRentalConfig/carRentalConfig";
-import RentalLocation, {type IRentalLocation} from "@carRentalModule/database/schemas/rentalLocation/rentalLocation";
+import {type IRentalLocation} from "@carRentalModule/database/schemas/rentalLocation/rentalLocation";
 
+import {rentalLocationService} from "@carRentalModule/database/schemas/rentalLocation/rentalLocation.service";
 const HOUR = 3600 * 1000;
 const DAY = 24 * HOUR;
 
@@ -55,9 +56,7 @@ export async function resolveRentalTrip(
 
     const findLocation = async (id: string) => {
         const location = ObjectId.isValid(id)
-            ? await RentalLocation.findOne({_id: new ObjectId(id), company: companyId, isActive: true, deletedAt: null})
-                .populate([{path: "address.city", select: "name"}, {path: "address.country", select: "name"}])
-                .session(session ?? null)
+            ? await rentalLocationService.findOne({_id: new ObjectId(id), company: companyId, isActive: true, deletedAt: null}, {session: session ?? undefined}, [{path: "address.city", select: "name"}, {path: "address.country", select: "name"}])
             : null;
         if (!location) throw apiValidationException("rental_location_not_found", "", null, languageCode);
         return location;

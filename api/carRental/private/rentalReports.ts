@@ -15,9 +15,9 @@ import {
     type RentalReportsResponse,
 } from "armonia/src/modules/carRental/api/carRental/private/rentalReports/rentalReports";
 import RentalReservation from "@carRentalModule/database/schemas/rentalReservation/rentalReservation";
-import RentalLocation from "@carRentalModule/database/schemas/rentalLocation/rentalLocation";
 import {buildRentalReport} from "@carRentalModule/utilities/services/rentalReports";
 
+import {rentalLocationService} from "@carRentalModule/database/schemas/rentalLocation/rentalLocation.service";
 export const basePath = "/api/carRental/rentalReports";
 export const router = Router();
 
@@ -54,17 +54,15 @@ router.post(
                     languageCode,
                 );
             const location = params.location
-                ? await RentalLocation.findOne({
+                ? await rentalLocationService.findOne({
                       _id: new ObjectId(params.location),
                       company: company._id,
                       deletedAt: null,
-                  }).select("timezone")
-                : await RentalLocation.findOne({
+                  }, {}, undefined, "timezone")
+                : await rentalLocationService.findFirstTimezone({
                       company: company._id,
                       deletedAt: null,
-                  })
-                      .select("timezone")
-                      .sort({name: 1});
+                  });
             const data = await buildRentalReport(company._id, {
                 from: params.from,
                 to: params.to,

@@ -1,8 +1,6 @@
 import {ObjectId} from "mongodb";
 import type {ClientSession} from "mongoose";
 import {action} from "@coreModule/api/actionDecorator";
-import SchemaGuard from "@coreModule/database/security/schemaGuard";
-import {getModelCollectedData} from "@coreModule/database/collections";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import {validateSingleForm} from "armonia/src/modules/core/utilities/zod/shared.validator";
 import {reorderVehicleCategoriesFormSchema} from "armonia/src/modules/carRental/api/carRental/private/vehicleCategory/reorderVehicleCategories.form.validator";
@@ -43,17 +41,6 @@ export class VehicleCategoryActions {
     async reorder(params: ActionParams & {orderedIds: string[]}): Promise<ActionMessage> {
         const {logger, languageCode, session, company, actionUserCtx, orderedIds} = params;
 
-        const writeFields = SchemaGuard.sanitizeFields(
-            VehicleCategory,
-            getModelCollectedData("vehiclecategories").writeFields!,
-            "write",
-            actionUserCtx,
-            languageCode,
-        );
-        if (!writeFields.sortOrder) {
-            throw apiValidationException("user_permissions_not_sufficient", "", null, languageCode);
-        }
-
         const existing = await vehicleCategoryService.find(
             {company: company._id},
             {session, logger, languageCode},
@@ -83,17 +70,6 @@ export class VehicleCategoryActions {
 
 async function setWebsiteVisibility(params: ActionParams & {_id: string}, isPublic: boolean): Promise<ActionMessage> {
     const {logger, languageCode, session, company, actionUserCtx, _id} = params;
-
-    const writeFields = SchemaGuard.sanitizeFields(
-        VehicleCategory,
-        getModelCollectedData("vehiclecategories").writeFields!,
-        "write",
-        actionUserCtx,
-        languageCode,
-    );
-    if (!writeFields.isPublic) {
-        throw apiValidationException("user_permissions_not_sufficient", "", null, languageCode);
-    }
 
     const existing = await vehicleCategoryService.findOneOrThrow(
         {_id: new ObjectId(_id), company: company._id},

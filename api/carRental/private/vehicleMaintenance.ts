@@ -72,7 +72,7 @@ export const {router} = createCrudRouter({
         await syncVehicleServiceDue(created.vehicle._id, {companyId: company._id, session});
     },
     afterUpdate: async ({company, session, _id}, existing) => {
-        const updated = await VehicleMaintenance.findById(_id).select("vehicle").session(session);
+        const updated = await vehicleMaintenanceService.findById(_id, {session: session}, undefined, "vehicle");
         for (const vehicleId of affectedVehicles(existing.vehicle?._id, updated?.vehicle?._id)) {
             await syncVehicleServiceDue(vehicleId, {companyId: company._id, session});
         }

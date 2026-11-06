@@ -4,16 +4,16 @@ import type {Readable} from "stream";
 import {loadEmailStrings} from "@coreModule/utilities/emails/emailLocale";
 import {getGridFSStorage} from "@coreModule/utilities/gridfs/gridfsStorage";
 import {PDF_COLORS, PDF_PAGE, PdfWriter, embedStandardFonts, pdfMoney} from "@coreModule/utilities/pdf/pdfWriter";
-import Media from "@coreModule/database/schemas/media/media";
-import Company from "@coreModule/database/schemas/company/company";
-import Currency from "@coreModule/database/schemas/currency/currency";
 import {decimalToNumber, nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import type {MoneyInput} from "armonia/src/modules/core/helpers/money";
 import type {IRentalReservation} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation";
-import VehicleDamage from "@carRentalModule/database/schemas/vehicleDamage/vehicleDamage";
-import CarRentalConfig from "@carRentalModule/database/schemas/carRentalConfig/carRentalConfig";
-import RentalExtra from "@carRentalModule/database/schemas/rentalExtra/rentalExtra";
 
+import {companyService} from "@coreModule/database/schemas/company/company.service";
+import {currencyService} from "@coreModule/database/schemas/currency/currency.service";
+import {carRentalConfigService} from "@carRentalModule/database/schemas/carRentalConfig/carRentalConfig.service";
+import {vehicleDamageService} from "@carRentalModule/database/schemas/vehicleDamage/vehicleDamage.service";
+import {rentalExtraService} from "@carRentalModule/database/schemas/rentalExtra/rentalExtra.service";
+import {mediaService} from "@coreModule/database/schemas/media/media.service";
 const LOCALES_ROOT = path.join(__dirname, "static", "locales");
 const SIGNATURE_BOX = {width: 220, height: 80};
 
@@ -37,12 +37,12 @@ export async function generateRentalAgreementPdf(reservation: IRentalReservation
     const companyId = nestedEntityToRef(reservation.company);
     const signatureId = reservation.agreement?.signature ? nestedEntityToRef(reservation.agreement.signature) : undefined;
     const [company, currency, config, damages, protection, signatureMedia] = await Promise.all([
-        Company.findById(companyId).select("name"),
-        Currency.findById(nestedEntityToRef(reservation.pricing.currency)).select("abbreviation"),
-        CarRentalConfig.findOne({company: companyId, deletedAt: null}).select("termsText"),
-        VehicleDamage.find({_id: {$in: reservation.handover?.acknowledgedDamages ?? []}}).select("area severity description"),
-        RentalExtra.findOne({_id: {$in: reservation.extras.map((line) => nestedEntityToRef(line.extra))}, kind: "protection"}).select("name excessAmount"),
-        signatureId ? Media.findOne({_id: signatureId, company: companyId}).select("fileId mimeType") : null,
+        companyService.findById(companyId, {}, undefined, "name"),
+        currencyService.findById(nestedEntityToRef(reservation.pricing.currency), {}, undefined, "abbreviation"),
+        carRentalConfigService.findOne({company: companyId, deletedAt: null}, {}, undefined, "termsText"),
+        vehicleDamageService.find({_id: {$in: reservation.handover?.acknowledgedDamages ?? []}}, {}, undefined, "area severity description"),
+        rentalExtraService.findOne({_id: {$in: reservation.extras.map((line) => nestedEntityToRef(line.extra))}, kind: "protection"}, {}, undefined, "name excessAmount"),
+        signatureId ? mediaService.findOne({_id: signatureId, company: companyId}, {}, undefined, "fileId mimeType") : null,
     ]);
     const money = (amount: MoneyInput) => pdfMoney(decimalToNumber(amount) ?? 0, currency?.abbreviation);
     const {timezone} = reservation.snapshot;

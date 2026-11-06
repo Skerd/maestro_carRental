@@ -9,22 +9,22 @@ import {editCarRentalConfigFormSchema} from "armonia/src/modules/carRental/api/c
 import CarRentalConfig from "@carRentalModule/database/schemas/carRentalConfig/carRentalConfig";
 import {carRentalConfigService} from "@carRentalModule/database/schemas/carRentalConfig/carRentalConfig.service";
 import {CarRentalConfigActions} from "@carRentalModule/database/schemas/carRentalConfig/carRentalConfig.actions";
-import RentalLocation from "@carRentalModule/database/schemas/rentalLocation/rentalLocation";
-import VehicleCategory from "@carRentalModule/database/schemas/vehicleCategory/vehicleCategory";
-import Vehicle from "@carRentalModule/database/schemas/vehicle/vehicle";
 import {carRentalConfigToDTO, carRentalConfigsToDTO} from "@carRentalModule/utilities/mappers/carRentalConfig/carRentalConfigMapper.dto";
 import {carRentalConfigsToSelect} from "@carRentalModule/utilities/mappers/carRentalConfig/carRentalConfigMapper.select";
 
+import {rentalLocationService} from "@carRentalModule/database/schemas/rentalLocation/rentalLocation.service";
+import {vehicleCategoryService} from "@carRentalModule/database/schemas/vehicleCategory/vehicleCategory.service";
+import {vehicleService} from "@carRentalModule/database/schemas/vehicle/vehicle.service";
 /**
  * Public booking only goes live once a customer could actually complete one: a
  * location to pick up at and a public category with a car in it.
  */
 async function assertReadyForPublicBooking(companyId: ObjectId, session: ClientSession, languageCode: string): Promise<void> {
-    const location = await RentalLocation.exists({company: companyId, isActive: true, pickupAllowed: true, deletedAt: null}).session(session);
+    const location = await rentalLocationService.exists({company: companyId, isActive: true, pickupAllowed: true, deletedAt: null}, {session: session});
     if (!location) throw apiValidationException("rental_setup_missing_location", "", null, languageCode);
-    const categories = await VehicleCategory.find({company: companyId, isPublic: true, deletedAt: null}).select("_id").session(session);
+    const categories = await vehicleCategoryService.find({company: companyId, isPublic: true, deletedAt: null}, {session: session}, undefined, "_id");
     const vehicle = categories.length
-        ? await Vehicle.exists({company: companyId, status: "active", category: {$in: categories.map((c) => c._id)}, deletedAt: null}).session(session)
+        ? await vehicleService.exists({company: companyId, status: "active", category: {$in: categories.map((c) => c._id)}, deletedAt: null}, {session: session})
         : null;
     if (!vehicle) throw apiValidationException("rental_setup_missing_vehicle", "", null, languageCode);
 }

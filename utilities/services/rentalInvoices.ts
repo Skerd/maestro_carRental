@@ -4,14 +4,14 @@ import type {serverLogger} from "@coreModule/loggers/serverLog";
 import {decimalToNumber, nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import type {MoneyInput} from "armonia/src/modules/core/helpers/money";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
-import Invoice, {
+import {
     type IInvoice,
 } from "@financeModule/database/schemas/invoice/invoice";
 import {invoiceService} from "@financeModule/database/schemas/invoice/invoice.service";
 import {generateInvoicePdf} from "@financeModule/utilities/pdf/invoicePdf";
 import type {IRentalReservation} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation";
-import RentalBusinessAccount from "@carRentalModule/database/schemas/rentalBusinessAccount/rentalBusinessAccount";
 
+import {rentalBusinessAccountService} from "@carRentalModule/database/schemas/rentalBusinessAccount/rentalBusinessAccount.service";
 type Ctx = {
     session: ClientSession;
     logger: serverLogger;
@@ -34,9 +34,7 @@ export async function invoiceNewLines(
     if (!lines.length) return undefined;
     const {contact} = reservation;
     const account = reservation.businessAccount
-        ? await RentalBusinessAccount.findById(
-              nestedEntityToRef(reservation.businessAccount),
-          ).session(ctx.session)
+        ? await rentalBusinessAccountService.findById(nestedEntityToRef(reservation.businessAccount), {session: ctx.session})
         : null;
     const customer = account
         ? {
@@ -84,16 +82,14 @@ export async function creditInvoicedLines(
     ctx: Ctx,
 ): Promise<void> {
     const company = nestedEntityToRef(reservation.company)!;
-    const invoices = await Invoice.find({
+    const invoices = await invoiceService.find({
         company,
         sourceType: "rentalReservation",
         sourceId: reservation._id,
         kind: "invoice",
         status: "issued",
         deletedAt: null,
-    })
-        .sort({issuedAt: -1})
-        .session(ctx.session);
+    }, {session: ctx.session}, undefined, undefined, {issuedAt: -1});
     const byInvoice = new Map<string, {invoice: IInvoice; lines: typeof lines}>();
     for (const line of lines) {
         const invoice = invoices.find((candidate) =>
@@ -112,7 +108,7 @@ export async function creditInvoicedLines(
 /** The invoice as an email attachment, read again after commit so it carries its fiscal codes when registered. */
 export function invoiceAttachment(invoiceId: ObjectId, languageCode: string) {
     return async () => {
-        const invoice = await Invoice.findById(invoiceId);
+        const invoice = await invoiceService.findById(invoiceId, {});
         return invoice
             ? [
                   {

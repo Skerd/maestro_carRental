@@ -9,7 +9,6 @@ import VehicleMaintenance, {type IVehicleMaintenance} from "./vehicleMaintenance
 import VehicleBlock from "../vehicleBlock/vehicleBlock";
 import VehicleDamage from "../vehicleDamage/vehicleDamage";
 import {vehicleMaintenanceToDTO} from "@carRentalModule/utilities/mappers/vehicleMaintenance/vehicleMaintenanceMapper.dto";
-import {assertReservationWrite} from "@carRentalModule/utilities/services/rentalAccess";
 import {releaseService, syncVehicleServiceDue} from "@carRentalModule/utilities/services/vehicleRecords";
 
 type ActionParams = TransactionRequiredParams & {_id: string};
@@ -30,7 +29,6 @@ export class VehicleMaintenanceActions {
      */
     @action({auth: "private", transaction: true, rateLimit: {windowMs: 60000, max: 30}, schema: validateSingleForm})
     async complete(params: ActionParams): Promise<VehicleMaintenanceDto> {
-        assertReservationWrite("status", params.actionUserCtx, params.languageCode);
         const {company, session} = params;
         const record = await loadScheduled(params);
         const now = new Date();
@@ -48,7 +46,6 @@ export class VehicleMaintenanceActions {
     /** The service will not happen: the car is free for bookings again and its damages are open. */
     @action({auth: "private", transaction: true, rateLimit: {windowMs: 60000, max: 30}, schema: validateSingleForm})
     async cancel(params: ActionParams): Promise<VehicleMaintenanceDto> {
-        assertReservationWrite("status", params.actionUserCtx, params.languageCode);
         const record = await loadScheduled(params);
         record.status = "cancelled";
         await record.save({session: params.session});

@@ -11,10 +11,10 @@ import type {
     PublicRentalReservationResponse,
     PublicRentalReservationsResponse,
 } from "armonia/src/modules/carRental/api/carRental/public/rentalStorefront/rentalStorefront.response.types";
-import RentalReservation from "@carRentalModule/database/schemas/rentalReservation/rentalReservation";
 import {rentalReservationToPublic} from "@carRentalModule/utilities/mappers/rentalReservation/rentalReservationMapper.dto";
-import {cancelRentalReservation} from "@carRentalModule/utilities/services/rentalLifecycle";
+import {cancelRentalReservation} from "@carRentalModule/workflows/rentalLifecycle";
 
+import {rentalReservationService} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation.service";
 /**
  * A signed-in customer's own rentals ("My rentals" on the public site). Scoped to
  * the caller as `customer`, so it needs no collection permission: the signup role
@@ -30,11 +30,11 @@ router.post(
     authMW("private"),
     rateLimiter({windowMs: 60000, max: 60}),
     asyncHandler(async ({actionUserCtx, company}: AuthenticatedMWType): Promise<PublicRentalReservationsResponse> => {
-        const reservations = await RentalReservation.find({
+        const reservations = await rentalReservationService.find({
             company: company._id,
             customer: new ObjectId(actionUserCtx.userId),
             deletedAt: null,
-        }).sort({pickupAt: -1}).limit(100).populate(CURRENCY);
+        }, {}, CURRENCY, undefined, {pickupAt: -1}, 100);
         return {data: reservations.map((reservation) => rentalReservationToPublic(reservation))};
     }),
 );
@@ -48,12 +48,12 @@ router.post(
     asyncHandler(async (params: TransactionRequiredParams & {_id: string}): Promise<PublicRentalReservationResponse> => {
         const {_id, actionUserCtx, company, session, logger, languageCode} = params;
         const reservation = ObjectId.isValid(_id)
-            ? await RentalReservation.findOne({
+            ? await rentalReservationService.findOne({
                 _id: new ObjectId(_id),
                 company: company._id,
                 customer: new ObjectId(actionUserCtx.userId),
                 deletedAt: null,
-            }).session(session)
+            }, {session: session})
             : null;
         if (!reservation) throw apiValidationException("rental_reservation_not_found", "", null, languageCode);
         if (reservation.pickupAt <= new Date()) {

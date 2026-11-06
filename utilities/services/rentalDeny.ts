@@ -1,8 +1,8 @@
 import type {ClientSession} from "mongoose";
 import type {ObjectId} from "mongodb";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
-import RentalDenyEntry from "@carRentalModule/database/schemas/rentalDenyEntry/rentalDenyEntry";
 
+import {rentalDenyEntryService} from "@carRentalModule/database/schemas/rentalDenyEntry/rentalDenyEntry.service";
 type Ctx = {session?: ClientSession; languageCode: string};
 
 /**
@@ -23,12 +23,12 @@ export async function assertCustomerAllowed(
         ...(email ? [{email}] : []),
         ...licenses.map((licenseNumber) => ({licenseNumber})),
     ];
-    const blocked = await RentalDenyEntry.findOne({
+    const blocked = await rentalDenyEntryService.findOne({
         company: companyId,
         isActive: true,
         deletedAt: null,
         $or: or,
-    }).session(ctx.session ?? null);
+    }, {session: ctx.session ?? undefined});
     if (blocked)
         throw apiValidationException(
             "rental_customer_denied",

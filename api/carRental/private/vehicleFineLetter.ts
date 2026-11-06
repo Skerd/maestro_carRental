@@ -9,6 +9,7 @@ import {apiValidationException} from "armonia/src/modules/core/helpers/exception
 import VehicleFine from "@carRentalModule/database/schemas/vehicleFine/vehicleFine";
 import {generateFineDriverLetterPdf} from "@carRentalModule/utilities/pdf/fineDriverLetterPdf";
 
+import {vehicleFineService} from "@carRentalModule/database/schemas/vehicleFine/vehicleFine.service";
 export const basePath = "/api/carRental/vehicleFineLetter";
 export const router = Router();
 
@@ -22,7 +23,7 @@ router.get(
         const readFields = SchemaGuard.sanitizeFields(VehicleFine, getModelCollectedData("vehiclefines").readFields!, "read", actionUserCtx, languageCode);
         if (!readFields.driverName) throw apiValidationException("user_permissions_not_sufficient", "", null, languageCode);
         const fine = ObjectId.isValid(queryParams.fineId)
-            ? await VehicleFine.findOne({_id: new ObjectId(queryParams.fineId), company: company._id, deletedAt: null})
+            ? await vehicleFineService.findOne({_id: new ObjectId(queryParams.fineId), company: company._id, deletedAt: null}, {})
             : null;
         if (!fine) throw apiValidationException("vehicleFine_not_found", "", null, languageCode);
         const buffer = await generateFineDriverLetterPdf(fine, languageCode);

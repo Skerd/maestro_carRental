@@ -9,7 +9,6 @@ import VehicleTransfer, {type IVehicleTransfer} from "./vehicleTransfer";
 import Vehicle from "../vehicle/vehicle";
 import VehicleBlock from "../vehicleBlock/vehicleBlock";
 import {vehicleTransferToDTO} from "@carRentalModule/utilities/mappers/vehicleTransfer/vehicleTransferMapper.dto";
-import {assertReservationWrite} from "@carRentalModule/utilities/services/rentalAccess";
 
 type ActionParams<F> = TransactionRequiredParams & F;
 
@@ -26,7 +25,6 @@ export class VehicleTransferActions {
     /** The car leaves for the other location. */
     @action({auth: "private", transaction: true, rateLimit: {windowMs: 60000, max: 30}, schema: validateSingleForm})
     async start(params: ActionParams<{_id: string}>): Promise<VehicleTransferDto> {
-        assertReservationWrite("status", params.actionUserCtx, params.languageCode);
         const transfer = await loadTransfer(params, ["planned"]);
         transfer.status = "in_transit";
         await transfer.save({session: params.session});
@@ -36,7 +34,6 @@ export class VehicleTransferActions {
     /** The car is at the new location: it counts there from now on, and its block ends now. */
     @action({auth: "private", transaction: true, rateLimit: {windowMs: 60000, max: 30}, schema: validateSingleForm})
     async complete(params: ActionParams<{_id: string}>): Promise<VehicleTransferDto> {
-        assertReservationWrite("status", params.actionUserCtx, params.languageCode);
         const transfer = await loadTransfer(params, ["planned", "in_transit"]);
         const now = new Date();
         transfer.status = "done";
@@ -54,7 +51,6 @@ export class VehicleTransferActions {
     /** The transfer will not happen: the car is free for bookings again. */
     @action({auth: "private", transaction: true, rateLimit: {windowMs: 60000, max: 30}, schema: validateSingleForm})
     async cancel(params: ActionParams<{_id: string}>): Promise<VehicleTransferDto> {
-        assertReservationWrite("status", params.actionUserCtx, params.languageCode);
         const transfer = await loadTransfer(params, ["planned"]);
         transfer.status = "cancelled";
         await transfer.save({session: params.session});

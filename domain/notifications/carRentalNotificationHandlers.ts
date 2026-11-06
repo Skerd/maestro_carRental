@@ -4,6 +4,9 @@ import {createAndPushNotification} from "@coreModule/domain/notifications/notifi
 import {NotificationImportance} from "@coreModule/database/schemas/notification/notification";
 import {NotificationCategory} from "armonia/src/modules/core/api/user/private/notifications/notifications.enum";
 import {NotificationEventCodes} from "@carRentalModule/domain/notifications/notificationEventCodes";
+import {getLogger} from "@coreModule/loggers/serverLog";
+
+const logger = getLogger("carRental_notifications");
 
 type RentalCode = (typeof NotificationEventCodes)[keyof typeof NotificationEventCodes];
 
@@ -56,7 +59,7 @@ function bindHandler(code: RentalCode): void {
                     {languageCode: (payload.languageCode as string) ?? "en-US"},
                 );
             } catch (error) {
-                console.error(`Failed to create ${code} notification for ${receiverId}:`, error);
+                logger.err(`Failed to create ${code} notification for ${receiverId}:`, error);
             }
         }
     });

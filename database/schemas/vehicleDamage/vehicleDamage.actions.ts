@@ -17,8 +17,7 @@ import VehicleMaintenance, {type IVehicleMaintenance} from "../vehicleMaintenanc
 import {vehicleMaintenanceService} from "../vehicleMaintenance/vehicleMaintenance.service";
 import {vehicleDamageToDTO} from "@carRentalModule/utilities/mappers/vehicleDamage/vehicleDamageMapper.dto";
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
-import {assertReservationWrite} from "@carRentalModule/utilities/services/rentalAccess";
-import {addReservationCharges} from "@carRentalModule/utilities/services/rentalLifecycle";
+import {addReservationCharges} from "@carRentalModule/workflows/rentalLifecycle";
 import {rentalPricingLabel} from "@carRentalModule/utilities/services/rentalPricingLabels";
 import {blockForService} from "@carRentalModule/utilities/services/vehicleRecords";
 
@@ -59,7 +58,6 @@ export class VehicleDamageActions {
      */
     @action({auth: "private", transaction: true, rateLimit: {windowMs: 60000, max: 30}, schema: scheduleVehicleDamageRepairFormSchema})
     async scheduleRepair(params: ActionParams<ScheduleVehicleDamageRepairFormType>): Promise<VehicleDamageDto> {
-        assertReservationWrite("status", params.actionUserCtx, params.languageCode);
         const {company, session, languageCode} = params;
         const damage = ObjectId.isValid(params._id)
             ? await VehicleDamage.findOne({_id: new ObjectId(params._id), company: company._id, deletedAt: null}).session(session)
@@ -88,7 +86,6 @@ export class VehicleDamageActions {
      */
     @action({auth: "private", transaction: true, rateLimit: {windowMs: 60000, max: 30}, schema: chargeVehicleDamageFormSchema})
     async chargeToCustomer(params: ActionParams<ChargeVehicleDamageFormType>): Promise<VehicleDamageDto> {
-        assertReservationWrite("status", params.actionUserCtx, params.languageCode);
         const {company, session, languageCode} = params;
         const damage = ObjectId.isValid(params._id)
             ? await VehicleDamage.findOne({_id: new ObjectId(params._id), company: company._id, deletedAt: null}).session(session)

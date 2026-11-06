@@ -8,8 +8,8 @@ import {rateLimiter} from "@coreModule/utilities/middlewares/rateLimiter";
 import {validateFormZod} from "@coreModule/utilities/middlewares/validateFormZod";
 import {buildCreateZodSchema} from "armonia/src/modules/core/helpers/schemaDefBuilder";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
-import Vehicle from "@carRentalModule/database/schemas/vehicle/vehicle";
 
+import {vehicleService} from "@carRentalModule/database/schemas/vehicle/vehicle.service";
 const PingFormDef = {
     vehicle: {type: "objectId", required: true},
     latitude: {type: "number", required: true, min: -90, max: 90},
@@ -36,11 +36,11 @@ router.post(
             },
         ): Promise<{data: {recorded: true}}> => {
             const {company, languageCode} = params;
-            const vehicle = await Vehicle.findOne({
+            const vehicle = await vehicleService.findOne({
                 _id: new ObjectId(params.vehicle),
                 company: company._id,
                 deletedAt: null,
-            });
+            }, {});
             if (!vehicle)
                 throw apiValidationException(
                     "vehicle_not_found",

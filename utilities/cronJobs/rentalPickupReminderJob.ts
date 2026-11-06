@@ -7,9 +7,9 @@
 import type {ObjectId} from "mongodb";
 import {CONSTANTS} from "@coreModule/environment";
 import {getLogger, serverLogger} from "@coreModule/loggers/serverLog";
-import RentalReservation from "@carRentalModule/database/schemas/rentalReservation/rentalReservation";
 import {notifyRentalCustomer} from "@carRentalModule/utilities/services/rentalNotify";
 
+import {rentalReservationService} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation.service";
 const REMINDER_WINDOW_MS = 24 * 3600 * 1000;
 const BATCH_SIZE = 200;
 
@@ -19,21 +19,18 @@ export async function runRentalPickupReminders(company: ObjectId, parentLogger?:
     const now = new Date();
     logger.start("Sending rental pickup reminders...");
 
-    const due = await RentalReservation.find({
+    const due = await rentalReservationService.find({
         company,
         status: "confirmed",
         deletedAt: null,
         pickupReminderSentAt: {$exists: false},
         pickupAt: {$gt: now, $lte: new Date(now.getTime() + REMINDER_WINDOW_MS)},
-    }).limit(BATCH_SIZE);
+    }, {}, undefined, undefined, undefined, BATCH_SIZE);
 
     let sent = 0;
     for (const reservation of due) {
         // Claim it: only the run that sets the stamp sends.
-        const claimed = await RentalReservation.updateOne(
-            {_id: reservation._id, pickupReminderSentAt: {$exists: false}},
-            {$set: {pickupReminderSentAt: now}},
-        );
+        const claimed = await rentalReservationService.updateOne({_id: reservation._id, pickupReminderSentAt: {$exists: false}}, {$set: {pickupReminderSentAt: now}});
         if (!claimed.modifiedCount) continue;
         try {
             await notifyRentalCustomer("reminder", reservation, {languageCode});

@@ -1,7 +1,6 @@
 import {ObjectId} from "mongodb";
+import {noEditRentalReservationFormSchema} from "armonia/src/modules/carRental/api/carRental/private/rentalReservation/noEditRentalReservation.form.validator";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
-import RentalBusinessAccount from "@carRentalModule/database/schemas/rentalBusinessAccount/rentalBusinessAccount";
-import {z} from "zod";
 import {createCrudRouter} from "@coreModule/api/crudRouterFactory";
 import {createRentalReservationFormSchema} from "armonia/src/modules/carRental/api/carRental/private/rentalReservation/rentalReservation.form.validators";
 import {rentalReservationSelectFormSchema} from "armonia/src/modules/carRental/api/carRental/private/rentalReservation/rentalReservationSelect.form.validator";
@@ -19,9 +18,10 @@ import {
     loadApplicablePromo,
     loadBookableCategory,
     loadSelectedExtras,
-} from "@carRentalModule/utilities/services/rentalReservationService";
+} from "@carRentalModule/workflows/rentalReservationService";
 import {notifyRentalCustomer} from "@carRentalModule/utilities/services/rentalNotify";
 
+import {rentalBusinessAccountService} from "@carRentalModule/database/schemas/rentalBusinessAccount/rentalBusinessAccount.service";
 export const basePath = "/api/carRental/rentalReservation";
 
 // Reservations are immutable after create — every change goes through RentalReservationActions.
@@ -32,7 +32,7 @@ export const {router} = createCrudRouter({
     service: rentalReservationService,
     entityName: "RentalReservation",
     createSchema: createRentalReservationFormSchema,
-    editSchema: () => z.looseObject({_id: z.string()}),
+    editSchema: noEditRentalReservationFormSchema,
     toDTO: rentalReservationToDTO,
     toDTOArray: rentalReservationsToDTO,
     selectSchema: rentalReservationSelectFormSchema,
@@ -88,12 +88,12 @@ export const {router} = createCrudRouter({
                   ? "online"
                   : "pay_at_pickup";
         const account = params.businessAccount
-            ? await RentalBusinessAccount.findOne({
+            ? await rentalBusinessAccountService.findOne({
                   _id: new ObjectId(String(params.businessAccount)),
                   company: company._id,
                   isActive: true,
                   deletedAt: null,
-              }).session(session)
+              }, {session: session})
             : null;
         if (paymentChoice === "on_account" && !account)
             throw apiValidationException(

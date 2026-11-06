@@ -11,16 +11,17 @@ import {runAfterCommit} from "@coreModule/utilities/middlewares/transactionUtils
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import {VEHICLE_RECORD_ATTACHMENTS_MAX} from "armonia/src/modules/carRental/api/carRental/private/vehicle/vehicle.schema-def";
 import type {IVehicleMaintenance} from "@carRentalModule/database/schemas/vehicleMaintenance/vehicleMaintenance";
-import VehicleDamage, {type IVehicleDamage} from "@carRentalModule/database/schemas/vehicleDamage/vehicleDamage";
-import Vehicle from "@carRentalModule/database/schemas/vehicle/vehicle";
-import VehicleMaintenance from "@carRentalModule/database/schemas/vehicleMaintenance/vehicleMaintenance";
-import VehicleInsurance from "@carRentalModule/database/schemas/vehicleInsurance/vehicleInsurance";
-import VehicleDocument from "@carRentalModule/database/schemas/vehicleDocument/vehicleDocument";
-import VehicleBlock from "@carRentalModule/database/schemas/vehicleBlock/vehicleBlock";
+import {type IVehicleDamage} from "@carRentalModule/database/schemas/vehicleDamage/vehicleDamage";
 import {NotificationEventCodes} from "@carRentalModule/domain/notifications/notificationEventCodes";
 import {assertNoBookingClash} from "./rentalAvailability";
 import {notifyFleetStaff} from "./rentalNotify";
 
+import {vehicleService} from "@carRentalModule/database/schemas/vehicle/vehicle.service";
+import {vehicleDamageService} from "@carRentalModule/database/schemas/vehicleDamage/vehicleDamage.service";
+import {vehicleInsuranceService} from "@carRentalModule/database/schemas/vehicleInsurance/vehicleInsurance.service";
+import {vehicleDocumentService} from "@carRentalModule/database/schemas/vehicleDocument/vehicleDocument.service";
+import {vehicleBlockService} from "@carRentalModule/database/schemas/vehicleBlock/vehicleBlock.service";
+import {vehicleMaintenanceService} from "@carRentalModule/database/schemas/vehicleMaintenance/vehicleMaintenance.service";
 type RecordCtx = {companyId: ObjectId; session: ClientSession; languageCode: string};
 
 /** Scans and invoices: PDFs and photos. */
@@ -33,7 +34,7 @@ export const recordAttachmentsUpload = mediaUploadMW({
 /** The vehicle id, after checking it is a live vehicle of this company. */
 export async function assertCompanyVehicle(vehicleId: unknown, ctx: RecordCtx): Promise<ObjectId> {
     const id = new ObjectId(String(vehicleId));
-    const exists = await Vehicle.exists({_id: id, company: ctx.companyId, deletedAt: null}).session(ctx.session);
+    const exists = await vehicleService.exists({_id: id, company: ctx.companyId, deletedAt: null}, {session: ctx.session});
     if (!exists) {
         throw apiValidationException("vehicle_not_found", "", null, ctx.languageCode);
     }
@@ -75,14 +76,11 @@ export function rearmExpiry(update: Record<string, any>, existing: {expiresAt?: 
 export async function syncVehicleServiceDue(vehicleId: ObjectId, ctx: {companyId: ObjectId; session?: ClientSession}): Promise<void> {
     // Sequential: a transaction session runs one operation at a time.
     const session = ctx.session ?? null;
-    const vehicle = await Vehicle.findOne({_id: vehicleId, company: ctx.companyId}).select("nextServiceDueAt nextServiceDueKm odometerKm").session(session);
+    const vehicle = await vehicleService.findOne({_id: vehicleId, company: ctx.companyId}, {session: session}, undefined, "nextServiceDueAt nextServiceDueKm odometerKm");
     if (!vehicle) return;
     const completed = {company: ctx.companyId, vehicle: vehicleId, status: "completed", deletedAt: null};
-    const latest = await VehicleMaintenance.findOne(completed).sort({serviceDate: -1, _id: -1}).select("odometerKm").session(session);
-    const due = await VehicleMaintenance.findOne({...completed, $or: [{nextDueAt: {$ne: null}}, {nextDueKm: {$ne: null}}]})
-        .sort({serviceDate: -1, _id: -1})
-        .select("nextDueAt nextDueKm")
-        .session(session);
+    const latest = await vehicleMaintenanceService.findLatest(completed, "odometerKm", session);
+    const due = await vehicleMaintenanceService.findLatest({...completed, $or: [{nextDueAt: {$ne: null}}, {nextDueKm: {$ne: null}}]}, "nextDueAt nextDueKm", session);
 
     const nextDueAt = due?.nextDueAt;
     const nextDueKm = due?.nextDueKm;
@@ -100,7 +98,7 @@ export async function syncVehicleServiceDue(vehicleId: ObjectId, ctx: {companyId
         unset.serviceReminderSentAt = 1;
     }
     if (raiseOdometer) set.odometerKm = latest!.odometerKm;
-    await Vehicle.updateOne({_id: vehicleId}, {$set: set, $unset: unset}, {session});
+    await vehicleService.updateOne({_id: vehicleId}, {$set: set, $unset: unset}, {session: session});
 }
 
 /**
@@ -113,10 +111,8 @@ export async function blockForService(
 ): Promise<ObjectId> {
     const window = {start: input.serviceDate, end: input.readyAt};
     await assertNoBookingClash(input.vehicleId, window, ctx);
-    const [block] = await VehicleBlock.create(
-        [{company: ctx.companyId, vehicle: input.vehicleId, startAt: window.start, endAt: window.end, reason: input.type === "repair" ? "repair" : "maintenance", source: "service"}],
-        {session: ctx.session},
-    );
+    const [block] = await vehicleBlockService.createMany([{company: ctx.companyId, vehicle: input.vehicleId, startAt: window.start, endAt: window.end, reason: input.type === "repair" ? "repair" : "maintenance", source: "service"}],
+        {session: ctx.session},);
     return block._id;
 }
 
@@ -128,20 +124,20 @@ export async function blockForService(
 export async function damageReported(damage: IVehicleDamage, ctx: RecordCtx): Promise<void> {
     const vehicleId = nestedEntityToRef(damage.vehicle)!;
     if (!damage.insurance) {
-        const policy = await VehicleInsurance.findOne({
+        const policy = await vehicleInsuranceService.findFirstByCoverage({
             company: ctx.companyId,
             vehicle: vehicleId,
             deletedAt: null,
             status: {$ne: "cancelled"},
             validFrom: {$lte: damage.reportedAt},
             expiresAt: {$gt: damage.reportedAt},
-        }).sort({coverage: 1}).select("_id").session(ctx.session);
-        if (policy) await VehicleDamage.updateOne({_id: damage._id}, {$set: {insurance: policy._id}}, {session: ctx.session});
+        }, ctx.session);
+        if (policy) await vehicleDamageService.updateOne({_id: damage._id}, {$set: {insurance: policy._id}}, {session: ctx.session});
     }
     if (damage.severity === "major") {
-        await Vehicle.updateOne({_id: vehicleId, company: ctx.companyId}, {$set: {readiness: "needs_check"}}, {session: ctx.session});
+        await vehicleService.updateOne({_id: vehicleId, company: ctx.companyId}, {$set: {readiness: "needs_check"}}, {session: ctx.session});
     }
-    const vehicle = await Vehicle.findOne({_id: vehicleId, company: ctx.companyId}).select("plate").session(ctx.session);
+    const vehicle = await vehicleService.findOne({_id: vehicleId, company: ctx.companyId}, {session: ctx.session}, undefined, "plate");
     await runAfterCommit(ctx.session, () =>
         notifyFleetStaff(
             NotificationEventCodes.VEHICLE_DAMAGE_REPORTED,
@@ -168,8 +164,8 @@ export async function assertVehiclePapersValid(
     const {until} = trip;
     const base = {company: ctx.companyId, vehicle: vehicle._id, deletedAt: null};
     const [insured, documents] = await Promise.all([
-        VehicleInsurance.exists({...base, status: {$ne: "cancelled"}, validFrom: {$lte: trip.from}, expiresAt: {$gte: until}}).session(ctx.session),
-        VehicleDocument.find({...base, supersededBy: null, type: {$in: ROAD_DOCUMENT_TYPES}, expiresAt: {$ne: null}}).select("type expiresAt").session(ctx.session),
+        vehicleInsuranceService.exists({...base, status: {$ne: "cancelled"}, validFrom: {$lte: trip.from}, expiresAt: {$gte: until}}, {session: ctx.session}),
+        vehicleDocumentService.find({...base, supersededBy: null, type: {$in: ROAD_DOCUMENT_TYPES}, expiresAt: {$ne: null}}, {session: ctx.session}, undefined, "type expiresAt"),
     ]);
     const latest = new Map<string, Date>();
     for (const document of documents) {
@@ -187,13 +183,9 @@ export async function assertVehiclePapersValid(
  * removed, so the car is free again, and the damages it was to fix are open again.
  */
 export async function releaseService(record: IVehicleMaintenance, ctx: {session: ClientSession}): Promise<void> {
-    if (record.block) await VehicleBlock.updateOne({_id: record.block}, {$set: {deletedAt: new Date()}}, {session: ctx.session});
+    if (record.block) await vehicleBlockService.updateOne({_id: record.block}, {$set: {deletedAt: new Date()}}, {session: ctx.session});
     const damageIds = record.damages.map((damage) => nestedEntityToRef(damage)!);
     if (damageIds.length) {
-        await VehicleDamage.updateMany(
-            {_id: {$in: damageIds}, repair: record._id, status: "in_repair"},
-            {$set: {status: "open"}, $unset: {repair: 1}},
-            {session: ctx.session},
-        );
+        await vehicleDamageService.updateMany({_id: {$in: damageIds}, repair: record._id, status: "in_repair"}, {$set: {status: "open"}, $unset: {repair: 1}}, {session: ctx.session});
     }
 }

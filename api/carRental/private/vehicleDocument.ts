@@ -16,14 +16,14 @@ export const basePath = "/api/carRental/vehicleDocument";
 
 /** A renewal renews a document of the same car and type that no other document renewed yet. */
 async function assertRenewableDocument(data: Record<string, any>, ctx: {companyId: ObjectId; session: ClientSession; languageCode: string}): Promise<void> {
-    const renewable = await VehicleDocument.exists({
+    const renewable = await vehicleDocumentService.exists({
         _id: data.supersedes,
         company: ctx.companyId,
         vehicle: data.vehicle,
         type: data.type,
         supersededBy: null,
         deletedAt: null,
-    }).session(ctx.session);
+    }, {session: ctx.session});
     if (!renewable) throw apiValidationException("vehicle_record_not_renewable", "", null, ctx.languageCode);
 }
 
@@ -57,14 +57,14 @@ export const {router} = createCrudRouter({
         return update;
     },
     afterCreate: async (created, {session}) => {
-        if (created.supersedes) await VehicleDocument.updateOne({_id: created.supersedes}, {$set: {supersededBy: created._id}}, {session});
+        if (created.supersedes) await vehicleDocumentService.updateOne({_id: created.supersedes}, {$set: {supersededBy: created._id}}, {session: session});
     },
     // A deleted renewal no longer renews: the record it renewed can be renewed again.
     afterDelete: async ({session}, doc) => {
-        if (doc.supersedes) await VehicleDocument.updateOne({_id: doc.supersedes, supersededBy: doc._id}, {$unset: {supersededBy: 1}}, {session});
+        if (doc.supersedes) await vehicleDocumentService.updateOne({_id: doc.supersedes, supersededBy: doc._id}, {$unset: {supersededBy: 1}}, {session: session});
     },
     // Restored, it renews its record again, unless another renewal took that place meanwhile.
     afterRestore: async ({session}, doc) => {
-        if (doc.supersedes) await VehicleDocument.updateOne({_id: doc.supersedes, supersededBy: null}, {$set: {supersededBy: doc._id}}, {session});
+        if (doc.supersedes) await vehicleDocumentService.updateOne({_id: doc.supersedes, supersededBy: null}, {$set: {supersededBy: doc._id}}, {session: session});
     },
 });

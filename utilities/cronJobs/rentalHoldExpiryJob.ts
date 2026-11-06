@@ -7,10 +7,10 @@
 import type {ObjectId} from "mongodb";
 import {CONSTANTS} from "@coreModule/environment";
 import {getLogger, serverLogger} from "@coreModule/loggers/serverLog";
-import RentalReservation from "@carRentalModule/database/schemas/rentalReservation/rentalReservation";
-import {expireRentalHold} from "@carRentalModule/utilities/services/rentalLifecycle";
+import {expireRentalHold} from "@carRentalModule/workflows/rentalLifecycle";
 import {runInTransaction} from "@coreModule/utilities/middlewares/runInTransaction";
 
+import {rentalReservationService} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation.service";
 const BATCH_SIZE = 200;
 
 export async function runRentalHoldExpiry(company: ObjectId, parentLogger?: serverLogger): Promise<void> {
@@ -18,15 +18,13 @@ export async function runRentalHoldExpiry(company: ObjectId, parentLogger?: serv
     const languageCode = CONSTANTS.DEFAULT_LANGUAGE ?? "en-US";
     logger.start("Expiring rental holds...");
 
-    const due = await RentalReservation.find({company, status: "held", holdExpiresAt: {$lte: new Date()}, deletedAt: null})
-        .select("_id")
-        .limit(BATCH_SIZE);
+    const due = await rentalReservationService.find({company, status: "held", holdExpiresAt: {$lte: new Date()}, deletedAt: null}, {}, undefined, "_id", undefined, BATCH_SIZE);
     let expired = 0;
     for (const {_id} of due) {
         try {
             const done = await runInTransaction(logger, async (session) => {
                 // Re-read inside the transaction: a payment may have confirmed it meanwhile.
-                const reservation = await RentalReservation.findById(_id).session(session);
+                const reservation = await rentalReservationService.findById(_id, {session: session});
                 return reservation ? expireRentalHold(reservation, {session, logger, languageCode}) : false;
             });
             if (done) expired += 1;

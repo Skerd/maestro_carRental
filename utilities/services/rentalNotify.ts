@@ -1,7 +1,5 @@
 import type {ObjectId} from "mongodb";
 import type {ClientSession} from "mongoose";
-import Company from "@coreModule/database/schemas/company/company";
-import Currency from "@coreModule/database/schemas/currency/currency";
 import {emitNotificationEvent} from "@coreModule/domain/notifications/notificationEventBus";
 import {decimalToNumber, nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import {runAfterCommit} from "@coreModule/utilities/middlewares/transactionUtils";
@@ -13,13 +11,15 @@ import {NotificationEventCodes} from "@carRentalModule/domain/notifications/noti
 import {sendRentalCustomerMail, type RentalCustomerEmailKind} from "@carRentalModule/utilities/emails/sendRentalCustomerMail";
 import {companySiteUrl} from "@coreModule/utilities/marketing/portalCompanies";
 
+import {currencyService} from "@coreModule/database/schemas/currency/currency.service";
+import {companyService} from "@coreModule/database/schemas/company/company.service";
 function formatLocal(date: Date, timeZone: string, languageCode: string): string {
     return new Intl.DateTimeFormat(languageCode, {timeZone, dateStyle: "medium", timeStyle: "short"}).format(date);
 }
 
 /** An amount in the booking's currency, for the customer's emails. */
 export async function formatAmount(reservation: IRentalReservation, amount: number, languageCode: string): Promise<string> {
-    const currency = await Currency.findById(nestedEntityToRef(reservation.pricing.currency)).select("abbreviation");
+    const currency = await currencyService.findById(nestedEntityToRef(reservation.pricing.currency), {}, undefined, "abbreviation");
     try {
         return new Intl.NumberFormat(languageCode, {style: "currency", currency: currency?.abbreviation ?? "EUR"}).format(amount);
     } catch {
@@ -41,7 +41,7 @@ export async function notifyRentalCustomer(
 ): Promise<void> {
     await runAfterCommit(ctx.session, async () => {
         const companyId = nestedEntityToRef(reservation.company);
-        const company = await Company.findById(companyId).select("name siteSlug");
+        const company = await companyService.findById(companyId, {}, undefined, "name siteSlug");
         if (!company) return;
         const {snapshot, contact} = reservation;
         await sendRentalCustomerMail({
@@ -64,7 +64,7 @@ export async function notifyRentalCustomer(
                 recordId: reservation._id,
                 version: reservation.manageTokenVersion,
             }),
-            manageUrl: companySiteUrl(company, "/car-rental/manage"),
+            manageUrl: companySiteUrl({_id: company._id, siteSlug: company.siteSlug}, "/car-rental/manage"),
             note: options.note,
             attachments: options.attachments,
         });

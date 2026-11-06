@@ -66,13 +66,13 @@ import {
     createRentalReservation,
     loadBookableCategory,
     loadSelectedExtras,
-} from "@carRentalModule/utilities/services/rentalReservationService";
+} from "@carRentalModule/workflows/rentalReservationService";
 import {
     expireRentalHold,
     handOverRentalReservation,
     markRentalNoShow,
     returnRentalReservation,
-} from "@carRentalModule/utilities/services/rentalLifecycle";
+} from "@carRentalModule/workflows/rentalLifecycle";
 import {recordCounterPayment} from "@carRentalModule/utilities/services/rentalPayments";
 import {resolveRentalTrip} from "@carRentalModule/utilities/services/rentalTrip";
 import {syncVehicleServiceDue} from "@carRentalModule/utilities/services/vehicleRecords";

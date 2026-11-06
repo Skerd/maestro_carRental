@@ -16,7 +16,7 @@ import {VehicleSimpleSnippet} from "@carRentalModule/database/schemas/vehicle/ve
 import {RentalLocationSimpleSnippet} from "@carRentalModule/database/schemas/rentalLocation/rentalLocation.snippets";
 import {RentalExtraSimpleSnippet} from "@carRentalModule/database/schemas/rentalExtra/rentalExtra.snippets";
 import {mapLifeCycleToDTO, mapOwnershipToDTO, mapSoftDeleteToDTO} from "@coreModule/utilities/mappers/plugin/pluginMappers.dto";
-import {freeCancellationUntil} from "@carRentalModule/utilities/services/rentalLifecycle";
+import {freeCancellationUntil} from "@carRentalModule/workflows/rentalLifecycle";
 
 const optionalIso = (date: Date | undefined) => (date ? dateToISOString(date) : undefined);
 
@@ -101,9 +101,9 @@ export function rentalReservationToDTO(reservation: IRentalReservation): RentalR
             extra: mapSnippet<RentalExtraSimple>()(line.extra, RentalExtraSimpleSnippet),
             name: line.name,
             pricing: line.pricing,
-            unitPrice: line.unitPrice,
+            unitPrice: decimalToNumber(line.unitPrice) ?? 0,
             quantity: line.quantity,
-            total: line.total,
+            total: decimalToNumber(line.total) ?? 0,
         })),
         pricing: pricingToDTO(reservation),
         snapshot: snapshotToDTO(reservation.snapshot),
@@ -114,7 +114,7 @@ export function rentalReservationToDTO(reservation: IRentalReservation): RentalR
         },
         paymentChoice: reservation.paymentChoice,
         paymentStatus: reservation.paymentStatus,
-        amountPaid: reservation.amountPaid,
+        amountPaid: decimalToNumber(reservation.amountPaid) ?? 0,
         notes: reservation.notes,
         handover: reservation.handover
             ? {...vehicleCheck(reservation.handover)!, acknowledgedDamages: (reservation.handover.acknowledgedDamages ?? []).map(String)}
@@ -126,8 +126,8 @@ export function rentalReservationToDTO(reservation: IRentalReservation): RentalR
             ? {
                 method: reservation.deposit.method,
                 status: reservation.deposit.status,
-                amount: reservation.deposit.amount,
-                capturedAmount: reservation.deposit.capturedAmount ?? 0,
+                amount: decimalToNumber(reservation.deposit.amount) ?? 0,
+                capturedAmount: decimalToNumber(reservation.deposit.capturedAmount) ?? 0,
                 hasSavedCard: !!reservation.deposit.paymentMethodId,
                 heldAt: optionalIso(reservation.deposit.heldAt),
                 settledAt: optionalIso(reservation.deposit.settledAt),
@@ -182,10 +182,10 @@ export function rentalReservationToPublic(reservation: IRentalReservation, now =
         holdExpiresAt: optionalIso(reservation.holdExpiresAt),
         contact: contactToDTO(reservation.contact),
         pricing: pricingToDTO(reservation),
-        extras: reservation.extras.map(({extra, name, quantity, total}) => ({extraId: String(nestedEntityToRef(extra)), name, quantity, total})),
+        extras: reservation.extras.map(({extra, name, quantity, total}) => ({extraId: String(nestedEntityToRef(extra)), name, quantity, total: decimalToNumber(total) ?? 0})),
         paymentChoice: reservation.paymentChoice,
         paymentStatus: reservation.paymentStatus,
-        amountPaid: reservation.amountPaid,
+        amountPaid: decimalToNumber(reservation.amountPaid) ?? 0,
         amountDue: amountDue(reservation),
         freeCancellationUntil: dateToISOString(freeCancellationUntil(reservation)),
         cancellationFeePercent: reservation.policy.cancellationFeePercent,

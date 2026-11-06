@@ -11,17 +11,17 @@ import {getLogger, serverLogger} from "@coreModule/loggers/serverLog";
 import {runInTransaction} from "@coreModule/utilities/middlewares/runInTransaction";
 import {localDateOf, localTimeOf} from "@coreModule/utilities/time/timeWindows";
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
-import RentalSubscription from "@carRentalModule/database/schemas/rentalSubscription/rentalSubscription";
-import RentalBusinessAccount from "@carRentalModule/database/schemas/rentalBusinessAccount/rentalBusinessAccount";
-import RentalLocation from "@carRentalModule/database/schemas/rentalLocation/rentalLocation";
 import {carRentalConfigService} from "@carRentalModule/database/schemas/carRentalConfig/carRentalConfig.service";
 import {
     createRentalReservation,
     loadBookableCategory,
-} from "@carRentalModule/utilities/services/rentalReservationService";
+} from "@carRentalModule/workflows/rentalReservationService";
 import {resolveRentalTrip} from "@carRentalModule/utilities/services/rentalTrip";
 import {notifyRentalCustomer} from "@carRentalModule/utilities/services/rentalNotify";
 
+import {rentalSubscriptionService} from "@carRentalModule/database/schemas/rentalSubscription/rentalSubscription.service";
+import {rentalLocationService} from "@carRentalModule/database/schemas/rentalLocation/rentalLocation.service";
+import {rentalBusinessAccountService} from "@carRentalModule/database/schemas/rentalBusinessAccount/rentalBusinessAccount.service";
 const BATCH_SIZE = 50;
 
 function advance(date: Date, period: "week" | "month"): Date {
@@ -37,20 +37,18 @@ export async function runRentalSubscriptions(
     const logger = getLogger("rental_subscriptions", parentLogger);
     const languageCode = CONSTANTS.DEFAULT_LANGUAGE ?? "en-US";
     logger.start("Creating subscription bookings...");
-    const due = await RentalSubscription.find({
+    const due = await rentalSubscriptionService.find({
         company,
         status: "active",
         nextRunAt: {$lte: new Date()},
         deletedAt: null,
-    })
-        .select("_id")
-        .limit(BATCH_SIZE);
+    }, {}, undefined, "_id", undefined, BATCH_SIZE);
     let createdCount = 0;
     for (const {_id} of due) {
         try {
             const created = await runInTransaction(logger, async (session) => {
                 const subscription =
-                    await RentalSubscription.findById(_id).session(session);
+                    await rentalSubscriptionService.findById(_id, {session: session});
                 if (
                     !subscription ||
                     subscription.status !== "active" ||
@@ -63,11 +61,11 @@ export async function runRentalSubscriptions(
                         company,
                         ctx,
                     );
-                const location = await RentalLocation.findOne({
+                const location = await rentalLocationService.findOne({
                     _id: subscription.pickupLocation,
                     company,
                     deletedAt: null,
-                }).session(session);
+                }, {session: session});
                 if (!location) return false;
                 const pickupAt = subscription.nextRunAt;
                 const returnAt = advance(pickupAt, subscription.period);
@@ -95,12 +93,12 @@ export async function runRentalSubscriptions(
                     {languageCode, online: false, session},
                 );
                 const account = subscription.businessAccount
-                    ? await RentalBusinessAccount.findOne({
+                    ? await rentalBusinessAccountService.findOne({
                           _id: subscription.businessAccount,
                           company,
                           isActive: true,
                           deletedAt: null,
-                      }).session(session)
+                      }, {session: session})
                     : null;
                 const [first, ...rest] = subscription.contactName
                     .trim()

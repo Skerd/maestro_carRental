@@ -61,14 +61,13 @@ import {
     handOverRentalReservation,
     markRentalNoShow,
     returnRentalReservation,
-} from "@carRentalModule/utilities/services/rentalLifecycle";
+} from "@carRentalModule/workflows/rentalLifecycle";
 import {recordCounterPayment, reservationCurrency} from "@carRentalModule/utilities/services/rentalPayments";
 import {
     applyDriverFees,
     assertDriverList,
 } from "@carRentalModule/utilities/services/rentalDrivers";
 import {suggestReturnCharges} from "@carRentalModule/utilities/services/rentalReturnCharges";
-import {assertReservationWrite} from "@carRentalModule/utilities/services/rentalAccess";
 import {
     refreshDeposit,
     settleDeposit,
@@ -143,11 +142,6 @@ export class RentalReservationActions {
     async recordPayment(
         params: ActionParams<RecordRentalPaymentFormType>,
     ): Promise<RentalReservationDto> {
-        assertReservationWrite(
-            "amountPaid",
-            params.actionUserCtx,
-            params.languageCode,
-        );
         const reservation = await loadReservation(params);
         assertStatus(
             reservation,
@@ -174,11 +168,6 @@ export class RentalReservationActions {
     async saveDrivers(
         params: ActionParams<SaveRentalDriversFormType>,
     ): Promise<RentalReservationDto> {
-        assertReservationWrite(
-            "status",
-            params.actionUserCtx,
-            params.languageCode,
-        );
         const reservation = await loadReservation(params);
         assertStatus(
             reservation,
@@ -229,11 +218,6 @@ export class RentalReservationActions {
     async openDamages(
         params: ActionParams<{_id: string}>,
     ): Promise<{data: RentalOpenDamage[]; readiness?: VehicleReadiness}> {
-        assertReservationWrite(
-            "status",
-            params.actionUserCtx,
-            params.languageCode,
-        );
         const reservation = await loadReservation(params);
         const vehicle = await Vehicle.findOne({
             _id: reservation.vehicle,
@@ -277,11 +261,6 @@ export class RentalReservationActions {
     async takeDeposit(
         params: ActionParams<TakeRentalDepositFormType>,
     ): Promise<{data: RentalDepositResponse}> {
-        assertReservationWrite(
-            "amountPaid",
-            params.actionUserCtx,
-            params.languageCode,
-        );
         const reservation = await loadReservation(params);
         assertStatus(
             reservation,
@@ -316,11 +295,6 @@ export class RentalReservationActions {
     async refreshDeposit(
         params: ActionParams<{_id: string}>,
     ): Promise<RentalReservationDto> {
-        assertReservationWrite(
-            "amountPaid",
-            params.actionUserCtx,
-            params.languageCode,
-        );
         const reservation = await loadReservation(params);
         await refreshDeposit(reservation, ctxOf(params));
         return toDto(reservation, params);
@@ -336,11 +310,6 @@ export class RentalReservationActions {
     async settleDeposit(
         params: ActionParams<SettleRentalDepositFormType>,
     ): Promise<RentalReservationDto> {
-        assertReservationWrite(
-            "amountPaid",
-            params.actionUserCtx,
-            params.languageCode,
-        );
         const reservation = await loadReservation(params);
         assertStatus(
             reservation,
@@ -366,11 +335,6 @@ export class RentalReservationActions {
     async handover(
         params: ActionParams<HandoverRentalReservationFormType>,
     ): Promise<RentalReservationDto> {
-        assertReservationWrite(
-            "status",
-            params.actionUserCtx,
-            params.languageCode,
-        );
         const reservation = await loadReservation(params);
         const {
             odometerKm,
@@ -408,11 +372,6 @@ export class RentalReservationActions {
     async previewReturnCharges(
         params: ActionParams<PreviewReturnChargesFormType>,
     ): Promise<{data: RentalReturnChargesPreview}> {
-        assertReservationWrite(
-            "status",
-            params.actionUserCtx,
-            params.languageCode,
-        );
         const reservation = await loadReservation(params);
         assertStatus(reservation, ["in_progress"], params.languageCode);
         const [config, category] = await Promise.all([
@@ -453,11 +412,6 @@ export class RentalReservationActions {
     async returnVehicle(
         params: ActionParams<ReturnRentalReservationFormType>,
     ): Promise<RentalReservationDto> {
-        assertReservationWrite(
-            "status",
-            params.actionUserCtx,
-            params.languageCode,
-        );
         const reservation = await loadReservation(params);
         const {
             odometerKm,
@@ -495,11 +449,6 @@ export class RentalReservationActions {
     async cancel(
         params: ActionParams<CancelRentalReservationFormType>,
     ): Promise<RentalReservationDto> {
-        assertReservationWrite(
-            "status",
-            params.actionUserCtx,
-            params.languageCode,
-        );
         const reservation = await loadReservation(params);
         await cancelRentalReservation(
             reservation,
@@ -523,11 +472,6 @@ export class RentalReservationActions {
     async noShow(
         params: ActionParams<{_id: string}>,
     ): Promise<RentalReservationDto> {
-        assertReservationWrite(
-            "status",
-            params.actionUserCtx,
-            params.languageCode,
-        );
         const reservation = await loadReservation(params);
         assertStatus(reservation, ["confirmed"], params.languageCode);
         const config = await carRentalConfigService.getOrCreateForCompany(
@@ -564,11 +508,6 @@ export class RentalReservationActions {
     async reassignVehicle(
         params: ActionParams<ReassignRentalVehicleFormType>,
     ): Promise<RentalReservationDto> {
-        assertReservationWrite(
-            "status",
-            params.actionUserCtx,
-            params.languageCode,
-        );
         const reservation = await loadReservation(params);
         assertStatus(reservation, ["held", "confirmed"], params.languageCode);
         const companyId = params.company._id;
@@ -647,11 +586,6 @@ export class RentalReservationActions {
     async extend(
         params: ActionParams<ExtendRentalReservationFormType>,
     ): Promise<RentalReservationDto> {
-        assertReservationWrite(
-            "status",
-            params.actionUserCtx,
-            params.languageCode,
-        );
         const reservation = await loadReservation(params);
         await extendRentalReservation(
             reservation,

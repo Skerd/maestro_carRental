@@ -18,6 +18,9 @@ import RentalReservation, {
     type IRentalReservation,
 } from "@carRentalModule/database/schemas/rentalReservation/rentalReservation";
 import {rentalReservationService} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation.service";
+import {vehicleCategoryService} from "@carRentalModule/database/schemas/vehicleCategory/vehicleCategory.service";
+import {vehicleService} from "@carRentalModule/database/schemas/vehicle/vehicle.service";
+import {rentalExtraService} from "@carRentalModule/database/schemas/rentalExtra/rentalExtra.service";
 import type {CreateInput} from "@coreModule/database/services/baseCrudService";
 import {localDateOf} from "@coreModule/utilities/time/timeWindows";
 import type {IRentalPromoCode} from "@carRentalModule/database/schemas/rentalPromoCode/rentalPromoCode";
@@ -25,31 +28,32 @@ import {
     applyDiscount,
     computeRentalQuote,
     rentalDaysBetween,
+    storedAmount,
     storedPricing,
     totalsFor,
     type QuoteDiscount,
     type QuoteFee,
     type RentalQuoteResult,
-} from "./rentalQuote";
-import {assertCustomerAllowed} from "./rentalDeny";
-import {assertDriverList, driverFees} from "./rentalDrivers";
+} from "@carRentalModule/utilities/services/rentalQuote";
+import {assertCustomerAllowed} from "@carRentalModule/utilities/services/rentalDeny";
+import {assertDriverList, driverFees} from "@carRentalModule/utilities/services/rentalDrivers";
 import {
     assertPromoApplies,
     consumePromoCode,
     findPromoCode,
     promoDiscount,
-} from "./rentalPromo";
-import {rentalPricingLabel} from "./rentalPricingLabels";
+} from "@carRentalModule/utilities/services/rentalPromo";
+import {rentalPricingLabel} from "@carRentalModule/utilities/services/rentalPricingLabels";
 import {
     busyUntil,
     busyVehicleIds,
     freeVehiclesInCategory,
     lockVehicle,
     needsTransferFor,
-} from "./rentalAvailability";
+} from "@carRentalModule/utilities/services/rentalAvailability";
 import {formatPostalAddress} from "@coreModule/utilities/helpers/postalAddress";
 import {currencyDecimalPlaces} from "@financeModule/utilities/services/currencyDecimals";
-import type {RentalTrip} from "./rentalTrip";
+import type {RentalTrip} from "@carRentalModule/utilities/services/rentalTrip";
 
 const MINUTE = 60 * 1000;
 /** A quote the customer saw may differ from the server's by rounding only. */
@@ -71,12 +75,15 @@ export async function loadBookableCategory(
     ctx: {languageCode: string; online: boolean; session?: ClientSession},
 ): Promise<IVehicleCategory> {
     const category = ObjectId.isValid(categoryId)
-        ? await VehicleCategory.findOne({
-              _id: new ObjectId(categoryId),
-              company: companyId,
-              deletedAt: null,
-              ...(ctx.online ? {isPublic: true} : {}),
-          }).session(ctx.session ?? null)
+        ? await vehicleCategoryService.findOne(
+              {
+                  _id: new ObjectId(categoryId),
+                  company: companyId,
+                  deletedAt: null,
+                  ...(ctx.online ? {isPublic: true} : {}),
+              },
+              {session: ctx.session},
+          )
         : null;
     if (!category)
         throw apiValidationException(
@@ -97,12 +104,15 @@ export async function loadSelectedExtras(
     if (!selections.length) return [];
     const ids = selections.map((selection) => selection.extra);
     const extras = ids.every((id) => ObjectId.isValid(id))
-        ? await RentalExtra.find({
-              _id: {$in: ids.map((id) => new ObjectId(id))},
-              company: companyId,
-              isActive: true,
-              deletedAt: null,
-          }).session(ctx.session ?? null)
+        ? await rentalExtraService.find(
+              {
+                  _id: {$in: ids.map((id) => new ObjectId(id))},
+                  company: companyId,
+                  isActive: true,
+                  deletedAt: null,
+              },
+              {session: ctx.session},
+          )
         : [];
     const byId = new Map(extras.map((extra) => [String(extra._id), extra]));
     const selected = selections.map(({extra: id, quantity}) => {
@@ -389,13 +399,12 @@ export async function allocateVehicle(
 
     if (vehicleId) {
         const vehicle = ObjectId.isValid(vehicleId)
-            ? await Vehicle.findOne({
-                  _id: new ObjectId(vehicleId),
-                  company: companyId,
-                  deletedAt: null,
-              })
-                  .select("_id category")
-                  .session(ctx.session)
+            ? await vehicleService.findOne(
+                  {_id: new ObjectId(vehicleId), company: companyId, deletedAt: null},
+                  {session: ctx.session},
+                  undefined,
+                  "_id category",
+              )
             : null;
         if (!vehicle)
             throw apiValidationException(
@@ -627,13 +636,15 @@ export async function buildRentalReservation(
             extra: extra._id,
             name: extra.name,
             pricing: extra.pricing,
-            unitPrice: extra.price,
+            unitPrice: storedAmount(extra.price, decimalPlaces),
             quantity,
-            total:
+            total: storedAmount(
                 quote.lines.find(
                     (line) =>
                         line.kind === "extra" && line.label === extra.name,
                 )?.total ?? 0,
+                decimalPlaces,
+            ),
         })),
         pricing: storedPricing(quote, currency, decimalPlaces),
         snapshot: {
@@ -654,7 +665,7 @@ export async function buildRentalReservation(
         },
         paymentChoice,
         paymentStatus: "unpaid",
-        amountPaid: 0,
+        amountPaid: storedAmount(0, decimalPlaces),
         notes: input.notes,
         idempotencyKey,
         timeline: [
@@ -673,10 +684,10 @@ export async function createRentalReservation(
     input: CreateRentalReservationInput,
     ctx: Ctx,
 ): Promise<{reservation: IRentalReservation; created: boolean}> {
-    const existing = await RentalReservation.findOne({
-        company: input.companyId,
-        idempotencyKey: input.idempotencyKey,
-    }).session(ctx.session);
+    const existing = await rentalReservationService.findOne(
+        {company: input.companyId, idempotencyKey: input.idempotencyKey},
+        {session: ctx.session},
+    );
     if (existing) return {reservation: existing, created: false};
 
     const data = await buildRentalReservation(input, ctx);

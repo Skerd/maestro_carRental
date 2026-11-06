@@ -1,8 +1,10 @@
 import type {ClientSession} from "mongoose";
 import type {ObjectId} from "mongodb";
-import RentalReservation, {type IRentalReservation} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation";
-import VehicleTransfer, {type IVehicleTransfer} from "@carRentalModule/database/schemas/vehicleTransfer/vehicleTransfer";
+import {type IRentalReservation} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation";
+import {type IVehicleTransfer} from "@carRentalModule/database/schemas/vehicleTransfer/vehicleTransfer";
 
+import {vehicleTransferService} from "@carRentalModule/database/schemas/vehicleTransfer/vehicleTransfer.service";
+import {rentalReservationService} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation.service";
 /** The main driver's name, or the booking contact's when no driver was recorded. */
 export function mainDriverName(reservation: IRentalReservation): string {
     const driver = reservation.drivers?.find((entry) => entry.role === "primary") ?? reservation.contact;
@@ -17,13 +19,13 @@ export async function bookingAtOffence(
     input: {companyId: ObjectId; vehicleId: ObjectId; offenceAt: Date},
     session: ClientSession | null,
 ): Promise<IRentalReservation | undefined> {
-    const reservation = await RentalReservation.findOne({
+    const reservation = await rentalReservationService.findLastHandedOver({
         company: input.companyId,
         vehicle: input.vehicleId,
         deletedAt: null,
         "handover.at": {$lte: input.offenceAt},
         $or: [{status: "in_progress"}, {status: "completed", "returnInfo.at": {$gte: input.offenceAt}}],
-    }).sort({"handover.at": -1}).session(session);
+    }, session);
     return reservation ?? undefined;
 }
 
@@ -35,16 +37,14 @@ export async function transferAtOffence(
     input: {companyId: ObjectId; vehicleId: ObjectId; offenceAt: Date},
     session: ClientSession | null,
 ): Promise<IVehicleTransfer | undefined> {
-    const transfer = await VehicleTransfer.findOne({
+    const transfer = await vehicleTransferService.findOne({
         company: input.companyId,
         vehicle: input.vehicleId,
         deletedAt: null,
         status: {$in: ["in_transit", "done"]},
         departAt: {$lte: input.offenceAt},
         arriveAt: {$gte: input.offenceAt},
-    })
-        .populate("driver", "name surname")
-        .session(session);
+    }, {session: session}, "driver", "name surname");
     return transfer ?? undefined;
 }
 

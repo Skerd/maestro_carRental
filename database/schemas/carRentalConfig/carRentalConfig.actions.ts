@@ -13,9 +13,6 @@ export class CarRentalConfigActions {
         const {logger, languageCode, session, actionUserCtx, company} = params;
 
         const existing = await carRentalConfigService.findForCompany(company._id, {session, logger, languageCode});
-        if (!existing) {
-            SchemaGuard.checkModelPermission(CarRentalConfig, "create", actionUserCtx, languageCode);
-        }
         const doc = existing ?? await carRentalConfigService.getOrCreateForCompany(company._id, {
             session,
             logger,

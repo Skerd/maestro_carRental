@@ -10,12 +10,13 @@ import {getModelCollectedData} from "@coreModule/database/collections";
 import SchemaGuard from "@coreModule/database/security/schemaGuard";
 import {buildCreateZodSchema} from "armonia/src/modules/core/helpers/schemaDefBuilder";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
-import Invoice from "@financeModule/database/schemas/invoice/invoice";
-import Currency from "@coreModule/database/schemas/currency/currency";
 import {decimalToNumber} from "@coreModule/utilities/mappers/common.mapper";
 import RentalBusinessAccount from "@carRentalModule/database/schemas/rentalBusinessAccount/rentalBusinessAccount";
 import {generateRentalStatementPdf} from "@carRentalModule/utilities/pdf/rentalStatementPdf";
 
+import {rentalBusinessAccountService} from "@carRentalModule/database/schemas/rentalBusinessAccount/rentalBusinessAccount.service";
+import {invoiceService} from "@financeModule/database/schemas/invoice/invoice.service";
+import {currencyService} from "@coreModule/database/schemas/currency/currency.service";
 const StatementFormDef = {
     businessAccount: {type: "objectId", required: true},
     /** `YYYY-MM` in UTC. The invoices issued that month for the account's VAT number. */
@@ -64,11 +65,11 @@ router.post(
                     null,
                     languageCode,
                 );
-            const account = await RentalBusinessAccount.findOne({
+            const account = await rentalBusinessAccountService.findOne({
                 _id: new ObjectId(params.businessAccount),
                 company: company._id,
                 deletedAt: null,
-            });
+            }, {});
             if (!account)
                 throw apiValidationException(
                     "rentalBusinessAccount_not_found",
@@ -80,17 +81,15 @@ router.post(
             const end = new Date(
                 Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1),
             );
-            const invoices = await Invoice.find({
+            const invoices = await invoiceService.find({
                 company: company._id,
                 deletedAt: null,
                 "customer.vatNumber": account.vatNumber,
                 issuedAt: {$gte: start, $lt: end},
-            })
-                .select("number issuedAt total currency")
-                .sort({issuedAt: 1});
-            const currencies = await Currency.find({
+            }, {}, undefined, "number issuedAt total currency", {issuedAt: 1});
+            const currencies = await currencyService.find({
                 _id: {$in: invoices.map((invoice) => invoice.currency)},
-            }).select("abbreviation");
+            }, {}, undefined, "abbreviation");
             const abbreviation = new Map(
                 currencies.map((currency) => [
                     String(currency._id),

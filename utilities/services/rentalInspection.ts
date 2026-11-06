@@ -4,11 +4,12 @@ import {apiValidationException} from "armonia/src/modules/core/helpers/exception
 import Media from "@coreModule/database/schemas/media/media";
 import type {ReturnRentalReservationFormType} from "armonia/src/modules/carRental/api/carRental/private/rentalReservation/rentalReservation.schema-def";
 import type {CreateInput} from "@coreModule/database/services/baseCrudService";
-import VehicleDamage, {type IVehicleDamage} from "@carRentalModule/database/schemas/vehicleDamage/vehicleDamage";
+import {type IVehicleDamage} from "@carRentalModule/database/schemas/vehicleDamage/vehicleDamage";
 import {vehicleDamageService} from "@carRentalModule/database/schemas/vehicleDamage/vehicleDamage.service";
 import {damageReported} from "./vehicleRecords";
 import type {IRentalReservation} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation";
 
+import {mediaService} from "@coreModule/database/schemas/media/media.service";
 type InspectionCtx = {session: ClientSession; languageCode: string; logger?: any; auditUserId?: string | ObjectId};
 
 export type NewDamageInput = NonNullable<ReturnRentalReservationFormType["newDamages"]>[number];
@@ -19,7 +20,7 @@ export type MediaIdsInput = ReadonlyArray<{toString(): string}> | undefined;
 export async function companyMediaIds(ids: MediaIdsInput, companyId: ObjectId, ctx: InspectionCtx): Promise<ObjectId[]> {
     const unique = [...new Set((ids ?? []).map(String))].map((id) => new ObjectId(id));
     if (!unique.length) return [];
-    const found = await Media.countDocuments({_id: {$in: unique}, company: companyId}).session(ctx.session);
+    const found = await mediaService.count({_id: {$in: unique}, company: companyId}, {session: ctx.session});
     if (found !== unique.length) throw apiValidationException("rental_media_not_found", "", null, ctx.languageCode);
     return unique;
 }
@@ -36,13 +37,13 @@ export async function acknowledgedDamageIds(
 ): Promise<ObjectId[]> {
     const unique = [...new Set((ids ?? []).map(String))].map((id) => new ObjectId(id));
     if (!unique.length) return [];
-    const found = await VehicleDamage.countDocuments({
+    const found = await vehicleDamageService.count({
         _id: {$in: unique},
         company: companyId,
         vehicle: reservation.vehicle,
         status: {$in: ["open", "in_repair"]},
         deletedAt: null,
-    }).session(ctx.session);
+    }, {session: ctx.session});
     if (found !== unique.length) throw apiValidationException("vehicle_damage_reservation_mismatch", "", null, ctx.languageCode);
     return unique;
 }

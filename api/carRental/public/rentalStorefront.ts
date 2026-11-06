@@ -32,7 +32,6 @@ import {
     validateRecordAccessToken,
 } from "@coreModule/utilities/security/recordAccessToken";
 import {decimalToNumber, mapSnippet} from "@coreModule/utilities/mappers/common.mapper";
-import Currency from "@coreModule/database/schemas/currency/currency";
 import {CurrencySimpleSnippet} from "@coreModule/database/schemas/currency/currency.snippets";
 import type {CurrencySimple} from "armonia/src/modules/core/dto/currency.dto";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
@@ -74,22 +73,16 @@ import {RENTAL_RESERVATION_LINK_PURPOSE} from "armonia/src/modules/carRental/api
 import type {ICompany} from "@coreModule/database/schemas/company/company";
 import type {ICarRentalConfig} from "@carRentalModule/database/schemas/carRentalConfig/carRentalConfig";
 import {carRentalConfigService} from "@carRentalModule/database/schemas/carRentalConfig/carRentalConfig.service";
-import RentalLocation from "@carRentalModule/database/schemas/rentalLocation/rentalLocation";
-import VehicleCategory, {
+import {
     type IVehicleCategory,
 } from "@carRentalModule/database/schemas/vehicleCategory/vehicleCategory";
-import RentalExtra from "@carRentalModule/database/schemas/rentalExtra/rentalExtra";
-import RentalReservation, {
+import {
     type IRentalReservation,
 } from "@carRentalModule/database/schemas/rentalReservation/rentalReservation";
-import RentalSearchStat from "@carRentalModule/database/schemas/rentalSearchStat/rentalSearchStat";
-import RentalReview from "@carRentalModule/database/schemas/rentalReview/rentalReview";
 import {rentalReviewService} from "@carRentalModule/database/schemas/rentalReview/rentalReview.service";
 import {rentalReservationToPublic} from "@carRentalModule/utilities/mappers/rentalReservation/rentalReservationMapper.dto";
 import {localDateOf} from "@coreModule/utilities/time/timeWindows";
 import {mediaUploadMW} from "@coreModule/utilities/middlewares/mediaUploadMW";
-import Media from "@coreModule/database/schemas/media/media";
-import Invoice from "@financeModule/database/schemas/invoice/invoice";
 import {generateInvoicePdf} from "@financeModule/utilities/pdf/invoicePdf";
 import {resolveRentalTrip} from "@carRentalModule/utilities/services/rentalTrip";
 import {formatPostalAddress} from "@coreModule/utilities/helpers/postalAddress";
@@ -104,7 +97,7 @@ import {
     loadSelectedExtras,
     quoteTrip,
     resolvePaymentChoice,
-} from "@carRentalModule/utilities/services/rentalReservationService";
+} from "@carRentalModule/workflows/rentalReservationService";
 import {
     startBalancePayment,
     startOnlinePayment,
@@ -115,7 +108,7 @@ import {
     extendRentalReservation,
     failRentalPayment,
     settleRentalPayment,
-} from "@carRentalModule/utilities/services/rentalLifecycle";
+} from "@carRentalModule/workflows/rentalLifecycle";
 import {generateRentalAgreementPdf} from "@carRentalModule/utilities/pdf/rentalAgreementPdf";
 import {
     notifyRentalCustomer,
@@ -126,6 +119,14 @@ import {registerPaymentSourceHandler} from "@financeModule/utilities/services/pa
 import {markDepositHeld} from "@carRentalModule/utilities/services/rentalDeposit";
 import {NotificationEventCodes} from "@carRentalModule/domain/notifications/notificationEventCodes";
 
+import {rentalReservationService} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation.service";
+import {currencyService} from "@coreModule/database/schemas/currency/currency.service";
+import {vehicleCategoryService} from "@carRentalModule/database/schemas/vehicleCategory/vehicleCategory.service";
+import {invoiceService} from "@financeModule/database/schemas/invoice/invoice.service";
+import {rentalLocationService} from "@carRentalModule/database/schemas/rentalLocation/rentalLocation.service";
+import {rentalExtraService} from "@carRentalModule/database/schemas/rentalExtra/rentalExtra.service";
+import {mediaService} from "@coreModule/database/schemas/media/media.service";
+import {rentalSearchStatService} from "@carRentalModule/database/schemas/rentalSearchStat/rentalSearchStat.service";
 export const basePath = "/api/carRental/rentalStorefront";
 
 const MY_RESERVATIONS_MAX = 50;
@@ -139,12 +140,12 @@ export const router = Router();
 registerPaymentSourceHandler(["rentalReservation"], {
     async succeeded(intent, {logger, languageCode}) {
         await runInTransaction(logger, async (session) => {
-            const reservation = await RentalReservation.findOne({
+            const reservation = await rentalReservationService.findOne({
                 $or: [
                     {stripePaymentIntentId: intent.id},
                     {balanceIntentIds: intent.id},
                 ],
-            }).session(session);
+            }, {session: session});
             if (reservation)
                 await settleRentalPayment(reservation, intent, {
                     session,
@@ -155,12 +156,12 @@ registerPaymentSourceHandler(["rentalReservation"], {
     },
     async failed(intent, {logger, languageCode}) {
         await runInTransaction(logger, async (session) => {
-            const reservation = await RentalReservation.findOne({
+            const reservation = await rentalReservationService.findOne({
                 $or: [
                     {stripePaymentIntentId: intent.id},
                     {balanceIntentIds: intent.id},
                 ],
-            }).session(session);
+            }, {session: session});
             if (reservation)
                 await failRentalPayment(reservation, intent, {
                     session,
@@ -171,9 +172,9 @@ registerPaymentSourceHandler(["rentalReservation"], {
     },
     async authorized(intent, {logger, languageCode}) {
         await runInTransaction(logger, async (session) => {
-            const reservation = await RentalReservation.findOne({
+            const reservation = await rentalReservationService.findOne({
                 "deposit.intentId": intent.id,
-            }).session(session);
+            }, {session: session});
             if (reservation)
                 await markDepositHeld(
                     reservation,
@@ -184,9 +185,9 @@ registerPaymentSourceHandler(["rentalReservation"], {
     },
     async setupSucceeded(setup, {logger, languageCode}) {
         await runInTransaction(logger, async (session) => {
-            const reservation = await RentalReservation.findOne({
+            const reservation = await rentalReservationService.findOne({
                 "deposit.setupIntentId": setup.id,
-            }).session(session);
+            }, {session: session});
             if (reservation)
                 await markDepositHeld(
                     reservation,
@@ -238,9 +239,7 @@ export async function currencyOf(
     languageCode: string,
 ): Promise<CurrencySimple> {
     const currency = mapSnippet<CurrencySimple>()(
-        await Currency.findById(config.currency).select(
-            "name symbol abbreviation",
-        ),
+        await currencyService.findById(nestedEntityToRef(config.currency)!, {}, undefined, "name symbol abbreviation"),
         CurrencySimpleSnippet,
     );
     if (!currency)
@@ -289,11 +288,11 @@ export function categoryToStorefront(
 export async function publicCategories(
     companyId: ObjectId,
 ): Promise<IVehicleCategory[]> {
-    return VehicleCategory.find({
+    return vehicleCategoryService.find({
         company: companyId,
         isPublic: true,
         deletedAt: null,
-    }).sort({sortOrder: 1, name: 1});
+    }, {}, undefined, undefined, {sortOrder: 1, name: 1});
 }
 
 /** A reservation for its customer, with the currency populated for display and its invoices listed. */
@@ -302,14 +301,12 @@ async function publicReservation(reservation: IRentalReservation) {
         path: "pricing.currency",
         select: "name symbol abbreviation",
     });
-    const invoices = await Invoice.find({
+    const invoices = await invoiceService.find({
         company: nestedEntityToRef(reservation.company),
         sourceType: "rentalReservation",
         sourceId: reservation._id,
         deletedAt: null,
-    })
-        .select("number total")
-        .sort({issuedAt: 1});
+    }, {}, undefined, "number total", {issuedAt: 1});
     return {
         ...rentalReservationToPublic(reservation),
         invoices: invoices.map((invoice) => ({
@@ -340,11 +337,11 @@ async function reservationFromLink(
             languageCode,
         );
     }
-    const reservation = await RentalReservation.findOne({
+    const reservation = await rentalReservationService.findOne({
         _id: new ObjectId(payload.recordId),
         company: company._id,
         deletedAt: null,
-    }).session(session ?? null);
+    }, {session: session ?? undefined});
     if (!reservation || reservation.manageTokenVersion !== payload.version) {
         throw apiValidationException(
             "token_verification_failed",
@@ -371,22 +368,20 @@ router.post(
             );
             const [locations, categories, extras, currency] = await Promise.all(
                 [
-                    RentalLocation.find({
+                    rentalLocationService.find({
                         company: company._id,
                         isActive: true,
                         deletedAt: null,
-                    })
-                        .populate([
+                    }, {}, [
                             {path: "address.city", select: "name"},
                             {path: "address.country", select: "name"},
-                        ])
-                        .sort({name: 1}),
+                        ], undefined, {name: 1}),
                     publicCategories(company._id),
-                    RentalExtra.find({
+                    rentalExtraService.find({
                         company: company._id,
                         isActive: true,
                         deletedAt: null,
-                    }).sort({sortOrder: 1, name: 1}),
+                    }, {}, undefined, undefined, {sortOrder: 1, name: 1}),
                     currencyOf(config, languageCode),
                 ],
             );
@@ -505,24 +500,9 @@ router.post(
                 trip.pickupLocation.timezone,
             );
             if (results.length) {
-                await RentalSearchStat.bulkWrite(
-                    results.map((row) => ({
-                        updateOne: {
-                            filter: {
-                                company: company._id,
-                                day,
-                                category: row.category._id,
-                                location: trip.pickupLocation._id,
-                            },
-                            update: {
-                                $inc: {
-                                    searches: 1,
-                                    unavailable: row.available ? 0 : 1,
-                                },
-                            },
-                            upsert: true,
-                        },
-                    })),
+                await rentalSearchStatService.recordSearches(
+                    {company: company._id, day, location: trip.pickupLocation._id},
+                    results.map((row) => ({category: row.category._id, available: row.available})),
                 );
             }
             return {
@@ -788,9 +768,7 @@ router.post(
             );
             const rentalCompanies = await companyIdsWithModule("carRental");
             const reservations = await asCrossTenant("a portal customer's own bookings at every rental company", () =>
-                RentalReservation.find({customer: user._id, deletedAt: null, company: {$in: rentalCompanies}})
-                    .sort({pickupAt: -1})
-                    .limit(MY_RESERVATIONS_MAX));
+                rentalReservationService.find({customer: user._id, deletedAt: null, company: {$in: rentalCompanies}}, {}, undefined, undefined, {pickupAt: -1}, MY_RESERVATIONS_MAX));
             const companies = await portalCompanyRefs(
                 reservations.map(
                     (reservation) => nestedEntityToRef(reservation.company)!,
@@ -946,10 +924,10 @@ router.post(
             const ids = (params.files ?? [])
                 .filter((id) => ObjectId.isValid(id))
                 .map((id) => new ObjectId(id));
-            const media = await Media.find({
+            const media = await mediaService.find({
                 _id: {$in: ids},
                 company: company._id,
-            }).select("_id");
+            }, {}, undefined, "_id");
             driver.documents = [
                 ...(driver.documents ?? []),
                 ...media.map((file) => file._id),
@@ -1143,11 +1121,11 @@ router.post(
                     null,
                     languageCode,
                 );
-            const existing = await RentalReview.findOne({
+            const existing = await rentalReviewService.findOne({
                 company: company._id,
                 reservation: reservation._id,
                 deletedAt: null,
-            }).session(session);
+            }, {session: session});
             if (existing)
                 throw apiValidationException(
                     "rentalReview_already_exists",
@@ -1237,13 +1215,13 @@ router.post(
                 company,
                 languageCode,
             );
-            const invoice = await Invoice.findOne({
+            const invoice = await invoiceService.findOne({
                 _id: new ObjectId(params.invoiceId),
                 company: company._id,
                 sourceType: "rentalReservation",
                 sourceId: reservation._id,
                 deletedAt: null,
-            });
+            }, {});
             if (!invoice)
                 throw apiValidationException(
                     "rental_reservation_not_found",

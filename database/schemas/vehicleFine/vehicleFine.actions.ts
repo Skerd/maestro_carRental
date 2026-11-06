@@ -12,8 +12,7 @@ import VehicleFine, {type IVehicleFine} from "./vehicleFine";
 import RentalReservation, {type IRentalReservation} from "../rentalReservation/rentalReservation";
 import {carRentalConfigService} from "../carRentalConfig/carRentalConfig.service";
 import {vehicleFineToDTO} from "@carRentalModule/utilities/mappers/vehicleFine/vehicleFineMapper.dto";
-import {assertReservationWrite} from "@carRentalModule/utilities/services/rentalAccess";
-import {addReservationCharges, removeReservationCharges} from "@carRentalModule/utilities/services/rentalLifecycle";
+import {addReservationCharges, removeReservationCharges} from "@carRentalModule/workflows/rentalLifecycle";
 import {chargeSavedCard} from "@carRentalModule/utilities/services/rentalDeposit";
 import {matchFine} from "@carRentalModule/utilities/services/rentalFines";
 import {rentalPricingLabel} from "@carRentalModule/utilities/services/rentalPricingLabels";
@@ -23,7 +22,6 @@ type ActionParams<F> = TransactionRequiredParams & F;
 type FineStatus = IVehicleFine["status"];
 
 async function loadFine(params: ActionParams<{_id: string}>, statuses: FineStatus[]): Promise<IVehicleFine> {
-    assertReservationWrite("status", params.actionUserCtx, params.languageCode);
     const fine = ObjectId.isValid(params._id)
         ? await VehicleFine.findOne({_id: new ObjectId(params._id), company: params.company._id, deletedAt: null}).session(params.session)
         : null;

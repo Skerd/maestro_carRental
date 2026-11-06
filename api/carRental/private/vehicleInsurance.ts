@@ -18,14 +18,14 @@ export const basePath = "/api/carRental/vehicleInsurance";
 
 /** A renewal renews a policy of the same car and coverage that no other policy renewed yet. */
 async function assertRenewablePolicy(data: Record<string, any>, ctx: {companyId: ObjectId; session: ClientSession; languageCode: string}): Promise<void> {
-    const renewable = await VehicleInsurance.exists({
+    const renewable = await vehicleInsuranceService.exists({
         _id: data.supersedes,
         company: ctx.companyId,
         vehicle: data.vehicle,
         coverage: data.coverage,
         supersededBy: null,
         deletedAt: null,
-    }).session(ctx.session);
+    }, {session: ctx.session});
     if (!renewable) throw apiValidationException("vehicle_record_not_renewable", "", null, ctx.languageCode);
 }
 
@@ -74,14 +74,14 @@ export const {router} = createCrudRouter({
         return update;
     },
     afterCreate: async (created, {session}) => {
-        if (created.supersedes) await VehicleInsurance.updateOne({_id: created.supersedes}, {$set: {supersededBy: created._id}}, {session});
+        if (created.supersedes) await vehicleInsuranceService.updateOne({_id: created.supersedes}, {$set: {supersededBy: created._id}}, {session: session});
     },
     // A deleted renewal no longer renews: the record it renewed can be renewed again.
     afterDelete: async ({session}, doc) => {
-        if (doc.supersedes) await VehicleInsurance.updateOne({_id: doc.supersedes, supersededBy: doc._id}, {$unset: {supersededBy: 1}}, {session});
+        if (doc.supersedes) await vehicleInsuranceService.updateOne({_id: doc.supersedes, supersededBy: doc._id}, {$unset: {supersededBy: 1}}, {session: session});
     },
     // Restored, it renews its record again, unless another renewal took that place meanwhile.
     afterRestore: async ({session}, doc) => {
-        if (doc.supersedes) await VehicleInsurance.updateOne({_id: doc.supersedes, supersededBy: null}, {$set: {supersededBy: doc._id}}, {session});
+        if (doc.supersedes) await vehicleInsuranceService.updateOne({_id: doc.supersedes, supersededBy: null}, {$set: {supersededBy: doc._id}}, {session: session});
     },
 });

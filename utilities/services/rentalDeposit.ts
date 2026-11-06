@@ -2,15 +2,15 @@ import type {ClientSession} from "mongoose";
 import type {ObjectId} from "mongodb";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import type {serverLogger} from "@coreModule/loggers/serverLog";
-import {addMoney, roundToCurrency} from "armonia/src/modules/core/helpers/money";
+import {roundToCurrency, toMinor} from "armonia/src/modules/core/helpers/money";
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
-import PaymentTransaction from "@financeModule/database/schemas/paymentTransaction/paymentTransaction";
 import {paymentTransactionService} from "@financeModule/database/schemas/paymentTransaction/paymentTransaction.service";
 import {getPaymentAdapter} from "@financeModule/utilities/services/payment/paymentService";
 import type {PaymentProviderAdapter} from "@financeModule/utilities/services/payment/paymentProvider.types";
 import {RENTAL_CARD_HOLD_MAX_DAYS, type RentalDepositMethod} from "armonia/src/modules/carRental/api/carRental/private/rentalReservation/rentalReservation.constants";
 import type {IRentalReservation} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation";
-import {amountDue, paymentStatusFor, recordCounterPayment, reservationCurrency} from "./rentalPayments";
+import {addToAmountPaid, amountDue, paymentStatusFor, recordCounterPayment, reservationCurrency} from "./rentalPayments";
+import {storedAmount} from "./rentalQuote";
 
 type Ctx = {session: ClientSession; logger: serverLogger; languageCode: string; auditUserId?: string | ObjectId};
 
@@ -29,7 +29,7 @@ function stripeOrFail(languageCode: string): PaymentProviderAdapter {
 }
 
 /** Money taken from the customer's card, recorded on the ledger and counted as paid. */
-async function recordCardCharge(reservation: IRentalReservation, intentId: string, amount: number, ctx: Ctx): Promise<void> {
+async function recordCardCharge(reservation: IRentalReservation, intentId: string, amount: number, decimals: number, ctx: Ctx): Promise<void> {
     const companyId = nestedEntityToRef(reservation.company)!;
     await paymentTransactionService.createPending(
         {
@@ -45,8 +45,8 @@ async function recordCardCharge(reservation: IRentalReservation, intentId: strin
         ctx,
     );
     await paymentTransactionService.markSucceeded(intentId, undefined, ctx);
-    reservation.amountPaid = addMoney(reservation.amountPaid, amount);
-    reservation.paymentStatus = paymentStatusFor(reservation, false);
+    addToAmountPaid(reservation, amount, decimals);
+    reservation.paymentStatus = paymentStatusFor(reservation, false, decimals);
 }
 
 /**
@@ -62,12 +62,14 @@ export async function takeDeposit(
     if (reservation.deposit && reservation.deposit.status !== "failed") {
         throw apiValidationException("rental_deposit_already_taken", "", null, ctx.languageCode);
     }
-    const amount = roundToCurrency(input.amount ?? reservation.pricing.depositAmount);
+    const currency = await reservationCurrency(reservation, ctx.session);
+    const amount = roundToCurrency(input.amount ?? reservation.pricing.depositAmount, currency.decimalPlaces);
     if (amount <= 0) throw apiValidationException("rental_deposit_amount_required", "", null, ctx.languageCode);
     const now = input.now ?? new Date();
+    const stored = {amount: storedAmount(amount, currency.decimalPlaces), capturedAmount: storedAmount(0, currency.decimalPlaces)};
 
     if (input.choice === "cash") {
-        reservation.deposit = {method: "cash", status: "held", amount, capturedAmount: 0, heldAt: now};
+        reservation.deposit = {method: "cash", status: "held", ...stored, heldAt: now};
         reservation.timeline.push({event: "deposit_held", at: now, note: `cash ${amount}`});
         await reservation.save({session: ctx.session});
         return undefined;
@@ -79,7 +81,6 @@ export async function takeDeposit(
     const metadata = {sourceType: "rentalReservation", purpose: "deposit", reservationId: reservation._id.toString(), companyId: String(nestedEntityToRef(reservation.company))};
     let form: DepositCardForm;
     if (method === "card_hold") {
-        const currency = await reservationCurrency(reservation, ctx.session);
         const intent = await adapter.createPaymentIntent({
             amount,
             currencyCode: currency.code,
@@ -88,7 +89,7 @@ export async function takeDeposit(
             captureMethod: "manual",
             idempotencyKey: `rental-deposit-${reservation._id.toString()}-${attempt}`,
         });
-        reservation.deposit = {method, status: "pending", amount, capturedAmount: 0, intentId: intent.id};
+        reservation.deposit = {method, status: "pending", ...stored, intentId: intent.id};
         form = {kind: "payment", clientSecret: intent.clientSecret ?? ""};
     } else {
         const {contact} = reservation;
@@ -98,7 +99,7 @@ export async function takeDeposit(
             metadata,
             idempotencyKey: `rental-card-${reservation._id.toString()}-${attempt}`,
         });
-        reservation.deposit = {method, status: "pending", amount, capturedAmount: 0, setupIntentId: setup.id, stripeCustomerId: setup.customerId};
+        reservation.deposit = {method, status: "pending", ...stored, setupIntentId: setup.id, stripeCustomerId: setup.customerId};
         form = {kind: "setup", clientSecret: setup.clientSecret ?? ""};
     }
     await reservation.save({session: ctx.session});
@@ -144,10 +145,15 @@ export async function refreshDeposit(reservation: IRentalReservation, ctx: Ctx):
 export async function settleDeposit(reservation: IRentalReservation, keepAmount: number, input: {by?: ObjectId; now?: Date}, ctx: Ctx): Promise<void> {
     const deposit = reservation.deposit;
     if (!deposit || deposit.status !== "held") throw apiValidationException("rental_deposit_not_held", "", null, ctx.languageCode);
-    const keep = roundToCurrency(keepAmount);
-    if (keep > deposit.amount + 0.005) throw apiValidationException("rental_deposit_keep_too_high", "", null, ctx.languageCode, [String(deposit.amount)]);
-    if (keep > amountDue(reservation) + 0.005) {
-        throw apiValidationException("rental_payment_exceeds_due", "", null, ctx.languageCode, [String(amountDue(reservation))]);
+    const currency = await reservationCurrency(reservation, ctx.session);
+    const decimals = currency.decimalPlaces;
+    const keep = roundToCurrency(keepAmount, decimals);
+    if (toMinor(keep, decimals) > toMinor(deposit.amount, decimals)) {
+        throw apiValidationException("rental_deposit_keep_too_high", "", null, ctx.languageCode, [deposit.amount.toString()]);
+    }
+    const due = amountDue(reservation, decimals);
+    if (toMinor(keep, decimals) > toMinor(due, decimals)) {
+        throw apiValidationException("rental_payment_exceeds_due", "", null, ctx.languageCode, [String(due)]);
     }
     const now = input.now ?? new Date();
 
@@ -156,9 +162,8 @@ export async function settleDeposit(reservation: IRentalReservation, keepAmount:
     } else if (deposit.method === "card_hold") {
         const adapter = stripeOrFail(ctx.languageCode);
         if (keep > 0) {
-            const currency = await reservationCurrency(reservation, ctx.session);
-            await adapter.capturePaymentIntent(deposit.intentId!, keep, currency.code, currency.decimalPlaces);
-            await recordCardCharge(reservation, deposit.intentId!, keep, ctx);
+            await adapter.capturePaymentIntent(deposit.intentId!, keep, currency.code, decimals);
+            await recordCardCharge(reservation, deposit.intentId!, keep, decimals, ctx);
         } else {
             await adapter.cancelPaymentIntent(deposit.intentId!);
         }
@@ -166,7 +171,7 @@ export async function settleDeposit(reservation: IRentalReservation, keepAmount:
         await chargeSavedCard(reservation, keep, ctx);
     }
 
-    deposit.capturedAmount = keep;
+    deposit.capturedAmount = storedAmount(keep, decimals);
     deposit.status = keep > 0 ? "captured" : "released";
     deposit.settledAt = now;
     reservation.timeline.push({event: keep > 0 ? "deposit_captured" : "deposit_released", at: now, by: input.by, note: keep > 0 ? `${keep}` : undefined});
@@ -181,7 +186,7 @@ export async function chargeSavedCard(reservation: IRentalReservation, amount: n
     const deposit = reservation.deposit;
     if (!deposit?.paymentMethodId || !deposit.stripeCustomerId) return false;
     const adapter = stripeOrFail(ctx.languageCode);
-    const charges = await PaymentTransaction.countDocuments({sourceId: reservation._id, type: "charge"}).session(ctx.session);
+    const charges = await paymentTransactionService.count({sourceId: reservation._id, type: "charge"}, {session: ctx.session});
     const currency = await reservationCurrency(reservation, ctx.session);
     const intent = await adapter.createPaymentIntent({
         amount,
@@ -192,6 +197,6 @@ export async function chargeSavedCard(reservation: IRentalReservation, amount: n
         idempotencyKey: `rental-card-charge-${reservation._id.toString()}-${charges + 1}`,
     });
     if (intent.status !== "succeeded") throw apiValidationException("rental_card_charge_failed", "", null, ctx.languageCode);
-    await recordCardCharge(reservation, intent.id, amount, ctx);
+    await recordCardCharge(reservation, intent.id, amount, currency.decimalPlaces, ctx);
     return true;
 }

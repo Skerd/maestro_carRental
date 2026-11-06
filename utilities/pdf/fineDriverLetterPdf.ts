@@ -2,12 +2,12 @@ import * as path from "path";
 import {PDFDocument} from "pdf-lib";
 import {loadEmailStrings} from "@coreModule/utilities/emails/emailLocale";
 import {PDF_COLORS, PDF_PAGE, PdfWriter, embedStandardFonts} from "@coreModule/utilities/pdf/pdfWriter";
-import Company from "@coreModule/database/schemas/company/company";
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import type {IVehicleFine} from "@carRentalModule/database/schemas/vehicleFine/vehicleFine";
-import Vehicle from "@carRentalModule/database/schemas/vehicle/vehicle";
-import RentalReservation from "@carRentalModule/database/schemas/rentalReservation/rentalReservation";
 
+import {companyService} from "@coreModule/database/schemas/company/company.service";
+import {vehicleService} from "@carRentalModule/database/schemas/vehicle/vehicle.service";
+import {rentalReservationService} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation.service";
 const LOCALES_ROOT = path.join(__dirname, "static", "locales");
 
 function formatLocal(date: Date, timeZone: string, languageCode: string): string {
@@ -22,9 +22,9 @@ export async function generateFineDriverLetterPdf(fine: IVehicleFine, languageCo
     const loc = loadEmailStrings(["fineDriverLetter"], languageCode, LOCALES_ROOT) as Record<string, string>;
     const companyId = nestedEntityToRef(fine.company);
     const [company, vehicle, reservation] = await Promise.all([
-        Company.findById(companyId).select("name"),
-        Vehicle.findById(nestedEntityToRef(fine.vehicle)).select("plate make model"),
-        fine.reservation ? RentalReservation.findOne({_id: nestedEntityToRef(fine.reservation), company: companyId}) : null,
+        companyService.findById(companyId, {}, undefined, "name"),
+        vehicleService.findById(nestedEntityToRef(fine.vehicle), {}, undefined, "plate make model"),
+        fine.reservation ? rentalReservationService.findOne({_id: nestedEntityToRef(fine.reservation), company: companyId}, {}) : null,
     ]);
     const timeZone = reservation?.snapshot.timezone ?? "UTC";
     const doc = await PDFDocument.create();

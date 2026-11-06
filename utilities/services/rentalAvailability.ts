@@ -1,11 +1,12 @@
 import {ObjectId} from "mongodb";
 import type {ClientSession} from "mongoose";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
-import Vehicle from "@carRentalModule/database/schemas/vehicle/vehicle";
 import VehicleTransfer from "@carRentalModule/database/schemas/vehicleTransfer/vehicleTransfer";
-import VehicleBlock from "@carRentalModule/database/schemas/vehicleBlock/vehicleBlock";
 import RentalReservation from "@carRentalModule/database/schemas/rentalReservation/rentalReservation";
 
+import {vehicleService} from "@carRentalModule/database/schemas/vehicle/vehicle.service";
+import {rentalReservationService} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation.service";
+import {vehicleBlockService} from "@carRentalModule/database/schemas/vehicleBlock/vehicleBlock.service";
 const MINUTE = 60 * 1000;
 
 /**
@@ -42,26 +43,26 @@ export async function busyVehicleIds(query: WindowQuery & {vehicleIds?: ObjectId
     const {companyId, start, end, now, excludeReservationId, session, vehicleIds} = query;
     const scope = vehicleIds ? {vehicle: {$in: vehicleIds}} : {};
     const [reserved, blocked] = await Promise.all([
-        RentalReservation.distinct("vehicle", {
+        rentalReservationService.distinctVehicles({
             company: companyId,
             ...scope,
             pickupAt: {$lt: end},
             blockedUntil: {$gt: start},
             ...(excludeReservationId ? {_id: {$ne: excludeReservationId}} : {}),
             ...blockingReservationFilter(now),
-        }).session(session ?? null),
-        VehicleBlock.distinct("vehicle", {
+        }, session),
+        vehicleBlockService.distinctVehicles({
             company: companyId,
             ...scope,
             deletedAt: null,
             startAt: {$lt: end},
             endAt: {$gt: start},
-        }).session(session ?? null),
+        }, session),
     ]);
     return new Set([...reserved, ...blocked].map((id) => String(id)));
 }
 
-type LocatedVehicle = {_id: ObjectId; homeLocation: unknown; currentLocation?: unknown};
+type LocatedVehicle = {_id?: ObjectId; homeLocation: unknown; currentLocation?: unknown};
 
 /**
  * Where each car will be at `at` (location ids, hex): the return location of its
@@ -101,10 +102,7 @@ export async function freeVehiclesInCategory(
     query: WindowQuery & {categoryId: ObjectId; preferLocationId?: ObjectId},
 ): Promise<ObjectId[]> {
     const {companyId, categoryId, preferLocationId, session} = query;
-    const vehicles = await Vehicle.find({company: companyId, category: categoryId, status: "active", deletedAt: null})
-        .select("_id homeLocation currentLocation plate")
-        .sort({plate: 1})
-        .session(session ?? null);
+    const vehicles = await vehicleService.find({company: companyId, category: categoryId, status: "active", deletedAt: null}, {session: session ?? undefined}, undefined, "_id homeLocation currentLocation plate", {plate: 1});
     const busy = await busyVehicleIds({...query, vehicleIds: vehicles.map((vehicle) => vehicle._id)});
     const free = vehicles.filter((vehicle) => !busy.has(String(vehicle._id)));
     if (!preferLocationId) return free.map((vehicle) => vehicle._id);
@@ -115,7 +113,7 @@ export async function freeVehiclesInCategory(
 
 /** True when the car will not be at the pickup location at pickup time, so staff must move it there. */
 export async function needsTransferFor(vehicleId: ObjectId, pickup: {locationId: ObjectId; at: Date}, companyId: ObjectId, session?: ClientSession | null): Promise<boolean> {
-    const vehicle = await Vehicle.findOne({_id: vehicleId, company: companyId}).select("_id homeLocation currentLocation").session(session ?? null);
+    const vehicle = await vehicleService.findOne({_id: vehicleId, company: companyId}, {session: session ?? undefined}, undefined, "_id homeLocation currentLocation");
     if (!vehicle) return false;
     const located = await projectedLocations([vehicle], pickup.at, companyId, session);
     return located.get(String(vehicleId)) !== String(pickup.locationId);
@@ -133,13 +131,9 @@ export async function lockVehicle(
     ctx: {companyId: ObjectId; session: ClientSession; languageCode: string; requireActive?: boolean},
 ): Promise<void> {
     const {companyId, session, languageCode, requireActive = true} = ctx;
-    const result = await Vehicle.updateOne(
-        {_id: vehicleId, company: companyId, deletedAt: null, ...(requireActive ? {status: "active"} : {})},
-        {$inc: {allocationVersion: 1}},
-        {session},
-    );
+    const result = await vehicleService.updateOne({_id: vehicleId, company: companyId, deletedAt: null, ...(requireActive ? {status: "active"} : {})}, {$inc: {allocationVersion: 1}}, {session: session});
     if (result.matchedCount === 0) {
-        const exists = await Vehicle.exists({_id: vehicleId, company: companyId, deletedAt: null}).session(session);
+        const exists = await vehicleService.exists({_id: vehicleId, company: companyId, deletedAt: null}, {session: session});
         throw apiValidationException(exists ? "vehicle_not_active" : "vehicle_not_found", "", null, languageCode);
     }
 }
@@ -159,12 +153,12 @@ export async function assertNoBookingClash(
     ctx: {companyId: ObjectId; session: ClientSession; languageCode: string},
 ): Promise<void> {
     await lockVehicle(vehicleId, {companyId: ctx.companyId, session: ctx.session, languageCode: ctx.languageCode, requireActive: false});
-    const clash = await RentalReservation.findOne({
+    const clash = await rentalReservationService.findOne({
         company: ctx.companyId,
         vehicle: vehicleId,
         pickupAt: {$lt: window.end},
         blockedUntil: {$gt: window.start},
         ...blockingReservationFilter(new Date()),
-    }).select("number").session(ctx.session);
+    }, {session: ctx.session}, undefined, "number");
     if (clash) throw apiValidationException("vehicle_block_overlaps_reservation", "", null, ctx.languageCode, [clash.number]);
 }

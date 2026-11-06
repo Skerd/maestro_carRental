@@ -9,14 +9,14 @@ import VehicleDamage from "@carRentalModule/database/schemas/vehicleDamage/vehic
 import {vehicleDamageService} from "@carRentalModule/database/schemas/vehicleDamage/vehicleDamage.service";
 import {vehicleDamageToDTO, vehicleDamagesToDTO} from "@carRentalModule/utilities/mappers/vehicleDamage/vehicleDamageMapper.dto";
 import {vehicleDamagesToSelect} from "@carRentalModule/utilities/mappers/vehicleDamage/vehicleDamageMapper.select";
-import RentalReservation from "@carRentalModule/database/schemas/rentalReservation/rentalReservation";
-import VehicleInsurance from "@carRentalModule/database/schemas/vehicleInsurance/vehicleInsurance";
-import VehicleMaintenance from "@carRentalModule/database/schemas/vehicleMaintenance/vehicleMaintenance";
 import {assertCompanyVehicle, damageReported} from "@carRentalModule/utilities/services/vehicleRecords";
 import {mediaUploadMW} from "@coreModule/utilities/middlewares/mediaUploadMW";
 import {VehicleDamageActions} from "@carRentalModule/database/schemas/vehicleDamage/vehicleDamage.actions";
 import {VEHICLE_DAMAGE_PHOTOS_MAX, VehicleDamageSchemaDef} from "armonia/src/modules/carRental/api/carRental/private/vehicleDamage/vehicleDamage.schema-def";
 
+import {rentalReservationService} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation.service";
+import {vehicleInsuranceService} from "@carRentalModule/database/schemas/vehicleInsurance/vehicleInsurance.service";
+import {vehicleMaintenanceService} from "@carRentalModule/database/schemas/vehicleMaintenance/vehicleMaintenance.service";
 const photosUpload = mediaUploadMW({
     fields: {photos: VEHICLE_DAMAGE_PHOTOS_MAX},
     fieldMimeTypes: {photos: ["image/jpeg", "image/png", "image/webp"]},
@@ -29,11 +29,11 @@ async function assertReservationOfVehicle(
     vehicleId: unknown,
     ctx: {companyId: ObjectId; session: ClientSession; languageCode: string},
 ): Promise<void> {
-    const matches = await RentalReservation.exists({
+    const matches = await rentalReservationService.exists({
         _id: new ObjectId(String(reservationId)),
         company: ctx.companyId,
         vehicle: new ObjectId(String(vehicleId)),
-    }).session(ctx.session);
+    }, {session: ctx.session});
     if (!matches) {
         throw apiValidationException("vehicle_damage_reservation_mismatch", "", null, ctx.languageCode);
     }
@@ -45,12 +45,12 @@ async function assertPolicyOfVehicle(
     vehicleId: unknown,
     ctx: {companyId: ObjectId; session: ClientSession; languageCode: string},
 ): Promise<void> {
-    const matches = await VehicleInsurance.exists({
+    const matches = await vehicleInsuranceService.exists({
         _id: new ObjectId(String(insuranceId)),
         company: ctx.companyId,
         vehicle: new ObjectId(String(vehicleId)),
         deletedAt: null,
-    }).session(ctx.session);
+    }, {session: ctx.session});
     if (!matches) {
         throw apiValidationException("vehicle_damage_policy_mismatch", "", null, ctx.languageCode);
     }
@@ -97,19 +97,15 @@ export const {router} = createCrudRouter({
     },
     // A deleted damage leaves its repair's list; restored, it goes back to a repair still live.
     afterDelete: async ({session}, doc) => {
-        if (doc.repair) await VehicleMaintenance.updateOne({_id: doc.repair}, {$pull: {damages: doc._id}}, {session});
+        if (doc.repair) await vehicleMaintenanceService.updateOne({_id: doc.repair}, {$pull: {damages: doc._id}}, {session: session});
     },
     afterRestore: async ({session}, doc) => {
         if (!doc.repair) return;
-        const repair = await VehicleMaintenance.findOneAndUpdate(
-            {_id: doc.repair, deletedAt: null, status: {$ne: "cancelled"}},
-            {$addToSet: {damages: doc._id}},
-            {session},
-        );
+        const repair = await vehicleMaintenanceService.addDamageToOpenRepair(doc.repair, doc._id, session);
         // The repair was cancelled or deleted meanwhile, or completed: the damage follows it.
-        if (!repair) await VehicleDamage.updateOne({_id: doc._id}, {$set: {status: "open"}, $unset: {repair: 1}}, {session});
+        if (!repair) await vehicleDamageService.updateOne({_id: doc._id}, {$set: {status: "open"}, $unset: {repair: 1}}, {session: session});
         else if (repair.status === "completed" && doc.status !== "repaired") {
-            await VehicleDamage.updateOne({_id: doc._id}, {$set: {status: "repaired", repairedAt: new Date()}}, {session});
+            await vehicleDamageService.updateOne({_id: doc._id}, {$set: {status: "repaired", repairedAt: new Date()}}, {session: session});
         }
     },
 });

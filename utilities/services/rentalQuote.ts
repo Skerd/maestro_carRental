@@ -284,13 +284,13 @@ export function totalsFor(
 }
 
 /** An amount as the reservation stores it: Decimal128 at the currency's `decimals` (GLB-08). */
-function stored(amount: MoneyInput, decimals: number): Decimal128 {
+export function storedAmount(amount: MoneyInput, decimals: number): Decimal128 {
     return decimal128FromMinor(toMinor(amount, decimals), decimals);
 }
 
 /** A price line as the reservation stores it. */
 export function storedPriceLine(line: QuoteLine, decimals: number): IRentalPriceLine {
-    return {...line, unitPrice: stored(line.unitPrice, decimals), total: stored(line.total, decimals)};
+    return {...line, unitPrice: storedAmount(line.unitPrice, decimals), total: storedAmount(line.total, decimals)};
 }
 
 /** A booking's totals from its stored lines, as the reservation stores them. */
@@ -302,9 +302,9 @@ export function storedTotalsFor(
 ): Pick<IRentalPricing, "subtotal" | "vatAmount" | "grandTotal"> {
     const totals = totalsFor(lines, vatRate, pricesIncludeVat, decimals);
     return {
-        subtotal: stored(totals.subtotal, decimals),
-        vatAmount: stored(totals.vatAmount, decimals),
-        grandTotal: stored(totals.grandTotal, decimals),
+        subtotal: storedAmount(totals.subtotal, decimals),
+        vatAmount: storedAmount(totals.vatAmount, decimals),
+        grandTotal: storedAmount(totals.grandTotal, decimals),
     };
 }
 
@@ -314,11 +314,11 @@ export function storedPricing(quote: RentalQuoteResult, currency: IRentalPricing
         rentalDays: quote.rentalDays,
         currency,
         lines: quote.lines.map((line) => storedPriceLine(line, decimals)),
-        subtotal: stored(quote.subtotal, decimals),
+        subtotal: storedAmount(quote.subtotal, decimals),
         vatRate: quote.vatRate,
-        vatAmount: stored(quote.vatAmount, decimals),
+        vatAmount: storedAmount(quote.vatAmount, decimals),
         pricesIncludeVat: quote.pricesIncludeVat,
-        grandTotal: stored(quote.grandTotal, decimals),
-        depositAmount: stored(quote.depositAmount, decimals),
+        grandTotal: storedAmount(quote.grandTotal, decimals),
+        depositAmount: storedAmount(quote.depositAmount, decimals),
     };
 }

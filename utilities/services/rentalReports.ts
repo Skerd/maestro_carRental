@@ -9,17 +9,17 @@ import type {
     RentalReportVehicle,
     RentalReportsResponse,
 } from "armonia/src/modules/carRental/api/carRental/private/rentalReports/rentalReports";
-import Vehicle from "@carRentalModule/database/schemas/vehicle/vehicle";
-import VehicleCategory from "@carRentalModule/database/schemas/vehicleCategory/vehicleCategory";
-import RentalLocation from "@carRentalModule/database/schemas/rentalLocation/rentalLocation";
-import RentalReservation from "@carRentalModule/database/schemas/rentalReservation/rentalReservation";
-import VehicleBlock from "@carRentalModule/database/schemas/vehicleBlock/vehicleBlock";
-import VehicleMaintenance from "@carRentalModule/database/schemas/vehicleMaintenance/vehicleMaintenance";
-import VehicleDamage from "@carRentalModule/database/schemas/vehicleDamage/vehicleDamage";
-import VehicleInsurance from "@carRentalModule/database/schemas/vehicleInsurance/vehicleInsurance";
-import VehicleFine from "@carRentalModule/database/schemas/vehicleFine/vehicleFine";
-import RentalSearchStat from "@carRentalModule/database/schemas/rentalSearchStat/rentalSearchStat";
 
+import {vehicleService} from "@carRentalModule/database/schemas/vehicle/vehicle.service";
+import {vehicleCategoryService} from "@carRentalModule/database/schemas/vehicleCategory/vehicleCategory.service";
+import {rentalLocationService} from "@carRentalModule/database/schemas/rentalLocation/rentalLocation.service";
+import {rentalReservationService} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation.service";
+import {vehicleBlockService} from "@carRentalModule/database/schemas/vehicleBlock/vehicleBlock.service";
+import {vehicleMaintenanceService} from "@carRentalModule/database/schemas/vehicleMaintenance/vehicleMaintenance.service";
+import {vehicleDamageService} from "@carRentalModule/database/schemas/vehicleDamage/vehicleDamage.service";
+import {vehicleInsuranceService} from "@carRentalModule/database/schemas/vehicleInsurance/vehicleInsurance.service";
+import {vehicleFineService} from "@carRentalModule/database/schemas/vehicleFine/vehicleFine.service";
+import {rentalSearchStatService} from "@carRentalModule/database/schemas/rentalSearchStat/rentalSearchStat.service";
 const HOUR = 3600 * 1000;
 const DAY = 24 * HOUR;
 const RENTED = ["confirmed", "in_progress", "completed"] as const;
@@ -98,58 +98,52 @@ export async function buildRentalReport(
         fines,
         stats,
     ] = await Promise.all([
-        Vehicle.find({
+        vehicleService.find({
             company: companyId,
             status: {$ne: "retired"},
             deletedAt: null,
-        }).select("plate category homeLocation purchasePrice"),
-        VehicleCategory.find({company: companyId, deletedAt: null}).select(
-            "name",
-        ),
-        RentalLocation.find({company: companyId, deletedAt: null}).select(
-            "name",
-        ),
-        RentalReservation.find({
+        }, {}, undefined, "plate category homeLocation purchasePrice"),
+        vehicleCategoryService.find({company: companyId, deletedAt: null}, {}, undefined, "name",),
+        rentalLocationService.find({company: companyId, deletedAt: null}, {}, undefined, "name",),
+        rentalReservationService.find({
             company: companyId,
             deletedAt: null,
             pickupAt: {$lt: window.end},
             returnAt: {$gt: window.start},
-        }).select(
-            "vehicle category pickupLocation status pickupAt returnAt createdAt pricing.grandTotal",
-        ),
-        VehicleBlock.find({
+        }, {}, undefined, "vehicle category pickupLocation status pickupAt returnAt createdAt pricing.grandTotal",),
+        vehicleBlockService.find({
             company: companyId,
             deletedAt: null,
             startAt: {$lt: window.end},
             endAt: {$gt: window.start},
-        }).select("vehicle startAt endAt"),
-        VehicleMaintenance.find({
+        }, {}, undefined, "vehicle startAt endAt"),
+        vehicleMaintenanceService.find({
             company: companyId,
             deletedAt: null,
             status: "completed",
             serviceDate: {$gte: window.start, $lt: window.end},
-        }).select("vehicle type cost"),
-        VehicleDamage.find({
+        }, {}, undefined, "vehicle type cost"),
+        vehicleDamageService.find({
             company: companyId,
             deletedAt: null,
             reportedAt: {$gte: window.start, $lt: window.end},
-        }).select("vehicle chargedAmount insurerPaidAmount"),
-        VehicleInsurance.find({
+        }, {}, undefined, "vehicle chargedAmount insurerPaidAmount"),
+        vehicleInsuranceService.find({
             company: companyId,
             deletedAt: null,
             validFrom: {$gte: window.start, $lt: window.end},
-        }).select("vehicle premium"),
-        VehicleFine.find({
+        }, {}, undefined, "vehicle premium"),
+        vehicleFineService.find({
             company: companyId,
             deletedAt: null,
             status: "paid_by_company",
             paidAt: {$gte: window.start, $lt: window.end},
-        }).select("vehicle paidAmount"),
-        RentalSearchStat.find({
+        }, {}, undefined, "vehicle paidAmount"),
+        rentalSearchStatService.find({
             company: companyId,
             day: {$gte: from, $lte: to},
             ...(locationId ? {location: locationId} : {}),
-        }).select("searches unavailable"),
+        }, {}, undefined, "searches unavailable"),
     ]);
 
     const categoryName = new Map(

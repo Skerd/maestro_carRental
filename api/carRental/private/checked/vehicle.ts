@@ -15,11 +15,11 @@ import {editVehicleFormSchema} from "armonia/src/modules/carRental/api/carRental
 import {vehicleSelectFormSchema} from "armonia/src/modules/carRental/api/carRental/private/vehicle/vehicleSelect.form.validator";
 import Vehicle from "@carRentalModule/database/schemas/vehicle/vehicle";
 import {vehicleService} from "@carRentalModule/database/schemas/vehicle/vehicle.service";
-import RentalReservation from "@carRentalModule/database/schemas/rentalReservation/rentalReservation";
 import {vehicleToDTO, vehiclesToDTO} from "@carRentalModule/utilities/mappers/vehicle/vehicleMapper.dto";
 import {vehiclesToSelect} from "@carRentalModule/utilities/mappers/vehicle/vehicleMapper.select";
 import {blockingReservationFilter, lockVehicle} from "@carRentalModule/utilities/services/rentalAvailability";
 
+import {rentalReservationService} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation.service";
 const mediaUpload = mediaUploadMW({
     fields: {images: VEHICLE_IMAGES_MAX, videos: VEHICLE_VIDEOS_MAX},
     fieldMimeTypes: {
@@ -66,12 +66,12 @@ export const {router} = createCrudRouter({
         if (!leavesService && !changesCategory) return;
 
         await lockVehicle(existing._id, {companyId: company._id, session, languageCode, requireActive: false});
-        const upcoming = await RentalReservation.countDocuments({
+        const upcoming = await rentalReservationService.count({
             company: company._id,
             vehicle: existing._id,
             blockedUntil: {$gt: new Date()},
             ...blockingReservationFilter(new Date()),
-        }).session(session);
+        }, {session: session});
         if (upcoming > 0) {
             throw apiValidationException("vehicle_has_future_reservations", "", null, languageCode, [String(upcoming)]);
         }

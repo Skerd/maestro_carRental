@@ -9,12 +9,15 @@ import {rentalPortalTripSchema} from "armonia/src/modules/carRental/api/carRenta
 import type {RentalPortalTripType} from "armonia/src/modules/carRental/api/carRental/public/rentalPortal/rentalPortal.forms";
 import CarRentalConfig from "@carRentalModule/database/schemas/carRentalConfig/carRentalConfig";
 import RentalLocation from "@carRentalModule/database/schemas/rentalLocation/rentalLocation";
-import VehicleCategory, {type IVehicleCategory} from "@carRentalModule/database/schemas/vehicleCategory/vehicleCategory";
+import {type IVehicleCategory} from "@carRentalModule/database/schemas/vehicleCategory/vehicleCategory";
 import {resolveRentalTrip} from "@carRentalModule/utilities/services/rentalTrip";
 import {busyUntil, freeVehiclesInCategory} from "@carRentalModule/utilities/services/rentalAvailability";
-import {quoteTrip} from "@carRentalModule/utilities/services/rentalReservationService";
+import {quoteTrip} from "@carRentalModule/workflows/rentalReservationService";
 import {currencyOf} from "@carRentalModule/api/carRental/public/rentalStorefront";
 
+import {vehicleCategoryService} from "@carRentalModule/database/schemas/vehicleCategory/vehicleCategory.service";
+import {carRentalConfigService} from "@carRentalModule/database/schemas/carRentalConfig/carRentalConfig.service";
+import {rentalLocationService} from "@carRentalModule/database/schemas/rentalLocation/rentalLocation.service";
 /** Rental companies taking public bookings (and on the apex, opted in to the portal). */
 export function rentalPortalCompanyIds(scope: PortalScope) {
     return portalListedCompanyIds("carRental", {
@@ -48,12 +51,8 @@ async function browseCategories(params: PortalBrowseParams) {
     const price = priceRange(params.priceMin, params.priceMax);
     if (price) clause.dailyRate = price;
     const [categories, total, currencies] = await Promise.all([
-        VehicleCategory.find(clause)
-            .select("company name images dailyRate")
-            .sort(CATEGORY_SORTS[params.sort ?? "newest"])
-            .skip(params.skip).limit(params.limit)
-            .lean<{_id: ObjectId; company: ObjectId; name: string; images?: ObjectId[]; dailyRate: number}[]>(),
-        VehicleCategory.countDocuments(clause),
+        vehicleCategoryService.findPortalCards(clause, CATEGORY_SORTS[params.sort ?? "newest"], params.skip, params.limit),
+        vehicleCategoryService.count(clause),
         configCurrencies(CarRentalConfig, params.companyIds),
     ]);
     const items = await catalogItems(categories, (category) => {
@@ -78,14 +77,10 @@ type AvailableCar = {company: ObjectId; category: IVehicleCategory; total: numbe
  * where the trip works (opening hours, lead time, length), each priced for the whole trip.
  */
 async function availableInCompany(companyId: ObjectId, trip: RentalPortalTripType, params: PortalBrowseParams): Promise<AvailableCar[]> {
-    const config = await CarRentalConfig.findOne({company: companyId, deletedAt: null});
+    const config = await carRentalConfigService.findOne({company: companyId, deletedAt: null}, {});
     if (!config) return [];
     const where = params.city?.toLowerCase();
-    const locations = (await RentalLocation.find({company: companyId, isActive: true, pickupAllowed: true, returnAllowed: true, deletedAt: null})
-        .select("name address.city")
-        .populate({path: "address.city", select: "name"})
-        .sort({name: 1})
-        .lean<{_id: ObjectId; name: string; address?: {city?: {name?: string}}}[]>())
+    const locations = (await rentalLocationService.findPortalLocations(companyId))
         .filter((location) => !where || (location.address?.city?.name ?? "").toLowerCase().includes(where));
     for (const location of locations) {
         const id = location._id.toString();
@@ -96,7 +91,7 @@ async function availableInCompany(companyId: ObjectId, trip: RentalPortalTripTyp
             continue;
         }
         const [categories, currency] = await Promise.all([
-            VehicleCategory.find({...categoryClause(params), company: companyId}).sort({sortOrder: 1, name: 1}),
+            vehicleCategoryService.find({...categoryClause(params), company: companyId}, {}, undefined, undefined, {sortOrder: 1, name: 1}),
             currencyOf(config, params.languageCode),
         ]);
         const end = busyUntil(resolved.returnAt, config.turnaroundBufferMinutes);

@@ -2,9 +2,9 @@ import type {ObjectId} from "mongodb";
 import type {ClientSession} from "mongoose";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import type {serverLogger} from "@coreModule/loggers/serverLog";
-import {DEFAULT_DECIMAL_PLACES, addMoney, minorToNumber, roundToCurrency, subtractMoney, toMinor} from "armonia/src/modules/core/helpers/money";
+import {DEFAULT_DECIMAL_PLACES, minorToNumber, roundToCurrency, toMinor, type MoneyInput} from "armonia/src/modules/core/helpers/money";
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
-import Currency from "@coreModule/database/schemas/currency/currency";
+import {decimal128FromMinor} from "@coreModule/utilities/helpers/money";
 import {paymentTransactionService} from "@financeModule/database/schemas/paymentTransaction/paymentTransaction.service";
 import {getPaymentAdapter} from "@financeModule/utilities/services/payment/paymentService";
 import {
@@ -14,6 +14,7 @@ import {
 } from "@financeModule/utilities/services/payment/sourcePayments";
 import type {IRentalReservation} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation";
 
+import {currencyService} from "@coreModule/database/schemas/currency/currency.service";
 type Ctx = {
     session: ClientSession;
     logger: serverLogger;
@@ -21,21 +22,33 @@ type Ctx = {
     auditUserId?: string | ObjectId;
 };
 
-/** Money still owed on a reservation. */
+/** Money still owed on a reservation, at the currency's `decimals` (TD-B37). */
 export function amountDue(
     reservation: Pick<IRentalReservation, "pricing" | "amountPaid">,
+    decimals: number = DEFAULT_DECIMAL_PLACES,
 ): number {
-    return Math.max(0, subtractMoney(reservation.pricing.grandTotal, reservation.amountPaid));
+    const due = toMinor(reservation.pricing.grandTotal, decimals) - toMinor(reservation.amountPaid, decimals);
+    return due > 0n ? minorToNumber(due, decimals) : 0;
 }
 
 /** Payment status that follows from what was paid and refunded; never set it any other way. */
 export function paymentStatusFor(
     reservation: Pick<IRentalReservation, "pricing" | "amountPaid">,
     refunded: boolean,
+    decimals: number = DEFAULT_DECIMAL_PLACES,
 ): IRentalReservation["paymentStatus"] {
     if (refunded)
-        return reservation.amountPaid > 0 ? "partially_refunded" : "refunded";
-    return amountDue(reservation) <= 0 ? "paid" : "unpaid";
+        return toMinor(reservation.amountPaid, decimals) > 0n ? "partially_refunded" : "refunded";
+    return amountDue(reservation, decimals) <= 0 ? "paid" : "unpaid";
+}
+
+/** What was paid plus `amount` (negative: less it), stored at the currency's `decimals`. */
+export function addToAmountPaid(
+    reservation: Pick<IRentalReservation, "amountPaid">,
+    amount: MoneyInput,
+    decimals: number,
+): void {
+    reservation.amountPaid = decimal128FromMinor(toMinor(reservation.amountPaid, decimals) + toMinor(amount, decimals), decimals);
 }
 
 /** The booking currency: its lowercase code for the gateway and its `decimalPlaces` (TD-B30). */
@@ -43,11 +56,7 @@ export async function reservationCurrency(
     reservation: IRentalReservation,
     session: ClientSession,
 ): Promise<{code: string; decimalPlaces: number}> {
-    const currency = await Currency.findById(
-        nestedEntityToRef(reservation.pricing.currency),
-    )
-        .select("abbreviation decimalPlaces")
-        .session(session);
+    const currency = await currencyService.findById(nestedEntityToRef(reservation.pricing.currency), {session: session}, undefined, "abbreviation decimalPlaces");
     return {
         code: (currency?.abbreviation ?? "eur").toLowerCase(),
         decimalPlaces: currency?.decimalPlaces ?? DEFAULT_DECIMAL_PLACES,
@@ -113,7 +122,8 @@ export async function startBalancePayment(
     reservation: IRentalReservation,
     ctx: Ctx,
 ): Promise<{clientSecret: string}> {
-    const due = amountDue(reservation);
+    const currency = await reservationCurrency(reservation, ctx.session);
+    const due = amountDue(reservation, currency.decimalPlaces);
     if (due <= 0)
         throw apiValidationException(
             "rental_nothing_to_pay",
@@ -131,7 +141,6 @@ export async function startBalancePayment(
         );
     }
     const companyId = nestedEntityToRef(reservation.company);
-    const currency = await reservationCurrency(reservation, ctx.session);
     const intent = await adapter.createPaymentIntent({
         amount: due,
         currencyCode: currency.code,
@@ -164,11 +173,10 @@ export async function startBalancePayment(
 }
 
 /** The reservation as a ledger source, for the shared manual-charge and refund moves. */
-async function rentalSource(
+function rentalSource(
     reservation: IRentalReservation,
-    session: ClientSession,
-): Promise<PaymentSource> {
-    const currency = await reservationCurrency(reservation, session);
+    currency: {code: string; decimalPlaces: number},
+): PaymentSource {
     return {
         sourceType: "rentalReservation",
         sourceId: reservation._id,
@@ -187,8 +195,9 @@ export async function recordCounterPayment(
     ctx: Ctx,
     now = new Date(),
 ): Promise<void> {
-    const due = amountDue(reservation);
-    if (amount > due + 0.005) {
+    const currency = await reservationCurrency(reservation, ctx.session);
+    const due = amountDue(reservation, currency.decimalPlaces);
+    if (toMinor(amount, currency.decimalPlaces) > toMinor(due, currency.decimalPlaces)) {
         throw apiValidationException(
             "rental_payment_exceeds_due",
             "",
@@ -198,17 +207,17 @@ export async function recordCounterPayment(
         );
     }
     await recordManualCharge(
-        await rentalSource(reservation, ctx.session),
+        rentalSource(reservation, currency),
         amount,
         note,
         ctx,
     );
-    reservation.amountPaid = addMoney(reservation.amountPaid, amount);
-    reservation.paymentStatus = paymentStatusFor(reservation, false);
+    addToAmountPaid(reservation, amount, currency.decimalPlaces);
+    reservation.paymentStatus = paymentStatusFor(reservation, false, currency.decimalPlaces);
     reservation.timeline.push({
         event: "payment_received",
         at: now,
-        note: note ?? `manual ${roundToCurrency(amount)}`,
+        note: note ?? `manual ${roundToCurrency(amount, currency.decimalPlaces)}`,
     });
 }
 
@@ -223,19 +232,20 @@ export async function refundRentalPayments(
     reason: string,
     ctx: Ctx,
 ): Promise<number> {
+    const currency = await reservationCurrency(reservation, ctx.session);
     const refunded = await refundSourceCharges(
-        await rentalSource(reservation, ctx.session),
+        rentalSource(reservation, currency),
         {
             amount,
-            paid: reservation.amountPaid,
+            paid: minorToNumber(toMinor(reservation.amountPaid, currency.decimalPlaces), currency.decimalPlaces),
             reason,
             idempotencyPrefix: `rental-refund-${reservation._id.toString()}`,
         },
         ctx,
     );
     if (refunded > 0) {
-        reservation.amountPaid = subtractMoney(reservation.amountPaid, refunded);
-        reservation.paymentStatus = paymentStatusFor(reservation, true);
+        addToAmountPaid(reservation, -refunded, currency.decimalPlaces);
+        reservation.paymentStatus = paymentStatusFor(reservation, true, currency.decimalPlaces);
         reservation.timeline.push({
             event: "refunded",
             at: new Date(),
