@@ -25,6 +25,7 @@ import {
     applyDiscount,
     computeRentalQuote,
     rentalDaysBetween,
+    storedPricing,
     totalsFor,
     type QuoteDiscount,
     type QuoteFee,
@@ -47,6 +48,7 @@ import {
     needsTransferFor,
 } from "./rentalAvailability";
 import {formatPostalAddress} from "@coreModule/utilities/helpers/postalAddress";
+import {currencyDecimalPlaces} from "@financeModule/utilities/services/currencyDecimals";
 import type {RentalTrip} from "./rentalTrip";
 
 const MINUTE = 60 * 1000;
@@ -194,6 +196,8 @@ export type TripPricingOptions = {
     accountDiscount?: QuoteDiscount;
     /** Replaces the rental-day lines with one line of this amount. Subscriptions bill a fixed period price. */
     rentalPrice?: number;
+    /** The booking currency's `decimalPlaces`, where amounts are rounded (default 2, TD-B30). */
+    decimalPlaces?: number;
 };
 
 /**
@@ -263,6 +267,7 @@ export function quoteTrip(
             vatRate: config.vatRate,
             pricesIncludeVat: config.pricesIncludeVat,
             lateGraceMinutes: config.lateGraceMinutes,
+            decimalPlaces: options.decimalPlaces,
         },
         fees,
         discount: options.promo
@@ -287,16 +292,17 @@ export function quoteTrip(
         quote = {
             ...quote,
             lines,
-            ...totalsFor(lines, quote.vatRate, quote.pricesIncludeVat),
+            ...totalsFor(lines, quote.vatRate, quote.pricesIncludeVat, options.decimalPlaces),
         };
         if (options.promo)
             quote = applyDiscount(
                 quote,
                 promoDiscount(options.promo, languageCode),
+                options.decimalPlaces,
             );
     }
     if (options.accountDiscount)
-        quote = applyDiscount(quote, options.accountDiscount);
+        quote = applyDiscount(quote, options.accountDiscount, options.decimalPlaces);
     return quote;
 }
 
@@ -538,6 +544,8 @@ export async function buildRentalReservation(
                   code: "account",
               }
             : undefined;
+    const currency = nestedEntityToRef(config.currency);
+    const decimalPlaces = await currencyDecimalPlaces(currency, ctx.session);
     const quote = quoteTrip(config, category, extras, trip, {
         languageCode: ctx.languageCode,
         drivers,
@@ -545,6 +553,7 @@ export async function buildRentalReservation(
         crossBorder: input.crossBorder,
         accountDiscount,
         rentalPrice: input.rentalPrice,
+        decimalPlaces,
     });
     if (
         input.expectedTotal !== undefined &&
@@ -626,7 +635,7 @@ export async function buildRentalReservation(
                         line.kind === "extra" && line.label === extra.name,
                 )?.total ?? 0,
         })),
-        pricing: {...quote, currency: nestedEntityToRef(config.currency)},
+        pricing: storedPricing(quote, currency, decimalPlaces),
         snapshot: {
             categoryName: category.name,
             pickupLocationName: trip.pickupLocation.name,

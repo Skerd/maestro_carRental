@@ -3,7 +3,8 @@ import {ObjectId} from "mongodb";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import type {serverLogger} from "@coreModule/loggers/serverLog";
 import {addMoney, percentOfMoney, roundToCurrency, subtractMoney} from "armonia/src/modules/core/helpers/money";
-import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
+import {decimalToNumber, nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
+import type {MoneyInput} from "armonia/src/modules/core/helpers/money";
 import {runAfterCommit} from "@coreModule/utilities/middlewares/transactionUtils";
 import {getPaymentAdapter} from "@financeModule/utilities/services/payment/paymentService";
 import type {SettledPaymentIntent} from "@financeModule/utilities/services/payment/paymentSourceHandlers";
@@ -40,11 +41,11 @@ import {
 import {busyUntil, busyVehicleIds, lockVehicle} from "./rentalAvailability";
 import {
     amountDue,
-    currencyCodeOf,
     paymentStatusFor,
     refundRentalPayments,
+    reservationCurrency,
 } from "./rentalPayments";
-import {totalsFor} from "./rentalQuote";
+import {storedPriceLine, storedTotalsFor} from "./rentalQuote";
 import {
     formatAmount,
     notifyRentalCustomer,
@@ -306,23 +307,25 @@ export async function returnRentalReservation(
     const newDamages = input.newDamages ?? [];
     await recordReturnDamages(reservation, newDamages, {companyId, now}, ctx);
 
+    const {decimalPlaces} = await reservationCurrency(reservation, ctx.session);
     for (const charge of input.extraCharges ?? []) {
-        const amount = roundToCurrency(charge.amount);
-        reservation.pricing.lines.push({
+        const amount = roundToCurrency(charge.amount, decimalPlaces);
+        reservation.pricing.lines.push(storedPriceLine({
             label: charge.label,
             kind: "charge",
             code: charge.code,
             quantity: 1,
             unitPrice: amount,
             total: amount,
-        });
+        }, decimalPlaces));
     }
     Object.assign(
         reservation.pricing,
-        totalsFor(
+        storedTotalsFor(
             reservation.pricing.lines,
             reservation.pricing.vatRate,
             reservation.pricing.pricesIncludeVat,
+            decimalPlaces,
         ),
     );
     reservation.paymentStatus = paymentStatusFor(reservation, false);
@@ -424,14 +427,14 @@ export async function settleRentalPayment(
 ): Promise<void> {
     if (reservation.paymentStatus === "paid") return;
     const adapter = getPaymentAdapter("stripe");
-    const currencyCode = await currencyCodeOf(reservation, ctx.session);
+    const currency = await reservationCurrency(reservation, ctx.session);
     const due = amountDue(reservation);
     if (
         !adapter ||
         due <= 0 ||
-        adapter.toMinorUnits(due, currencyCode) !== intent.amountMinor ||
+        adapter.toMinorUnits(due, currency.code, currency.decimalPlaces) !== intent.amountMinor ||
         (intent.currencyCode &&
-            intent.currencyCode.toLowerCase() !== currencyCode)
+            intent.currencyCode.toLowerCase() !== currency.code)
     ) {
         ctx.logger.err(
             `Rental payment ${intent.id} does not match reservation ${reservation.number}; left for staff to review`,
@@ -527,16 +530,17 @@ export async function addReservationCharges(
 ): Promise<void> {
     assertStatus(reservation, ["in_progress", "completed"], ctx.languageCode);
     const notes: string[] = [];
+    const {decimalPlaces} = await reservationCurrency(reservation, ctx.session);
     for (const charge of charges) {
-        const amount = roundToCurrency(charge.amount);
-        reservation.pricing.lines.push({
+        const amount = roundToCurrency(charge.amount, decimalPlaces);
+        reservation.pricing.lines.push(storedPriceLine({
             label: charge.label,
             kind: "charge",
             code: charge.code,
             quantity: 1,
             unitPrice: amount,
             total: amount,
-        });
+        }, decimalPlaces));
         reservation.timeline.push({
             event: "charge_added",
             at: input.now ?? new Date(),
@@ -549,10 +553,11 @@ export async function addReservationCharges(
     }
     Object.assign(
         reservation.pricing,
-        totalsFor(
+        storedTotalsFor(
             reservation.pricing.lines,
             reservation.pricing.vatRate,
             reservation.pricing.pricesIncludeVat,
+            decimalPlaces,
         ),
     );
     reservation.paymentStatus = paymentStatusFor(reservation, false);
@@ -592,28 +597,30 @@ export async function removeReservationCharges(
     assertStatus(reservation, ["in_progress", "completed"], ctx.languageCode);
     const lines = reservation.pricing.lines;
     const invoicedCount = reservation.invoicedLineCount ?? 0;
-    const credited: {description: string; total: number}[] = [];
+    const {decimalPlaces} = await reservationCurrency(reservation, ctx.session);
+    const credited: {description: string; total: MoneyInput}[] = [];
     for (const charge of charges) {
         let index = -1;
         for (let i = lines.length - 1; i >= 0 && index < 0; i--) {
-            if (lines[i].kind === "charge" && lines[i].label === charge.label && lines[i].total === charge.amount) index = i;
+            if (lines[i].kind === "charge" && lines[i].label === charge.label && decimalToNumber(lines[i].total) === charge.amount) index = i;
         }
         if (index < 0) throw apiValidationException("rental_charge_not_found", "", null, ctx.languageCode);
         const [line] = index >= invoicedCount ? lines.splice(index, 1) : [lines[index]];
         if (index < invoicedCount) {
             credited.push({description: line.label, total: line.total});
-            lines.push({
+            const removed = -(decimalToNumber(line.total) ?? 0);
+            lines.push(storedPriceLine({
                 label: rentalPricingLabel(ctx.languageCode, "chargeRemoved", {label: line.label}),
                 kind: "charge",
                 code: line.code,
                 quantity: 1,
-                unitPrice: -line.total,
-                total: -line.total,
-            });
+                unitPrice: removed,
+                total: removed,
+            }, decimalPlaces));
         }
         reservation.timeline.push({event: "charge_removed", at: new Date(), by: input.by, note: `${line.label} · ${line.total}`});
     }
-    Object.assign(reservation.pricing, totalsFor(lines, reservation.pricing.vatRate, reservation.pricing.pricesIncludeVat));
+    Object.assign(reservation.pricing, storedTotalsFor(lines, reservation.pricing.vatRate, reservation.pricing.pricesIncludeVat, decimalPlaces));
     if (credited.length) {
         await creditInvoicedLines(reservation, credited, ctx);
         reservation.invoicedLineCount = lines.length;
@@ -711,6 +718,7 @@ export async function extendRentalReservation(
             ctx.languageCode,
         );
 
+    const {decimalPlaces} = await reservationCurrency(reservation, ctx.session);
     const quoteFor = (returnAt: Date) =>
         computeRentalQuote({
             category,
@@ -729,22 +737,23 @@ export async function extendRentalReservation(
                 vatRate: reservation.pricing.vatRate,
                 pricesIncludeVat: reservation.pricing.pricesIncludeVat,
                 lateGraceMinutes: config.lateGraceMinutes,
+                decimalPlaces,
             },
         });
     const longer = quoteFor(newReturnAt);
     const original = quoteFor(reservation.returnAt);
     const extension = Math.max(0, subtractMoney(longer.subtotal, original.subtotal));
     if (extension > 0) {
-        reservation.pricing.lines.push({
+        reservation.pricing.lines.push(storedPriceLine({
             label: category.name,
             kind: "extension",
             quantity: 1,
             unitPrice: extension,
             total: extension,
-        });
+        }, decimalPlaces));
     }
     reservation.pricing.rentalDays = longer.rentalDays;
-    applyDriverFees(reservation, config, ctx.languageCode);
+    applyDriverFees(reservation, config, ctx.languageCode, decimalPlaces);
     reservation.returnAt = newReturnAt;
     reservation.blockedUntil = newBlockedUntil;
     reservation.timeline.push({
@@ -805,6 +814,7 @@ export async function addRentalExtras(
             null,
             ctx.languageCode,
         );
+    const {decimalPlaces} = await reservationCurrency(reservation, ctx.session);
     const quote = quoteTrip(
         config,
         category,
@@ -815,7 +825,7 @@ export async function addRentalExtras(
             pickupLocation,
             returnLocation,
         },
-        {languageCode: ctx.languageCode, crossBorder: reservation.crossBorder},
+        {languageCode: ctx.languageCode, crossBorder: reservation.crossBorder, decimalPlaces},
     );
     const extraLines = quote.lines.filter((line) => line.kind === "extra");
     reservation.extras = extras.map(({extra, quantity}) => ({
@@ -828,14 +838,15 @@ export async function addRentalExtras(
     }));
     reservation.pricing.lines = [
         ...reservation.pricing.lines.filter((line) => line.kind !== "extra"),
-        ...extraLines,
+        ...extraLines.map((line) => storedPriceLine(line, decimalPlaces)),
     ];
     Object.assign(
         reservation.pricing,
-        totalsFor(
+        storedTotalsFor(
             reservation.pricing.lines,
             reservation.pricing.vatRate,
             reservation.pricing.pricesIncludeVat,
+            decimalPlaces,
         ),
     );
     reservation.paymentStatus = paymentStatusFor(reservation, false);

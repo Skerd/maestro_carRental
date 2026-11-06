@@ -1,6 +1,6 @@
 import {afterAll, beforeAll, beforeEach, describe, expect, it, vi} from "vitest";
+import {connectTestDatabase, disconnectTestDatabase} from "@coreModule/_tests/testDatabase";
 
-import {MongoMemoryReplSet} from "mongodb-memory-server";
 import mongoose from "mongoose";
 import {ObjectId} from "mongodb";
 import request from "supertest";
@@ -80,8 +80,6 @@ import {runRentalHoldExpiry} from "@carRentalModule/utilities/cronJobs/rentalHol
 import {buildRentalReport} from "@carRentalModule/utilities/services/rentalReports";
 import {withTenant} from "@coreModule/utilities/endpoints/tenantScope";
 
-// Transactions need a replica set; WiredTiger so concurrent requests really conflict
-let replSet: MongoMemoryReplSet;
 const companyId = new ObjectId();
 /** The tests act on this company's data, as its requests and jobs do (D16). */
 const asCompany = <T>(fn: () => PromiseLike<T>): Promise<T> => withTenant(companyId, fn);
@@ -136,8 +134,7 @@ const insure = (vehicle: ObjectId, input: {validFrom?: string; expiresAt?: strin
 });
 
 beforeAll(async () => {
-    replSet = await MongoMemoryReplSet.create({replSet: {count: 1, storageEngine: "wiredTiger"}});
-    await mongoose.connect(replSet.getUri());
+    await connectTestDatabase();
     // Every registered model (audit log, users…): an index still building aborts a transaction that touches it.
     await Promise.all(Object.values(mongoose.models).map((model) => model.init()));
     admin = {
@@ -153,8 +150,7 @@ beforeAll(async () => {
 }, 120000);
 
 afterAll(async () => {
-    await mongoose.disconnect();
-    await replSet.stop();
+    await disconnectTestDatabase();
 });
 
 beforeEach(() => asCompany(async () => {
@@ -616,12 +612,13 @@ describe("on the road", {timeout: 60000}, () => {
         expect((await charge(scratch._id.toString(), 50)).body.error_code).toBe("vehicle_damage_excess_reached");
 
         const stored = await RentalReservation.findById(id);
-        expect(stored!.pricing.lines).toContainEqual(expect.objectContaining({kind: "charge", code: "damage", total: 200}));
-        expect(stored!.pricing.grandTotal).toBe(320);
+        // Money is stored as Decimal128 (TD-B29)
+        expect(stored!.pricing.lines.filter((line) => line.kind === "charge" && line.code === "damage").map((line) => String(line.total))).toEqual(["200.00"]);
+        expect(String(stored!.pricing.grandTotal)).toBe("320.00");
         expect(stored!.timeline.map((entry) => entry.event)).toContain("charge_added");
         // The return invoiced the rental; the later damage charge got its own invoice.
         const invoices = await Invoice.find({sourceId: id}).sort({number: 1});
-        expect(invoices.map((invoice) => invoice.total)).toEqual([120, 200]);
+        expect(invoices.map((invoice) => String(invoice.total))).toEqual(["120.00", "200.00"]);
         expect(invoices[0].lines.map((line) => line.description)).toEqual(["Compact", "Medium cover"]);
         expect(invoices[1]).toMatchObject({number: expect.stringMatching(/^INV-\d{4}-000002$/), sourceNumber: stored!.number});
     }));
@@ -695,7 +692,7 @@ describe("on the road", {timeout: 60000}, () => {
         expect(charged.body).toMatchObject({status: "charged", chargedAmount: 145});
         expect((await fines("/chargeCustomer", {_id: fine!._id.toString()})).body.error_code).toBe("rental_fine_invalid_status");
         const stored = await RentalReservation.findById(id);
-        expect(stored!.pricing.lines.filter((line) => line.code === "fine" || line.code === "fine_admin").map((line) => line.total)).toEqual([120, 25]);
+        expect(stored!.pricing.lines.filter((line) => line.code === "fine" || line.code === "fine_admin").map((line) => String(line.total))).toEqual(["120.00", "25.00"]);
         expect(stored!.amountPaid).toBe(545);
         expect(stripe.createPaymentIntent).toHaveBeenLastCalledWith(expect.objectContaining({amount: 145, offSession: expect.anything()}));
 
@@ -842,15 +839,16 @@ describe("fleet workflows", {timeout: 60000}, () => {
         const created = await create("vehicleFine", {reference: "TR-9", vehicle: vehicleId, offenceAt: "2027-06-10 14:30", type: "speeding", authority: "Kapo", amount: 120}, admin);
         await fleet("vehicleFine/chargeCustomer", {_id: created.body._id}, admin);
         const fineInvoice = await Invoice.findOne({sourceId: id, kind: "invoice"}).sort({number: -1});
-        expect(fineInvoice!.total).toBe(145);
+        expect(String(fineInvoice!.total)).toBe("145.00");
 
         const annulled = await fleet("vehicleFine/annul", {_id: created.body._id}, admin);
         expect(annulled.body.status).toBe("cancelled");
         const note = await Invoice.findOne({sourceId: id, kind: "credit_note"});
-        expect(note).toMatchObject({total: -145, creditedInvoice: fineInvoice!._id});
+        expect(note).toMatchObject({creditedInvoice: fineInvoice!._id});
+        expect(String(note!.total)).toBe("-145.00");
         expect((await Invoice.findById(fineInvoice!._id))!.status).toBe("credited");
         const stored = await RentalReservation.findById(id);
-        expect(stored!.pricing.grandTotal).toBe(before);
+        expect(String(stored!.pricing.grandTotal)).toBe(String(before));
         expect(stored!.invoicedLineCount).toBe(stored!.pricing.lines.length);
     }));
 
@@ -911,7 +909,7 @@ describe("fleet workflows", {timeout: 60000}, () => {
         const nominated = await fleet("vehicleFine/nominateDriver", {_id: created.body._id}, admin);
         expect(nominated.body).toMatchObject({status: "transferred", chargedAmount: 25});
         const stored = await RentalReservation.findById(id);
-        expect(stored!.pricing.lines.filter((line) => line.code === "fine" || line.code === "fine_admin").map((line) => line.total)).toEqual([25]);
+        expect(stored!.pricing.lines.filter((line) => line.code === "fine" || line.code === "fine_admin").map((line) => String(line.total))).toEqual(["25.00"]);
         expect(await Invoice.countDocuments({sourceId: id})).toBe(invoicesBefore + 1);
         expect((await fleet("vehicleFine/recordPayment", {_id: created.body._id, paidAt: "2027-07-01", paidAmount: 120}, admin)).body.error_code).toBe("rental_fine_invalid_status");
     }));

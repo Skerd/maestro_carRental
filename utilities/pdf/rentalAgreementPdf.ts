@@ -7,7 +7,8 @@ import {PDF_COLORS, PDF_PAGE, PdfWriter, embedStandardFonts, pdfMoney} from "@co
 import Media from "@coreModule/database/schemas/media/media";
 import Company from "@coreModule/database/schemas/company/company";
 import Currency from "@coreModule/database/schemas/currency/currency";
-import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
+import {decimalToNumber, nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
+import type {MoneyInput} from "armonia/src/modules/core/helpers/money";
 import type {IRentalReservation} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation";
 import VehicleDamage from "@carRentalModule/database/schemas/vehicleDamage/vehicleDamage";
 import CarRentalConfig from "@carRentalModule/database/schemas/carRentalConfig/carRentalConfig";
@@ -43,7 +44,7 @@ export async function generateRentalAgreementPdf(reservation: IRentalReservation
         RentalExtra.findOne({_id: {$in: reservation.extras.map((line) => nestedEntityToRef(line.extra))}, kind: "protection"}).select("name excessAmount"),
         signatureId ? Media.findOne({_id: signatureId, company: companyId}).select("fileId mimeType") : null,
     ]);
-    const money = (amount: number) => pdfMoney(amount, currency?.abbreviation);
+    const money = (amount: MoneyInput) => pdfMoney(decimalToNumber(amount) ?? 0, currency?.abbreviation);
     const {timezone} = reservation.snapshot;
     const doc = await PDFDocument.create();
     const w = new PdfWriter(doc, await embedStandardFonts(doc));
@@ -111,7 +112,7 @@ export async function generateRentalAgreementPdf(reservation: IRentalReservation
     w.text(money(reservation.pricing.grandTotal), {x: PDF_PAGE.width - PDF_PAGE.margin - 90, size: 10, bold: true});
     w.gap(14);
     if (reservation.pricing.vatRate > 0) row(`${loc.vat} (${reservation.pricing.vatRate}%)`, money(reservation.pricing.vatAmount));
-    if (reservation.pricing.depositAmount > 0) row(loc.deposit, money(reservation.pricing.depositAmount));
+    if ((decimalToNumber(reservation.pricing.depositAmount) ?? 0) > 0) row(loc.deposit, money(reservation.pricing.depositAmount));
     row(loc.protection, protection
         ? `${protection.name}${protection.excessAmount !== undefined ? ` · ${loc.excess} ${money(protection.excessAmount)}` : ""}`
         : loc.basicCover);

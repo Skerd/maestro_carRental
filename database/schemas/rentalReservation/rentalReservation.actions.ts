@@ -62,7 +62,7 @@ import {
     markRentalNoShow,
     returnRentalReservation,
 } from "@carRentalModule/utilities/services/rentalLifecycle";
-import {recordCounterPayment} from "@carRentalModule/utilities/services/rentalPayments";
+import {recordCounterPayment, reservationCurrency} from "@carRentalModule/utilities/services/rentalPayments";
 import {
     applyDriverFees,
     assertDriverList,
@@ -208,7 +208,8 @@ export class RentalReservationActions {
         );
 
         reservation.drivers = params.drivers;
-        applyDriverFees(reservation, config, params.languageCode);
+        const {decimalPlaces} = await reservationCurrency(reservation, params.session);
+        applyDriverFees(reservation, config, params.languageCode, decimalPlaces);
         reservation.timeline.push({
             event: "drivers_updated",
             at: new Date(),

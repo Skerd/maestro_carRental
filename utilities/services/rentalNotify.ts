@@ -3,7 +3,7 @@ import type {ClientSession} from "mongoose";
 import Company from "@coreModule/database/schemas/company/company";
 import Currency from "@coreModule/database/schemas/currency/currency";
 import {emitNotificationEvent} from "@coreModule/domain/notifications/notificationEventBus";
-import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
+import {decimalToNumber, nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import {runAfterCommit} from "@coreModule/utilities/middlewares/transactionUtils";
 import {generateRecordAccessToken} from "@coreModule/utilities/security/recordAccessToken";
 import {RENTAL_RESERVATION_LINK_PURPOSE} from "armonia/src/modules/carRental/api/carRental/private/rentalReservation/rentalReservation.constants";
@@ -57,7 +57,7 @@ export async function notifyRentalCustomer(
             pickupLocation: [snapshot.pickupLocationName, snapshot.pickupAddress].filter(Boolean).join(", "),
             returnAt: formatLocal(reservation.returnAt, snapshot.timezone, ctx.languageCode),
             returnLocation: [snapshot.returnLocationName, snapshot.returnAddress].filter(Boolean).join(", "),
-            total: await formatAmount(reservation, reservation.pricing.grandTotal, ctx.languageCode),
+            total: await formatAmount(reservation, decimalToNumber(reservation.pricing.grandTotal) ?? 0, ctx.languageCode),
             manageToken: generateRecordAccessToken({
                 purpose: RENTAL_RESERVATION_LINK_PURPOSE,
                 companyId: companyId,

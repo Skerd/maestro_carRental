@@ -1,4 +1,5 @@
 import {Document, model, Schema, SchemaTypes, Types} from "mongoose";
+import type {Decimal128} from "mongodb";
 import {ICurrency} from "@coreModule/database/schemas/currency/currency";
 import {IUser} from "@coreModule/database/schemas/user/user";
 import {normalizeSchemaPermissions} from "@coreModule/database/utilities";
@@ -64,20 +65,21 @@ export type IRentalPriceLine = {
     kind: RentalPriceLineKind;
     code?: RentalPriceLineCode;
     quantity: number;
-    unitPrice: number;
-    total: number;
+    unitPrice: Decimal128;
+    total: Decimal128;
 };
 
+/** Money is `Decimal128` in `currency` (GLB-08); the DTO maps it to numbers. */
 export type IRentalPricing = {
     rentalDays: number;
     currency: ICurrency | Types.ObjectId;
     lines: IRentalPriceLine[];
-    subtotal: number;
+    subtotal: Decimal128;
     vatRate: number;
-    vatAmount: number;
+    vatAmount: Decimal128;
     pricesIncludeVat: boolean;
-    grandTotal: number;
-    depositAmount: number;
+    grandTotal: Decimal128;
+    depositAmount: Decimal128;
 };
 
 export type IRentalReservationExtra = {
@@ -233,8 +235,8 @@ const priceLineSchema = {
     },
     code: {type: SchemaTypes.String, enum: RENTAL_PRICE_LINE_CODES},
     quantity: {type: SchemaTypes.Number, required: true},
-    unitPrice: {type: SchemaTypes.Number, required: true},
-    total: {type: SchemaTypes.Number, required: true},
+    unitPrice: {type: SchemaTypes.Decimal128, required: true},
+    total: {type: SchemaTypes.Decimal128, required: true},
 };
 
 const vehicleCheckSchema = {
@@ -487,13 +489,13 @@ const RentalReservationSchema = new Schema<IRentalReservation>(
                     refAllowlist: CurrencySimpleSnippet,
                 },
                 lines: {type: [priceLineSchema], default: []},
-                subtotal: {type: SchemaTypes.Number, required: true},
+                subtotal: {type: SchemaTypes.Decimal128, required: true},
                 vatRate: {type: SchemaTypes.Number, required: true},
-                vatAmount: {type: SchemaTypes.Number, required: true},
+                vatAmount: {type: SchemaTypes.Decimal128, required: true},
                 pricesIncludeVat: {type: SchemaTypes.Boolean, required: true},
-                grandTotal: {type: SchemaTypes.Number, required: true},
+                grandTotal: {type: SchemaTypes.Decimal128, required: true},
                 depositAmount: {
-                    type: SchemaTypes.Number,
+                    type: SchemaTypes.Decimal128,
                     required: true,
                     default: 0,
                 },

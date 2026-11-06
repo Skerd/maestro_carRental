@@ -3,7 +3,7 @@ import {localDateOf} from "@coreModule/utilities/time/timeWindows";
 import type {IRentalDriver, IRentalReservation} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation";
 import type {ICarRentalConfig} from "@carRentalModule/database/schemas/carRentalConfig/carRentalConfig";
 import type {RentalPriceLineCode} from "armonia/src/modules/carRental/api/carRental/private/rentalReservation/rentalReservation.constants";
-import {feeLines, totalsFor, type QuoteFee} from "./rentalQuote";
+import {feeLines, storedPriceLine, storedTotalsFor, type QuoteFee} from "./rentalQuote";
 import {paymentStatusFor} from "./rentalPayments";
 import {rentalPricingLabel} from "./rentalPricingLabels";
 
@@ -80,11 +80,14 @@ export function driverFees(
     return fees;
 }
 
-/** Re-prices the driver fees after the drivers or the rental days changed. */
-export function applyDriverFees(reservation: IRentalReservation, settings: DriverFeeSettings, languageCode: string): void {
+/** Re-prices the driver fees after the drivers or the rental days changed, at the booking currency's `decimals`. */
+export function applyDriverFees(reservation: IRentalReservation, settings: DriverFeeSettings, languageCode: string, decimals: number): void {
     const pickupDate = localDateOf(reservation.pickupAt, reservation.snapshot.timezone);
-    const fees = feeLines(driverFees(reservation.drivers, settings, pickupDate, languageCode), reservation.pricing.rentalDays);
-    reservation.pricing.lines = [...reservation.pricing.lines.filter((line) => !line.code || !DRIVER_FEE_CODES.includes(line.code)), ...fees];
-    Object.assign(reservation.pricing, totalsFor(reservation.pricing.lines, reservation.pricing.vatRate, reservation.pricing.pricesIncludeVat));
+    const fees = feeLines(driverFees(reservation.drivers, settings, pickupDate, languageCode), reservation.pricing.rentalDays, decimals);
+    reservation.pricing.lines = [
+        ...reservation.pricing.lines.filter((line) => !line.code || !DRIVER_FEE_CODES.includes(line.code)),
+        ...fees.map((fee) => storedPriceLine(fee, decimals)),
+    ];
+    Object.assign(reservation.pricing, storedTotalsFor(reservation.pricing.lines, reservation.pricing.vatRate, reservation.pricing.pricesIncludeVat, decimals));
     reservation.paymentStatus = paymentStatusFor(reservation, false);
 }

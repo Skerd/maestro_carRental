@@ -2,7 +2,7 @@ import type {ObjectId} from "mongodb";
 import type {ClientSession} from "mongoose";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import type {serverLogger} from "@coreModule/loggers/serverLog";
-import {addMoney, roundToCurrency, subtractMoney} from "armonia/src/modules/core/helpers/money";
+import {DEFAULT_DECIMAL_PLACES, addMoney, minorToNumber, roundToCurrency, subtractMoney, toMinor} from "armonia/src/modules/core/helpers/money";
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import Currency from "@coreModule/database/schemas/currency/currency";
 import {paymentTransactionService} from "@financeModule/database/schemas/paymentTransaction/paymentTransaction.service";
@@ -38,16 +38,20 @@ export function paymentStatusFor(
     return amountDue(reservation) <= 0 ? "paid" : "unpaid";
 }
 
-export async function currencyCodeOf(
+/** The booking currency: its lowercase code for the gateway and its `decimalPlaces` (TD-B30). */
+export async function reservationCurrency(
     reservation: IRentalReservation,
     session: ClientSession,
-): Promise<string> {
+): Promise<{code: string; decimalPlaces: number}> {
     const currency = await Currency.findById(
         nestedEntityToRef(reservation.pricing.currency),
     )
-        .select("abbreviation")
+        .select("abbreviation decimalPlaces")
         .session(session);
-    return (currency?.abbreviation ?? "eur").toLowerCase();
+    return {
+        code: (currency?.abbreviation ?? "eur").toLowerCase(),
+        decimalPlaces: currency?.decimalPlaces ?? DEFAULT_DECIMAL_PLACES,
+    };
 }
 
 /**
@@ -69,9 +73,12 @@ export async function startOnlinePayment(
         );
     }
     const companyId = nestedEntityToRef(reservation.company);
+    const currency = await reservationCurrency(reservation, ctx.session);
+    const grandTotal = minorToNumber(toMinor(reservation.pricing.grandTotal, currency.decimalPlaces), currency.decimalPlaces);
     const intent = await adapter.createPaymentIntent({
-        amount: reservation.pricing.grandTotal,
-        currencyCode: await currencyCodeOf(reservation, ctx.session),
+        amount: grandTotal,
+        currencyCode: currency.code,
+        decimalPlaces: currency.decimalPlaces,
         metadata: {
             sourceType: "rentalReservation",
             reservationId: reservation._id.toString(),
@@ -84,7 +91,7 @@ export async function startOnlinePayment(
             sourceType: "rentalReservation",
             sourceId: reservation._id,
             gateway: "stripe",
-            amount: reservation.pricing.grandTotal,
+            amount: grandTotal,
             currency: nestedEntityToRef(reservation.pricing.currency),
             gatewayTransactionId: intent.id,
             company: companyId,
@@ -124,9 +131,11 @@ export async function startBalancePayment(
         );
     }
     const companyId = nestedEntityToRef(reservation.company);
+    const currency = await reservationCurrency(reservation, ctx.session);
     const intent = await adapter.createPaymentIntent({
         amount: due,
-        currencyCode: await currencyCodeOf(reservation, ctx.session),
+        currencyCode: currency.code,
+        decimalPlaces: currency.decimalPlaces,
         metadata: {
             sourceType: "rentalReservation",
             reservationId: reservation._id.toString(),
@@ -159,12 +168,14 @@ async function rentalSource(
     reservation: IRentalReservation,
     session: ClientSession,
 ): Promise<PaymentSource> {
+    const currency = await reservationCurrency(reservation, session);
     return {
         sourceType: "rentalReservation",
         sourceId: reservation._id,
         company: nestedEntityToRef(reservation.company),
         currency: nestedEntityToRef(reservation.pricing.currency),
-        currencyCode: await currencyCodeOf(reservation, session),
+        currencyCode: currency.code,
+        decimalPlaces: currency.decimalPlaces,
     };
 }
 

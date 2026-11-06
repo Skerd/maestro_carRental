@@ -1,6 +1,5 @@
 import {afterAll, beforeAll, beforeEach, describe, expect, it, vi} from "vitest";
-import {MongoMemoryReplSet} from "mongodb-memory-server";
-import mongoose from "mongoose";
+import {connectTestDatabase, disconnectTestDatabase} from "@coreModule/_tests/testDatabase";
 import {ObjectId} from "mongodb";
 
 const {emitted} = vi.hoisted(() => ({emitted: [] as {code: string; payload: Record<string, unknown>}[]}));
@@ -18,7 +17,6 @@ import VehicleFine from "@carRentalModule/database/schemas/vehicleFine/vehicleFi
 import {runFleetReminders} from "@carRentalModule/utilities/cronJobs/fleetReminderJob";
 import {withTenant} from "@coreModule/utilities/endpoints/tenantScope";
 
-let replSet: MongoMemoryReplSet;
 const companyId = new ObjectId();
 /** The tests act on this company's data, as its requests and jobs do (D16). */
 const asCompany = <T>(fn: () => PromiseLike<T>): Promise<T> => withTenant(companyId, fn);
@@ -33,14 +31,12 @@ const policy = (vehicle: ObjectId, expiresAt: Date, fields: Record<string, unkno
 const codes = () => emitted.map((event) => event.code).sort();
 
 beforeAll(async () => {
-    replSet = await MongoMemoryReplSet.create({replSet: {count: 1}});
-    await mongoose.connect(replSet.getUri());
+    await connectTestDatabase();
     await Promise.all([Vehicle, VehicleInsurance, VehicleDocument, VehicleFine, CarRentalConfig, Currency].map((model) => model.init()));
 }, 120000);
 
 afterAll(async () => {
-    await mongoose.disconnect();
-    await replSet.stop();
+    await disconnectTestDatabase();
 });
 
 beforeEach(() => asCompany(async () => {

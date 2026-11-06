@@ -7,7 +7,7 @@ import type {VehicleCategorySimple} from "armonia/src/modules/carRental/dto/vehi
 import type {VehicleSimple} from "armonia/src/modules/carRental/dto/vehicle.dto";
 import type {RentalLocationSimple} from "armonia/src/modules/carRental/dto/rentalLocation.dto";
 import type {RentalExtraSimple} from "armonia/src/modules/carRental/dto/rentalExtra.dto";
-import {dateToISOString, mapMedia, mapSnippet, nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
+import {dateToISOString, decimalToNumber, mapMedia, mapSnippet, nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import {amountDue} from "@carRentalModule/utilities/services/rentalPayments";
 import {CurrencySimpleSnippet} from "@coreModule/database/schemas/currency/currency.snippets";
 import {SimpleBlankUserSnippet} from "@coreModule/database/schemas/user/user.snippets";
@@ -63,13 +63,20 @@ function pricingToDTO(reservation: IRentalReservation) {
     return {
         rentalDays: pricing.rentalDays,
         currency: mapSnippet<CurrencySimple>()(pricing.currency, CurrencySimpleSnippet),
-        lines: pricing.lines.map(({label, kind, code, quantity, unitPrice, total}) => ({label, kind, code, quantity, unitPrice, total})),
-        subtotal: pricing.subtotal,
+        lines: pricing.lines.map(({label, kind, code, quantity, unitPrice, total}) => ({
+            label,
+            kind,
+            code,
+            quantity,
+            unitPrice: decimalToNumber(unitPrice) ?? 0,
+            total: decimalToNumber(total) ?? 0,
+        })),
+        subtotal: decimalToNumber(pricing.subtotal) ?? 0,
         vatRate: pricing.vatRate,
-        vatAmount: pricing.vatAmount,
+        vatAmount: decimalToNumber(pricing.vatAmount) ?? 0,
         pricesIncludeVat: pricing.pricesIncludeVat,
-        grandTotal: pricing.grandTotal,
-        depositAmount: pricing.depositAmount,
+        grandTotal: decimalToNumber(pricing.grandTotal) ?? 0,
+        depositAmount: decimalToNumber(pricing.depositAmount) ?? 0,
     };
 }
 

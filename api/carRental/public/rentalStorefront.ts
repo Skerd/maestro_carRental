@@ -31,7 +31,7 @@ import {
     generateRecordAccessToken,
     validateRecordAccessToken,
 } from "@coreModule/utilities/security/recordAccessToken";
-import {mapSnippet} from "@coreModule/utilities/mappers/common.mapper";
+import {decimalToNumber, mapSnippet} from "@coreModule/utilities/mappers/common.mapper";
 import Currency from "@coreModule/database/schemas/currency/currency";
 import {CurrencySimpleSnippet} from "@coreModule/database/schemas/currency/currency.snippets";
 import type {CurrencySimple} from "armonia/src/modules/core/dto/currency.dto";
@@ -315,7 +315,7 @@ async function publicReservation(reservation: IRentalReservation) {
         invoices: invoices.map((invoice) => ({
             id: invoice._id.toString(),
             number: invoice.number,
-            total: invoice.total,
+            total: decimalToNumber(invoice.total) ?? 0,
         })),
     };
 }

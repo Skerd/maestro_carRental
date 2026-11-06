@@ -10,7 +10,7 @@ import {getPaymentAdapter} from "@financeModule/utilities/services/payment/payme
 import type {PaymentProviderAdapter} from "@financeModule/utilities/services/payment/paymentProvider.types";
 import {RENTAL_CARD_HOLD_MAX_DAYS, type RentalDepositMethod} from "armonia/src/modules/carRental/api/carRental/private/rentalReservation/rentalReservation.constants";
 import type {IRentalReservation} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation";
-import {amountDue, currencyCodeOf, paymentStatusFor, recordCounterPayment} from "./rentalPayments";
+import {amountDue, paymentStatusFor, recordCounterPayment, reservationCurrency} from "./rentalPayments";
 
 type Ctx = {session: ClientSession; logger: serverLogger; languageCode: string; auditUserId?: string | ObjectId};
 
@@ -79,9 +79,11 @@ export async function takeDeposit(
     const metadata = {sourceType: "rentalReservation", purpose: "deposit", reservationId: reservation._id.toString(), companyId: String(nestedEntityToRef(reservation.company))};
     let form: DepositCardForm;
     if (method === "card_hold") {
+        const currency = await reservationCurrency(reservation, ctx.session);
         const intent = await adapter.createPaymentIntent({
             amount,
-            currencyCode: await currencyCodeOf(reservation, ctx.session),
+            currencyCode: currency.code,
+            decimalPlaces: currency.decimalPlaces,
             metadata,
             captureMethod: "manual",
             idempotencyKey: `rental-deposit-${reservation._id.toString()}-${attempt}`,
@@ -154,7 +156,8 @@ export async function settleDeposit(reservation: IRentalReservation, keepAmount:
     } else if (deposit.method === "card_hold") {
         const adapter = stripeOrFail(ctx.languageCode);
         if (keep > 0) {
-            await adapter.capturePaymentIntent(deposit.intentId!, keep, await currencyCodeOf(reservation, ctx.session));
+            const currency = await reservationCurrency(reservation, ctx.session);
+            await adapter.capturePaymentIntent(deposit.intentId!, keep, currency.code, currency.decimalPlaces);
             await recordCardCharge(reservation, deposit.intentId!, keep, ctx);
         } else {
             await adapter.cancelPaymentIntent(deposit.intentId!);
@@ -179,9 +182,11 @@ export async function chargeSavedCard(reservation: IRentalReservation, amount: n
     if (!deposit?.paymentMethodId || !deposit.stripeCustomerId) return false;
     const adapter = stripeOrFail(ctx.languageCode);
     const charges = await PaymentTransaction.countDocuments({sourceId: reservation._id, type: "charge"}).session(ctx.session);
+    const currency = await reservationCurrency(reservation, ctx.session);
     const intent = await adapter.createPaymentIntent({
         amount,
-        currencyCode: await currencyCodeOf(reservation, ctx.session),
+        currencyCode: currency.code,
+        decimalPlaces: currency.decimalPlaces,
         metadata: {sourceType: "rentalReservation", purpose: "saved_card", reservationId: reservation._id.toString()},
         offSession: {customerId: deposit.stripeCustomerId, paymentMethodId: deposit.paymentMethodId},
         idempotencyKey: `rental-card-charge-${reservation._id.toString()}-${charges + 1}`,

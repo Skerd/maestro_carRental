@@ -1,7 +1,6 @@
 import {afterAll, beforeAll, beforeEach, describe, expect, it, vi} from "vitest";
+import {connectTestDatabase, disconnectTestDatabase} from "@coreModule/_tests/testDatabase";
 
-import {MongoMemoryReplSet} from "mongodb-memory-server";
-import mongoose from "mongoose";
 import {ObjectId} from "mongodb";
 import request from "supertest";
 
@@ -44,7 +43,6 @@ import VehicleMaintenance from "@carRentalModule/database/schemas/vehicleMainten
 import VehicleDamage from "@carRentalModule/database/schemas/vehicleDamage/vehicleDamage";
 import {withTenant} from "@coreModule/utilities/endpoints/tenantScope";
 
-let replSet: MongoMemoryReplSet;
 const companyId = new ObjectId();
 /** The tests act on this company's data, as its requests and jobs do (D16). */
 const asCompany = <T>(fn: () => PromiseLike<T>): Promise<T> => withTenant(companyId, fn);
@@ -68,8 +66,7 @@ const service = (body: Record<string, unknown>) =>
     request(app).put("/api/carRental/vehicleMaintenance").set(callerHeader(admin)).send({vehicle: vehicleId, type: "scheduled_service", status: "completed", ...body});
 
 beforeAll(async () => {
-    replSet = await MongoMemoryReplSet.create({replSet: {count: 1, storageEngine: "wiredTiger"}});
-    await mongoose.connect(replSet.getUri());
+    await connectTestDatabase();
     // Build every index first: an index build racing a transaction's first write aborts it.
     await Promise.all([Vehicle, CarRentalConfig, RentalLocation, VehicleCategory, RentalReservation, VehicleInsurance, VehicleMaintenance, VehicleDamage, Currency, Media]
         .map((model) => model.init()));
@@ -83,8 +80,7 @@ beforeAll(async () => {
 }, 120000);
 
 afterAll(async () => {
-    await mongoose.disconnect();
-    await replSet.stop();
+    await disconnectTestDatabase();
 });
 
 beforeEach(() => asCompany(async () => {

@@ -1,5 +1,8 @@
-import {addMoney, multiplyMoney, percentOfMoney, roundToCurrency, subtractMoney} from "armonia/src/modules/core/helpers/money";
+import type {Decimal128} from "mongodb";
+import {DEFAULT_DECIMAL_PLACES, minorToNumber, multiplyMinor, percentOfMinor, sumMinor, toMinor, type MoneyInput} from "armonia/src/modules/core/helpers/money";
+import {decimal128FromMinor} from "@coreModule/utilities/helpers/money";
 import {invoiceTotals} from "@financeModule/database/schemas/invoice/invoice.service";
+import type {IRentalPriceLine, IRentalPricing} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation";
 import {localDateOf} from "@coreModule/utilities/time/timeWindows";
 import type {
     RentalPriceLineCode,
@@ -30,6 +33,8 @@ export type QuoteSettings = {
     vatRate: number;
     pricesIncludeVat: boolean;
     lateGraceMinutes: number;
+    /** The currency's `decimalPlaces`, where every amount is rounded once (default 2, TD-B30). */
+    decimalPlaces?: number;
 };
 
 export type QuoteLine = {
@@ -102,8 +107,13 @@ function dailyRateFor(
     return category.dailyRate;
 }
 
+/** `amount × quantity` at the currency's `decimals`, rounded once (D35). */
+function lineTotal(amount: MoneyInput, quantity: number, decimals: number): number {
+    return minorToNumber(multiplyMinor(toMinor(amount, decimals), quantity), decimals);
+}
+
 /** Groups consecutive-or-not day rates into one line per distinct rate, in first-seen order. */
-function rateLines(label: string, rates: number[]): QuoteLine[] {
+function rateLines(label: string, rates: number[], decimals: number): QuoteLine[] {
     const counts = new Map<number, number>();
     for (const rate of rates) counts.set(rate, (counts.get(rate) ?? 0) + 1);
     return [...counts].map(([unitPrice, quantity]) => ({
@@ -111,7 +121,7 @@ function rateLines(label: string, rates: number[]): QuoteLine[] {
         kind: "rental",
         quantity,
         unitPrice,
-        total: multiplyMoney(unitPrice, quantity),
+        total: lineTotal(unitPrice, quantity, decimals),
     }));
 }
 
@@ -137,6 +147,7 @@ export function computeRentalQuote(input: {
     depositAmount?: number;
 }): RentalQuoteResult {
     const {category, extras, pickupAt, returnAt, timeZone, settings} = input;
+    const decimals = settings.decimalPlaces ?? DEFAULT_DECIMAL_PLACES;
     const rentalDays = rentalDaysBetween(
         pickupAt,
         returnAt,
@@ -150,16 +161,14 @@ export function computeRentalQuote(input: {
             timeZone,
         ),
     );
-    let lines = rateLines(category.name, dayRates);
+    let lines = rateLines(category.name, dayRates, decimals);
 
     if (category.weeklyRate !== undefined && rentalDays >= 7) {
         const weeks = Math.floor(rentalDays / 7);
         const remainder = dayRates.slice(weeks * 7);
-        const weeklyTotal = addMoney(
-            multiplyMoney(category.weeklyRate, weeks),
-            ...remainder,
-        );
-        const dailyTotal = addMoney(...dayRates);
+        const weekly = multiplyMinor(toMinor(category.weeklyRate, decimals), weeks);
+        const weeklyTotal = weekly + sumMinor(remainder.map((rate) => toMinor(rate, decimals)));
+        const dailyTotal = sumMinor(dayRates.map((rate) => toMinor(rate, decimals)));
         if (weeklyTotal < dailyTotal) {
             lines = [
                 {
@@ -167,9 +176,9 @@ export function computeRentalQuote(input: {
                     kind: "rental",
                     quantity: weeks,
                     unitPrice: category.weeklyRate,
-                    total: multiplyMoney(category.weeklyRate, weeks),
+                    total: minorToNumber(weekly, decimals),
                 },
-                ...rateLines(category.name, remainder),
+                ...rateLines(category.name, remainder, decimals),
             ];
         }
     }
@@ -184,19 +193,19 @@ export function computeRentalQuote(input: {
             kind: "extra",
             quantity,
             unitPrice: extra.price,
-            total: multiplyMoney(extra.price, quantity),
+            total: lineTotal(extra.price, quantity, decimals),
         });
     }
     const discount = input.discount
-        ? discountLine(input.discount, lines)
+        ? discountLine(input.discount, lines, decimals)
         : null;
     if (discount) lines.push(discount);
-    lines.push(...feeLines(input.fees ?? [], rentalDays));
+    lines.push(...feeLines(input.fees ?? [], rentalDays, decimals));
 
     return {
         rentalDays,
         lines,
-        ...totalsFor(lines, settings.vatRate, settings.pricesIncludeVat),
+        ...totalsFor(lines, settings.vatRate, settings.pricesIncludeVat, decimals),
         vatRate: settings.vatRate,
         pricesIncludeVat: settings.pricesIncludeVat,
         depositAmount: input.depositAmount ?? category.depositAmount ?? 0,
@@ -204,7 +213,7 @@ export function computeRentalQuote(input: {
 }
 
 /** Fee lines for a rental of `rentalDays`; fees of zero are left out. */
-export function feeLines(fees: QuoteFee[], rentalDays: number): QuoteLine[] {
+export function feeLines(fees: QuoteFee[], rentalDays: number, decimals: number = DEFAULT_DECIMAL_PLACES): QuoteLine[] {
     return fees
         .filter((fee) => fee.amount > 0)
         .map((fee) => {
@@ -215,7 +224,7 @@ export function feeLines(fees: QuoteFee[], rentalDays: number): QuoteLine[] {
                 code: fee.code,
                 quantity,
                 unitPrice: fee.amount,
-                total: multiplyMoney(fee.amount, quantity),
+                total: lineTotal(fee.amount, quantity, decimals),
             };
         });
 }
@@ -224,20 +233,13 @@ export function feeLines(fees: QuoteFee[], rentalDays: number): QuoteLine[] {
 function discountLine(
     discount: QuoteDiscount,
     lines: QuoteLine[],
+    decimals: number,
 ): QuoteLine | null {
-    const rental = addMoney(
-        ...lines.filter((line) => line.kind === "rental").map((line) => line.total),
-    );
-    const already = addMoney(
-        ...lines.filter((line) => line.kind === "discount").map((line) => Math.abs(line.total)),
-    );
-    const base = Math.max(0, subtractMoney(rental, already));
-    const amount = Math.min(
-        base,
-        discount.type === "percent"
-            ? percentOfMoney(base, discount.value)
-            : roundToCurrency(discount.value),
-    );
+    const rental = sumMinor(lines.filter((line) => line.kind === "rental").map((line) => toMinor(line.total, decimals)));
+    const already = sumMinor(lines.filter((line) => line.kind === "discount").map((line) => toMinor(Math.abs(line.total), decimals)));
+    const base = rental > already ? rental - already : 0n;
+    const wanted = discount.type === "percent" ? percentOfMinor(base, discount.value) : toMinor(discount.value, decimals);
+    const amount = minorToNumber(wanted < base ? wanted : base, decimals);
     if (amount <= 0) return null;
     return {
         label: discount.label,
@@ -253,14 +255,15 @@ function discountLine(
 export function applyDiscount(
     result: RentalQuoteResult,
     discount: QuoteDiscount,
+    decimals: number = DEFAULT_DECIMAL_PLACES,
 ): RentalQuoteResult {
-    const line = discountLine(discount, result.lines);
+    const line = discountLine(discount, result.lines, decimals);
     if (!line) return result;
     const lines = [...result.lines, line];
     return {
         ...result,
         lines,
-        ...totalsFor(lines, result.vatRate, result.pricesIncludeVat),
+        ...totalsFor(lines, result.vatRate, result.pricesIncludeVat, decimals),
     };
 }
 
@@ -270,11 +273,52 @@ export function applyDiscount(
  * again whenever a charge is added to a booking later.
  */
 export function totalsFor(
-    lines: {total: number}[],
+    lines: {total: MoneyInput}[],
     vatRate: number,
     pricesIncludeVat: boolean,
+    decimals: number = DEFAULT_DECIMAL_PLACES,
 ): {subtotal: number; vatAmount: number; grandTotal: number} {
     // The invoice's rule (D35), so a booking's total and its invoice can never differ.
-    const {subtotal, vatAmount, total} = invoiceTotals(lines, vatRate, pricesIncludeVat);
+    const {subtotal, vatAmount, total} = invoiceTotals(lines, vatRate, pricesIncludeVat, decimals);
     return {subtotal, vatAmount, grandTotal: total};
+}
+
+/** An amount as the reservation stores it: Decimal128 at the currency's `decimals` (GLB-08). */
+function stored(amount: MoneyInput, decimals: number): Decimal128 {
+    return decimal128FromMinor(toMinor(amount, decimals), decimals);
+}
+
+/** A price line as the reservation stores it. */
+export function storedPriceLine(line: QuoteLine, decimals: number): IRentalPriceLine {
+    return {...line, unitPrice: stored(line.unitPrice, decimals), total: stored(line.total, decimals)};
+}
+
+/** A booking's totals from its stored lines, as the reservation stores them. */
+export function storedTotalsFor(
+    lines: {total: MoneyInput}[],
+    vatRate: number,
+    pricesIncludeVat: boolean,
+    decimals: number,
+): Pick<IRentalPricing, "subtotal" | "vatAmount" | "grandTotal"> {
+    const totals = totalsFor(lines, vatRate, pricesIncludeVat, decimals);
+    return {
+        subtotal: stored(totals.subtotal, decimals),
+        vatAmount: stored(totals.vatAmount, decimals),
+        grandTotal: stored(totals.grandTotal, decimals),
+    };
+}
+
+/** A quote as the reservation's `pricing`, in `currency`. */
+export function storedPricing(quote: RentalQuoteResult, currency: IRentalPricing["currency"], decimals: number): IRentalPricing {
+    return {
+        rentalDays: quote.rentalDays,
+        currency,
+        lines: quote.lines.map((line) => storedPriceLine(line, decimals)),
+        subtotal: stored(quote.subtotal, decimals),
+        vatRate: quote.vatRate,
+        vatAmount: stored(quote.vatAmount, decimals),
+        pricesIncludeVat: quote.pricesIncludeVat,
+        grandTotal: stored(quote.grandTotal, decimals),
+        depositAmount: stored(quote.depositAmount, decimals),
+    };
 }

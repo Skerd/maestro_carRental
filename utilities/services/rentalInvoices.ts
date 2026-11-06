@@ -1,7 +1,8 @@
 import type {ClientSession} from "mongoose";
 import type {ObjectId} from "mongodb";
 import type {serverLogger} from "@coreModule/loggers/serverLog";
-import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
+import {decimalToNumber, nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
+import type {MoneyInput} from "armonia/src/modules/core/helpers/money";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import Invoice, {
     type IInvoice,
@@ -79,7 +80,7 @@ export async function invoiceNewLines(
  */
 export async function creditInvoicedLines(
     reservation: IRentalReservation,
-    lines: {description: string; total: number}[],
+    lines: {description: string; total: MoneyInput}[],
     ctx: Ctx,
 ): Promise<void> {
     const company = nestedEntityToRef(reservation.company)!;
@@ -96,7 +97,7 @@ export async function creditInvoicedLines(
     const byInvoice = new Map<string, {invoice: IInvoice; lines: typeof lines}>();
     for (const line of lines) {
         const invoice = invoices.find((candidate) =>
-            candidate.lines.some((invoiced) => invoiced.description === line.description && invoiced.total === line.total),
+            candidate.lines.some((invoiced) => invoiced.description === line.description && decimalToNumber(invoiced.total) === decimalToNumber(line.total)),
         );
         if (!invoice) throw apiValidationException("rental_charge_not_found", "", null, ctx.languageCode);
         const group = byInvoice.get(String(invoice._id)) ?? {invoice, lines: []};

@@ -12,6 +12,7 @@ import {buildCreateZodSchema} from "armonia/src/modules/core/helpers/schemaDefBu
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import Invoice from "@financeModule/database/schemas/invoice/invoice";
 import Currency from "@coreModule/database/schemas/currency/currency";
+import {decimalToNumber} from "@coreModule/utilities/mappers/common.mapper";
 import RentalBusinessAccount from "@carRentalModule/database/schemas/rentalBusinessAccount/rentalBusinessAccount";
 import {generateRentalStatementPdf} from "@carRentalModule/utilities/pdf/rentalStatementPdf";
 
@@ -102,7 +103,7 @@ router.post(
                 invoices.map((invoice) => ({
                     number: invoice.number,
                     issuedAt: invoice.issuedAt,
-                    total: invoice.total,
+                    total: decimalToNumber(invoice.total) ?? 0,
                     currency: abbreviation.get(String(invoice.currency)) ?? "",
                 })),
             );

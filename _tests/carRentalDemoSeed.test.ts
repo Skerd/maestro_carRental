@@ -1,6 +1,5 @@
 import {afterAll, beforeAll, describe, expect, it, vi} from "vitest";
-import {MongoMemoryReplSet} from "mongodb-memory-server";
-import mongoose from "mongoose";
+import {connectTestDatabase, disconnectTestDatabase} from "@coreModule/_tests/testDatabase";
 import {ObjectId} from "mongodb";
 
 vi.mock("@carRentalModule/utilities/emails/sendRentalCustomerMail", () => ({
@@ -32,7 +31,6 @@ import PaymentTransaction from "@financeModule/database/schemas/paymentTransacti
 import {seedCarRentalDemoData} from "@carRentalModule/database/demo/carRentalCompanyDemo";
 import {withTenant} from "@coreModule/utilities/endpoints/tenantScope";
 
-let replSet: MongoMemoryReplSet;
 const company = {
     _id: new ObjectId(),
     name: "Demo Rent",
@@ -74,10 +72,7 @@ const counts = async () =>
     );
 
 beforeAll(async () => {
-    replSet = await MongoMemoryReplSet.create({
-        replSet: {count: 1, storageEngine: "wiredTiger"},
-    });
-    await mongoose.connect(replSet.getUri());
+    await connectTestDatabase();
     await Promise.all(MODELS.map((model) => model.init()));
     // Offline: photos become placeholders and the clips are skipped.
     vi.stubGlobal(
@@ -97,8 +92,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
     vi.unstubAllGlobals();
-    await mongoose.disconnect();
-    await replSet.stop();
+    await disconnectTestDatabase();
 });
 
 describe("car rental demo seed", () => {
