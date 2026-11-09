@@ -55,8 +55,11 @@ let locationId: ObjectId;
 let categoryId: ObjectId;
 let vehicleId: string;
 
-const vehicleFor = (company: ObjectId, plate: string, status = "active") =>
-    Vehicle.create({company, category: categoryId, make: "VW", model: "Golf", plate, homeLocation: locationId, status});
+/** A car of `company`; another company's car names a category and location of its own (D104). */
+const vehicleFor = (company: ObjectId, plate: string, status = "active") => {
+    const ours = company.equals(companyId);
+    return Vehicle.create({company, category: ours ? categoryId : new ObjectId(), make: "VW", model: "Golf", plate, homeLocation: ours ? locationId : new ObjectId(), status});
+};
 
 /** A booking row written directly: these tests only need it to exist for one car. */
 const reservationFor = (vehicle: string, number: string) =>
