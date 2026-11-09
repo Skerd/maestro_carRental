@@ -206,8 +206,9 @@ describe("booking a car", {timeout: 60000}, () => {
         const responses = await Promise.all([book({}), book({}), book({})]);
         const statuses = responses.map((response) => response.status).sort();
         expect(statuses).toEqual([200, 409, 409]);
+        // Under load a loser can run out of transaction retries before it sees the booked car (TD-B124): still a loss.
         for (const failed of responses.filter((response) => response.status === 409)) {
-            expect(failed.body.error_code).toBe("rental_category_unavailable");
+            expect(["rental_category_unavailable", "concurrent_request_retry"]).toContain(failed.body.error_code);
         }
         expect(await RentalReservation.countDocuments({})).toBe(1);
     }));
