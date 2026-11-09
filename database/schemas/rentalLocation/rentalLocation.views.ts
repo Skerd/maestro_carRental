@@ -516,6 +516,8 @@ const rentalLocationCreateFormNodes: ViewConfig["nodes"] = [
                                     widgetProps: {
                                         valueFormat: "HH:mm",
                                         timeOnly: true,
+                                        // 24:00 ends a day's opening hours at midnight (WeeklyHoursSlotDef).
+                                        allowEndOfDay: true,
                                     },
                                 },
                             },
@@ -834,6 +836,8 @@ const rentalLocationEditFormNodes: ViewConfig["nodes"] = [
                                     widgetProps: {
                                         valueFormat: "HH:mm",
                                         timeOnly: true,
+                                        // 24:00 ends a day's opening hours at midnight (WeeklyHoursSlotDef).
+                                        allowEndOfDay: true,
                                     },
                                 },
                             },
