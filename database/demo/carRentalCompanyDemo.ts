@@ -122,7 +122,8 @@ async function upsert<T>(
     const existing = await model.findOne(filter);
     if (existing) {
         existing.set(payload);
-        return existing.save();
+        await existing.save();
+        return existing;
     }
     return model.create({...filter, ...payload, ...onInsert});
 }
@@ -202,7 +203,7 @@ export async function seedCarRentalDemoData(
                         isActive: true,
                         ...(oneWayFee !== undefined ? {oneWayFee} : {}),
                     },
-                )) as unknown as IRentalLocation,
+                )),
             );
         }
 
@@ -245,10 +246,7 @@ export async function seedCarRentalDemoData(
                     isPublic: true,
                 },
             );
-            categoryBySlug.set(
-                category.slug,
-                doc as unknown as IVehicleCategory,
-            );
+            categoryBySlug.set(category.slug, doc);
         }
 
         for (const extra of DEMO_EXTRAS) {

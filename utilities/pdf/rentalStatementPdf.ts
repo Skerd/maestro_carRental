@@ -1,4 +1,6 @@
 import {PDFDocument} from "pdf-lib";
+import {minorToNumber, sumMinor, toMinor, type MoneyInput} from "armonia/src/modules/core/helpers/money";
+import {localDateOf} from "@coreModule/utilities/time/timeWindows";
 import {
     PdfWriter,
     embedStandardFonts,
@@ -10,11 +12,17 @@ import type {IRentalBusinessAccount} from "@carRentalModule/database/schemas/ren
 export type StatementInvoice = {
     number: string;
     issuedAt: Date;
-    total: number;
+    /** As stored (`Decimal128`), in the invoice currency. */
+    total: MoneyInput;
     currency: string;
+    /** The currency's `decimalPlaces`. */
+    decimalPlaces: number;
 };
 
-/** One page listing a business account's invoices for a month. */
+/**
+ * One page listing a business account's invoices for a month, dated in the company's time zone, with one exact total
+ * per currency (amounts in different currencies are never added together).
+ */
 export async function generateRentalStatementPdf(
     account: Pick<
         IRentalBusinessAccount,
@@ -22,6 +30,7 @@ export async function generateRentalStatementPdf(
     >,
     month: string,
     invoices: StatementInvoice[],
+    timeZone: string,
 ): Promise<Buffer> {
     const doc = await PDFDocument.create();
     const fonts = await embedStandardFonts(doc);
@@ -37,14 +46,15 @@ export async function generateRentalStatementPdf(
     writer.gap(16);
     writer.rule();
     writer.gap(10);
-    let total = 0;
-    let currency = invoices[0]?.currency ?? "";
+    const totals = new Map<string, {decimalPlaces: number; amounts: bigint[]}>();
     for (const invoice of invoices) {
-        currency = invoice.currency;
-        total += invoice.total;
+        const amount = toMinor(invoice.total, invoice.decimalPlaces);
+        const total = totals.get(invoice.currency) ?? {decimalPlaces: invoice.decimalPlaces, amounts: []};
+        total.amounts.push(amount);
+        totals.set(invoice.currency, total);
         writer.ensure(14);
         writer.text(
-            `${invoice.issuedAt.toISOString().slice(0, 10)}   ${invoice.number}   ${pdfMoney(invoice.total, invoice.currency)}`,
+            `${localDateOf(invoice.issuedAt, timeZone)}   ${invoice.number}   ${pdfMoney(minorToNumber(amount, invoice.decimalPlaces), invoice.currency, invoice.decimalPlaces)}`,
             {size: 10},
         );
         writer.gap(14);
@@ -52,7 +62,10 @@ export async function generateRentalStatementPdf(
     writer.gap(6);
     writer.rule();
     writer.gap(12);
-    writer.text(pdfMoney(total, currency), {size: 12, bold: true});
-    writer.gap(16);
+    for (const [currency, {decimalPlaces, amounts}] of totals) {
+        writer.ensure(16);
+        writer.text(pdfMoney(minorToNumber(sumMinor(amounts), decimalPlaces), currency, decimalPlaces), {size: 12, bold: true});
+        writer.gap(16);
+    }
     return Buffer.from(await doc.save());
 }
