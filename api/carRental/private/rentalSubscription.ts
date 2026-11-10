@@ -10,6 +10,8 @@ import {rentalSubscriptionsToSelect} from "@carRentalModule/utilities/mappers/re
 
 export const basePath = "/api/carRental/rentalSubscription";
 
+const buildSubscriptionUpdate = buildUpdateDataFromSchemaDef(RentalSubscriptionSchemaDef);
+
 export const {router} = createCrudRouter({
     collectionName: "rentalsubscriptions",
     model: RentalSubscription,
@@ -23,5 +25,10 @@ export const {router} = createCrudRouter({
     selectSearchField: "contactName",
     defaultSort: {nextRunAt: 1},
     buildCreateData: buildCreateDataFromSchemaDef(RentalSubscriptionSchemaDef),
-    buildUpdateData: buildUpdateDataFromSchemaDef(RentalSubscriptionSchemaDef),
+    buildUpdateData: (params, writeFields) => {
+        const data = buildSubscriptionUpdate(params, writeFields);
+        // A moved next date is a new day of the month: the job takes it as the anchor again (TD-B143).
+        const moved = data.nextRunAt != null && new Date(data.nextRunAt).getTime() !== params.existing.nextRunAt.getTime();
+        return moved ? {...data, anchorDay: null} : data;
+    },
 });

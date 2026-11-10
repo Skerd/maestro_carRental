@@ -23,6 +23,7 @@ import {resolveRentalTrip} from "@carRentalModule/utilities/services/rentalTrip"
 import {notifyRentalCustomer} from "@carRentalModule/utilities/services/rentalNotify";
 
 import {rentalSubscriptionService} from "@carRentalModule/database/schemas/rentalSubscription/rentalSubscription.service";
+import {rentalReservationService} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation.service";
 import {rentalLocationService} from "@carRentalModule/database/schemas/rentalLocation/rentalLocation.service";
 import {rentalBusinessAccountService} from "@carRentalModule/database/schemas/rentalBusinessAccount/rentalBusinessAccount.service";
 
@@ -33,12 +34,14 @@ const BATCH_SIZE = 50;
 const MINUTE_MS = 60_000;
 
 /**
- * The same wall-clock time a week or a month later at the pickup location (GLB-09): across a DST change the instant
- * moves by an hour, the local time does not. A month from the 31st lands on the month's last day.
+ * The same wall-clock time a week later, or a month later on the subscription's `anchorDay`, at the pickup location
+ * (GLB-09): across a DST change the instant moves by an hour, the local time does not. The anchor day is clamped to
+ * the month's last day, so a month from the 31st lands on 28 February and the next one on 31 March (TD-B143).
  */
-function advance(date: Date, period: "week" | "month", timeZone: string): Date {
-    const day = dayjs.utc(localDateOf(date, timeZone))
-        .add(period === "week" ? 7 : 1, period === "week" ? "day" : "month")
+function advance(date: Date, period: "week" | "month", timeZone: string, anchorDay: number): Date {
+    const local = dayjs.utc(localDateOf(date, timeZone));
+    const nextMonth = local.startOf("month").add(1, "month");
+    const day = (period === "week" ? local.add(7, "day") : nextMonth.date(Math.min(anchorDay, nextMonth.daysInMonth())))
         .format("YYYY-MM-DD");
     const time = localTimeOf(date, timeZone);
     // A time skipped by spring-forward does not exist that day: it moves on by the hour the clocks skipped.
@@ -88,7 +91,9 @@ export async function runRentalSubscriptions(
                     ? location.timezone
                     : await companyTimeZoneOf(company, {session});
                 const pickupAt = subscription.nextRunAt;
-                const returnAt = advance(pickupAt, subscription.period, timeZone);
+                // The first run, or the first after staff moved the date, takes its day of the month as the anchor.
+                const anchorDay = subscription.anchorDay ?? Number(localDateOf(pickupAt, timeZone).slice(8, 10));
+                const returnAt = advance(pickupAt, subscription.period, timeZone, anchorDay);
                 const trip = await resolveRentalTrip(
                     {
                         pickupLocation: String(location._id),
@@ -120,6 +125,15 @@ export async function runRentalSubscriptions(
                           deletedAt: null,
                       }, {session: session})
                     : null;
+                // The period before is still out with the customer and ends now: the next one continues on the same
+                // car without the turnaround window, since the car never comes back (D127). Otherwise the normal rules.
+                const previous = await rentalReservationService.findOne({
+                    company,
+                    idempotencyKey: {$regex: `^sub-${subscription._id.toString()}-`},
+                    status: "in_progress",
+                    returnAt: pickupAt,
+                    deletedAt: null,
+                }, {session}, undefined, "_id vehicle");
                 const [first, ...rest] = subscription.contactName
                     .trim()
                     .split(/\s+/);
@@ -140,6 +154,9 @@ export async function runRentalSubscriptions(
                             businessAccountId: account?._id,
                             accountDiscountPercent: account?.discountPercent,
                             rentalPrice: subscription.price,
+                            ...(previous?.vehicle
+                                ? {vehicleId: String(nestedEntityToRef(previous.vehicle)), continuesReservationId: previous._id}
+                                : {}),
                             idempotencyKey: `sub-${subscription._id.toString()}-${pickupAt.getTime()}`,
                             source: "staff",
                             paymentChoice: account
@@ -151,7 +168,8 @@ export async function runRentalSubscriptions(
                     );
                 if (made && reservation.status === "confirmed")
                     await notifyRentalCustomer("confirmed", reservation, ctx);
-                subscription.nextRunAt = advance(pickupAt, subscription.period, timeZone);
+                subscription.nextRunAt = returnAt;
+                if (subscription.period === "month") subscription.anchorDay = anchorDay;
                 await subscription.save({session});
                 return made;
             });

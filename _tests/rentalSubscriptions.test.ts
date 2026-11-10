@@ -1,9 +1,14 @@
 import {afterAll, beforeAll, beforeEach, describe, expect, it, vi} from "vitest";
 import mongoose from "mongoose";
 import {ObjectId} from "mongodb";
+import request from "supertest";
 import {connectTestDatabase, disconnectTestDatabase} from "@coreModule/_tests/testDatabase";
 
 vi.mock("@carRentalModule/utilities/emails/sendRentalCustomerMail", () => ({sendRentalCustomerMail: vi.fn(async () => undefined)}));
+vi.mock("@coreModule/utilities/middlewares/authMW", async () => (await import("@coreModule/_tests/httpHarness")).authMWStub);
+vi.mock("@coreModule/utilities/middlewares/rateLimiter", () => ({
+    rateLimiter: () => (_req: unknown, _res: unknown, next: () => void) => next(),
+}));
 
 import {withTenant} from "@coreModule/utilities/endpoints/tenantScope";
 import Currency from "@coreModule/database/schemas/currency/currency";
@@ -15,10 +20,14 @@ import VehicleInsurance from "@carRentalModule/database/schemas/vehicleInsurance
 import RentalReservation from "@carRentalModule/database/schemas/rentalReservation/rentalReservation";
 import RentalSubscription from "@carRentalModule/database/schemas/rentalSubscription/rentalSubscription";
 import {runRentalSubscriptions} from "@carRentalModule/utilities/cronJobs/rentalSubscriptionJob";
+import * as subscriptionRoute from "@carRentalModule/api/carRental/private/rentalSubscription";
+import {allPermissionTags, appFor, callerHeader, type TestCaller} from "@coreModule/_tests/httpHarness";
 
 const companyId = new ObjectId();
 /** The job runs for one company, as the cron runner sets it (D16). */
 const asCompany = <T>(fn: () => PromiseLike<T>): Promise<T> => withTenant(companyId, fn);
+const app = appFor([{basePath: subscriptionRoute.basePath, router: subscriptionRoute.router, module: "carRental"}]);
+const staff: TestCaller = {userId: new ObjectId().toString(), companyId: companyId.toString(), isAdmin: true, permissions: allPermissionTags([RentalSubscription]), modules: ["core", "carRental"]};
 
 let locationId: ObjectId;
 let categoryId: ObjectId;
@@ -101,6 +110,112 @@ describe("rental subscriptions", {timeout: 60000}, () => {
         expect(booking).toMatchObject({pickupAt: new Date("2026-01-31T08:00:00Z"), returnAt: new Date("2026-02-28T08:00:00Z")});
         expect((await RentalSubscription.findById(subscription._id))!.nextRunAt).toEqual(new Date("2026-02-28T08:00:00Z"));
     }));
+
+    // TD-B143: every month after a short one stayed on the 28th
+    /** A second car of the category with its insurance: the first is out on the month booked before. */
+    const secondCar = async () => {
+        const vehicle = await Vehicle.create({company: companyId, category: categoryId, make: "VW", model: "Golf", plate: "ZH 2", homeLocation: locationId, status: "active"});
+        await VehicleInsurance.create({
+            company: companyId, vehicle: vehicle._id, insurer: "Helvetia", policyNumber: "POL-2", coverage: "full_casco",
+            validFrom: new Date("2020-01-01"), expiresAt: new Date("2030-01-01"), status: "active",
+        });
+    };
+
+    it("goes back to the 31st after a short month", () => asCompany(async () => {
+        await secondCar();
+        const subscription = await subscribe("month", "2026-01-31T08:00:00Z");
+
+        await runRentalSubscriptions(companyId);
+        expect(await RentalSubscription.findById(subscription._id)).toMatchObject({nextRunAt: new Date("2026-02-28T08:00:00Z"), anchorDay: 31});
+        await runRentalSubscriptions(companyId);
+
+        const march = await RentalReservation.findOne({idempotencyKey: `sub-${subscription._id.toString()}-${Date.parse("2026-02-28T08:00:00Z")}`});
+        // 09:00 in Zurich on 31 March is summer time
+        expect(march).toMatchObject({returnAt: new Date("2026-03-31T07:00:00Z")});
+        expect((await RentalSubscription.findById(subscription._id))!.nextRunAt).toEqual(new Date("2026-03-31T07:00:00Z"));
+    }));
+
+    it("takes a next date staff moved as the new day of the month", async () => {
+        const subscription = await asCompany(async () => {
+            await secondCar();
+            const created = await subscribe("month", "2026-01-31T08:00:00Z");
+            await runRentalSubscriptions(companyId);
+            return created;
+        });
+        const edit = (nextRunAt: string) => request(app).patch(subscriptionRoute.basePath).set(callerHeader(staff)).send({
+            _id: subscription._id.toString(), contactName: "Ada Lovelace", email: "ada@example.com", phone: "+41 79 000 00 00",
+            category: categoryId.toString(), pickupLocation: locationId.toString(), period: "month", price: 300, status: "active", nextRunAt,
+        });
+
+        // Saved unchanged: the anchor stays
+        expect((await edit("2026-02-28T08:00:00.000Z")).status).toBe(200);
+        expect((await asCompany(() => RentalSubscription.findById(subscription._id)))!.anchorDay).toBe(31);
+
+        expect((await edit("2026-02-15T08:00:00.000Z")).status).toBe(200);
+        expect((await asCompany(() => RentalSubscription.findById(subscription._id)))!.anchorDay).toBeUndefined();
+        await asCompany(() => runRentalSubscriptions(companyId));
+        expect(await asCompany(() => RentalSubscription.findById(subscription._id))).toMatchObject({nextRunAt: new Date("2026-03-15T08:00:00Z"), anchorDay: 15});
+    });
+
+    // D127 (TD-B170): with one car, each period ends exactly when the next starts, so the turnaround window refused it.
+    describe("the next period while the car is out", () => {
+        const WEEK_1 = "2026-03-02T08:00:00Z";
+        const WEEK_2 = "2026-03-09T08:00:00Z";
+        const bookingOf = (subscriptionId: ObjectId, pickupAt: string) =>
+            RentalReservation.findOne({idempotencyKey: `sub-${subscriptionId.toString()}-${Date.parse(pickupAt)}`});
+        /** Runs the first week and puts its booking in the given state. */
+        const firstWeek = async (status: "in_progress" | "confirmed" | "completed") => {
+            const subscription = await subscribe("week", WEEK_1);
+            await runRentalSubscriptions(companyId);
+            const booking = (await bookingOf(subscription._id, WEEK_1))!;
+            await RentalReservation.updateOne({_id: booking._id}, {$set: {status}});
+            return {subscription, booking};
+        };
+
+        it("continues on the same car at the return time while the customer still has it", () => asCompany(async () => {
+            const {subscription, booking} = await firstWeek("in_progress");
+
+            await runRentalSubscriptions(companyId);
+
+            const next = await bookingOf(subscription._id, WEEK_2);
+            expect(next).toMatchObject({pickupAt: new Date(WEEK_2), vehicle: booking.vehicle, status: "confirmed"});
+            // Its own end keeps the turnaround window.
+            expect(next!.blockedUntil).toEqual(new Date(Date.parse("2026-03-16T08:00:00Z") + 60 * 60_000));
+            expect((await RentalSubscription.findById(subscription._id))!.nextRunAt).toEqual(new Date("2026-03-16T08:00:00Z"));
+        }));
+
+        it("keeps the turnaround window for a car that is not out with the customer", () => asCompany(async () => {
+            // Booked but never handed over: the car is not out, so the normal rules apply and the only car is busy.
+            const {subscription} = await firstWeek("confirmed");
+
+            await runRentalSubscriptions(companyId);
+
+            expect(await bookingOf(subscription._id, WEEK_2)).toBeNull();
+            expect((await RentalSubscription.findById(subscription._id))!.nextRunAt).toEqual(new Date(WEEK_2));
+        }));
+
+        it("books a car that came back by the normal rules", () => asCompany(async () => {
+            const {subscription, booking} = await firstWeek("completed");
+
+            await runRentalSubscriptions(companyId);
+
+            const next = await bookingOf(subscription._id, WEEK_2);
+            expect(next).toMatchObject({pickupAt: new Date(WEEK_2), vehicle: booking.vehicle});
+            expect(next!.blockedUntil).toEqual(new Date(Date.parse("2026-03-16T08:00:00Z") + 60 * 60_000));
+        }));
+
+        it("waits out the turnaround after another customer's booking", () => asCompany(async () => {
+            // Another customer has the only car until the subscription's first pickup.
+            const {subscription: other} = await firstWeek("in_progress");
+            await RentalSubscription.updateOne({_id: other._id}, {$set: {status: "paused"}});
+            const subscription = await subscribe("week", WEEK_2);
+
+            await runRentalSubscriptions(companyId);
+
+            expect(await bookingOf(subscription._id, WEEK_2)).toBeNull();
+            expect((await RentalSubscription.findById(subscription._id))!.nextRunAt).toEqual(new Date(WEEK_2));
+        }));
+    });
 
     it("does nothing for a subscription that is not due or not active", () => asCompany(async () => {
         await subscribe("week", "2099-01-05T08:00:00Z");

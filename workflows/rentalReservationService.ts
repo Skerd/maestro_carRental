@@ -492,6 +492,12 @@ export type CreateRentalReservationInput = {
     crossBorder?: boolean;
     /** Replaces the category's rental price. Used by a subscription's period price. */
     rentalPrice?: number;
+    /**
+     * The booking this one continues on the same car, which is still out with the customer: its turnaround window is
+     * not waited for, because the car never comes back in between (a subscription's next period, D127). Set with
+     * `vehicleId`.
+     */
+    continuesReservationId?: ObjectId;
     /** The total the customer was shown; omitted for staff bookings. */
     expectedTotal?: number;
     now?: Date;
@@ -588,6 +594,7 @@ export async function buildRentalReservation(
             pickupAt: trip.pickupAt,
             blockedUntil,
             preferLocationId: trip.pickupLocation._id,
+            excludeReservationId: input.continuesReservationId,
             now,
         },
         ctx,

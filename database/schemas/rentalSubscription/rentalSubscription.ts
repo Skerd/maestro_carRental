@@ -43,6 +43,12 @@ export interface IRentalSubscription
     price: number;
     status: (typeof RENTAL_SUBSCRIPTION_STATUSS)[number];
     nextRunAt: Date;
+    /**
+     * A monthly subscription's day of the month (1–31), kept by the subscription job so a month clamped to a shorter
+     * month (31 Jan → 28 Feb) goes back to it (→ 31 Mar). Cleared when staff change the next date; the job then takes
+     * the new date's day (TD-B143).
+     */
+    anchorDay?: number;
 }
 
 const RentalSubscriptionSchema = new Schema<IRentalSubscription>(
@@ -111,6 +117,7 @@ const RentalSubscriptionSchema = new Schema<IRentalSubscription>(
             required: true,
             dynamicTableConfiguration: {cellType: COLUMN_TYPE.DATETIME},
         },
+        anchorDay: {type: SchemaTypes.Number, required: false, min: 1, max: 31},
     },
     {accessMode: "loose"},
 );
@@ -128,8 +135,10 @@ normalizeSchemaPermissions(RentalSubscription);
 export default RentalSubscription;
 
 addModelData(RentalSubscription, rentalSubscriptionViews);
+// `anchorDay` belongs to the subscription job, never a form.
 validateSchemaDefAgainstMongoose(
     RentalSubscriptionSchema,
     RentalSubscriptionSchemaDef,
     "RentalSubscription",
+    ["anchorDay"],
 );
