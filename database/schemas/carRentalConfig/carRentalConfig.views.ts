@@ -97,6 +97,13 @@ export const carRentalConfigEditFormView: ViewConfig = {
                                 label: "form.listedOnPortalLabel",
                             },
                         },
+                    ],
+                },
+                {
+                    // The booking rules start their own grid, apart from the publishing switches above (UX-04).
+                    render: "#FormGrid",
+                    props: {columns: 3},
+                    children: [
                         {
                             render: "#Field",
                             permissions: {read: "currency", write: "currency"},

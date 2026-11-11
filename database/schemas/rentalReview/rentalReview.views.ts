@@ -108,8 +108,8 @@ export const rentalReviewSheetView: ViewConfig = {
 
 const rentalReviewCreateFormNodes: ViewConfig["nodes"] = [
     {
-        render: "#FormGrid",
-        props: {columns: 2},
+        render: "#TitleWithCollapse",
+        props: {title: "form.reviewSectionTitle"},
         children: [
             {
                 render: "#Field",
@@ -128,49 +128,52 @@ const rentalReviewCreateFormNodes: ViewConfig["nodes"] = [
                 },
             },
             {
-                render: "#Field",
-                field: {
-                    name: "rating",
-                    widget: "#Input",
-                    label: "form.ratingLabel",
-                    placeholder: "form.ratingPlaceholder",
-                    required: true,
-                    widgetProps: {type: "number", min: 1, step: "any"},
-                },
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "rating",
+                            widget: "#Input",
+                            label: "form.ratingLabel",
+                            placeholder: "form.ratingPlaceholder",
+                            required: true,
+                            widgetProps: {type: "number", min: 1, max: 5, step: 1},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "authorName",
+                            widget: "#Input",
+                            label: "form.authorNameLabel",
+                            placeholder: "form.authorNamePlaceholder",
+                            required: true,
+                            widgetProps: {maxLength: RENTAL_REVIEW_AUTHOR_NAME_MAX},
+                        },
+                    },
+                ],
             },
             {
                 render: "#Field",
                 field: {
-                    name: "authorName",
-                    widget: "#Input",
-                    label: "form.authorNameLabel",
-                    placeholder: "form.authorNamePlaceholder",
-                    required: true,
-                    widgetProps: {maxLength: RENTAL_REVIEW_AUTHOR_NAME_MAX},
+                    name: "comment",
+                    widget: "#Textarea",
+                    label: "form.commentLabel",
+                    placeholder: "form.commentPlaceholder",
+                    widgetProps: {rows: 3, maxLength: RENTAL_REVIEW_COMMENT_MAX},
                 },
             },
         ],
-    },
-    {
-        render: "#Field",
-        field: {
-            name: "comment",
-            widget: "#Textarea",
-            label: "form.commentLabel",
-            placeholder: "form.commentPlaceholder",
-            widgetProps: {rows: 3, maxLength: RENTAL_REVIEW_COMMENT_MAX},
-        },
     },
 ];
 
 const rentalReviewEditFormNodes: ViewConfig["nodes"] = [
     {
-        render: "#FormGrid",
-        props: {columns: 2},
-        permissions: {
-            readAny: ["reservation", "rating", "authorName"],
-            writeAny: ["reservation", "rating", "authorName"],
-        },
+        render: "#TitleWithCollapse",
+        props: {title: "form.reviewSectionTitle"},
+        permissions: {readAny: ["reservation", "rating", "authorName", "comment"], writeAny: ["reservation", "rating", "authorName", "comment"]},
         children: [
             {
                 render: "#Field",
@@ -190,41 +193,47 @@ const rentalReviewEditFormNodes: ViewConfig["nodes"] = [
                 },
             },
             {
-                render: "#Field",
-                permissions: {read: "rating", write: "rating"},
-                field: {
-                    name: "rating",
-                    widget: "#Input",
-                    label: "form.ratingLabel",
-                    placeholder: "form.ratingPlaceholder",
-                    required: true,
-                    widgetProps: {type: "number", min: 1, step: "any"},
-                },
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        permissions: {read: "rating", write: "rating"},
+                        field: {
+                            name: "rating",
+                            widget: "#Input",
+                            label: "form.ratingLabel",
+                            placeholder: "form.ratingPlaceholder",
+                            required: true,
+                            widgetProps: {type: "number", min: 1, max: 5, step: 1},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "authorName", write: "authorName"},
+                        field: {
+                            name: "authorName",
+                            widget: "#Input",
+                            label: "form.authorNameLabel",
+                            placeholder: "form.authorNamePlaceholder",
+                            required: true,
+                            widgetProps: {maxLength: RENTAL_REVIEW_AUTHOR_NAME_MAX},
+                        },
+                    },
+                ],
             },
             {
                 render: "#Field",
-                permissions: {read: "authorName", write: "authorName"},
+                permissions: {read: "comment", write: "comment"},
                 field: {
-                    name: "authorName",
-                    widget: "#Input",
-                    label: "form.authorNameLabel",
-                    placeholder: "form.authorNamePlaceholder",
-                    required: true,
-                    widgetProps: {maxLength: RENTAL_REVIEW_AUTHOR_NAME_MAX},
+                    name: "comment",
+                    widget: "#Textarea",
+                    label: "form.commentLabel",
+                    placeholder: "form.commentPlaceholder",
+                    widgetProps: {rows: 3, maxLength: RENTAL_REVIEW_COMMENT_MAX},
                 },
             },
         ],
-    },
-    {
-        render: "#Field",
-        permissions: {read: "comment", write: "comment"},
-        field: {
-            name: "comment",
-            widget: "#Textarea",
-            label: "form.commentLabel",
-            placeholder: "form.commentPlaceholder",
-            widgetProps: {rows: 3, maxLength: RENTAL_REVIEW_COMMENT_MAX},
-        },
     },
 ];
 

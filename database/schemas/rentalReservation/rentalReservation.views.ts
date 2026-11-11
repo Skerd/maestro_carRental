@@ -882,6 +882,22 @@ export const rentalReservationCreateFormView: ViewConfig = {
             render: "#TitleWithCollapse",
             props: {title: "form.contactSectionTitle"},
             children: [
+                // An existing customer is picked before the contact is typed (UX-05).
+                {
+                    render: "#Field",
+                    field: {
+                        name: "customer",
+                        widget: "#ApiSelect",
+                        label: "form.customerLabel",
+                        placeholder: "form.customerPlaceholder",
+                        widgetProps: {
+                            apiUrl: "/api/company/users/select",
+                            method: "POST",
+                            pageSize: 50,
+                            normalizeEmptyToUndefined: true,
+                        },
+                    },
+                },
                 {
                     render: "#FormGrid",
                     props: {columns: 2},
@@ -933,21 +949,6 @@ export const rentalReservationCreateFormView: ViewConfig = {
                                 required: true,
                                 widgetProps: {
                                     maxLength: RENTAL_CONTACT_PHONE_MAX,
-                                },
-                            },
-                        },
-                        {
-                            render: "#Field",
-                            field: {
-                                name: "customer",
-                                widget: "#ApiSelect",
-                                label: "form.customerLabel",
-                                placeholder: "form.customerPlaceholder",
-                                widgetProps: {
-                                    apiUrl: "/api/company/users/select",
-                                    method: "POST",
-                                    pageSize: 50,
-                                    normalizeEmptyToUndefined: true,
                                 },
                             },
                         },

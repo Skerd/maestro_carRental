@@ -232,44 +232,50 @@ export const rentalPromoCodeSheetView: ViewConfig = {
 
 const rentalPromoCodeCreateFormNodes: ViewConfig["nodes"] = [
     {
-        render: "#FormGrid",
-        props: {columns: 2},
+        render: "#TitleWithCollapse",
+        props: {title: "form.discountSectionTitle"},
         children: [
             {
-                render: "#Field",
-                field: {
-                    name: "code",
-                    widget: "#Input",
-                    label: "form.codeLabel",
-                    placeholder: "form.codePlaceholder",
-                    required: true,
-                    widgetProps: {maxLength: RENTAL_PROMO_CODE_CODE_MAX},
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "type",
-                    widget: "#SimpleSelect",
-                    label: "form.typeLabel",
-                    placeholder: "form.typePlaceholder",
-                    required: true,
-                    widgetProps: {
-                        options: typeOptions,
-                        className: "grow w-full",
+                render: "#FormGrid",
+                props: {columns: 3},
+                children: [
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "code",
+                            widget: "#Input",
+                            label: "form.codeLabel",
+                            placeholder: "form.codePlaceholder",
+                            required: true,
+                            widgetProps: {maxLength: RENTAL_PROMO_CODE_CODE_MAX},
+                        },
                     },
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "value",
-                    widget: "#Input",
-                    label: "form.valueLabel",
-                    placeholder: "form.valuePlaceholder",
-                    required: true,
-                    widgetProps: {type: "number", min: 0, step: "any"},
-                },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "type",
+                            widget: "#SimpleSelect",
+                            label: "form.typeLabel",
+                            placeholder: "form.typePlaceholder",
+                            required: true,
+                            widgetProps: {
+                                options: typeOptions,
+                                className: "grow w-full",
+                            },
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "value",
+                            widget: "#Input",
+                            label: "form.valueLabel",
+                            placeholder: "form.valuePlaceholder",
+                            required: true,
+                            widgetProps: {type: "number", min: 0, step: "any"},
+                        },
+                    },
+                ],
             },
             {
                 render: "#Field",
@@ -289,73 +295,122 @@ const rentalPromoCodeCreateFormNodes: ViewConfig["nodes"] = [
             {
                 render: "#Field",
                 field: {
-                    name: "bookableFrom",
-                    widget: "#DateInput",
-                    label: "form.bookableFromLabel",
-                    placeholder: "form.bookableFromPlaceholder",
-                    widgetProps: {valueFormat: "YYYY-MM-DD"},
+                    name: "description",
+                    widget: "#Textarea",
+                    label: "form.descriptionLabel",
+                    placeholder: "form.descriptionPlaceholder",
+                    widgetProps: {
+                        rows: 3,
+                        maxLength: RENTAL_PROMO_CODE_DESCRIPTION_MAX,
+                    },
                 },
+            },
+        ],
+    },
+    {
+        render: "#TitleWithCollapse",
+        props: {title: "form.datesSectionTitle"},
+        children: [
+            {
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "bookableFrom",
+                            widget: "#DateInput",
+                            label: "form.bookableFromLabel",
+                            placeholder: "form.bookableFromPlaceholder",
+                            widgetProps: {valueFormat: "YYYY-MM-DD"},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "bookableUntil",
+                            widget: "#DateInput",
+                            label: "form.bookableUntilLabel",
+                            placeholder: "form.bookableUntilPlaceholder",
+                            widgetProps: {valueFormat: "YYYY-MM-DD"},
+                        },
+                    },
+                ],
             },
             {
-                render: "#Field",
-                field: {
-                    name: "bookableUntil",
-                    widget: "#DateInput",
-                    label: "form.bookableUntilLabel",
-                    placeholder: "form.bookableUntilPlaceholder",
-                    widgetProps: {valueFormat: "YYYY-MM-DD"},
-                },
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "tripFrom",
+                            widget: "#DateInput",
+                            label: "form.tripFromLabel",
+                            placeholder: "form.tripFromPlaceholder",
+                            widgetProps: {valueFormat: "YYYY-MM-DD"},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "tripUntil",
+                            widget: "#DateInput",
+                            label: "form.tripUntilLabel",
+                            placeholder: "form.tripUntilPlaceholder",
+                            widgetProps: {valueFormat: "YYYY-MM-DD"},
+                        },
+                    },
+                ],
             },
+        ],
+    },
+    {
+        render: "#TitleWithCollapse",
+        props: {title: "form.limitsSectionTitle"},
+        children: [
             {
-                render: "#Field",
-                field: {
-                    name: "tripFrom",
-                    widget: "#DateInput",
-                    label: "form.tripFromLabel",
-                    placeholder: "form.tripFromPlaceholder",
-                    widgetProps: {valueFormat: "YYYY-MM-DD"},
-                },
+                render: "#FormGrid",
+                props: {columns: 3},
+                children: [
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "minRentalDays",
+                            widget: "#Input",
+                            label: "form.minRentalDaysLabel",
+                            placeholder: "form.minRentalDaysPlaceholder",
+                            widgetProps: {type: "number", min: 1, step: 1},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "usageLimit",
+                            widget: "#Input",
+                            label: "form.usageLimitLabel",
+                            placeholder: "form.usageLimitPlaceholder",
+                            widgetProps: {type: "number", min: 1, step: 1},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "usageLimitPerEmail",
+                            widget: "#Input",
+                            label: "form.usageLimitPerEmailLabel",
+                            placeholder: "form.usageLimitPerEmailPlaceholder",
+                            widgetProps: {type: "number", min: 1, step: 1},
+                        },
+                    },
+                ],
             },
-            {
-                render: "#Field",
-                field: {
-                    name: "tripUntil",
-                    widget: "#DateInput",
-                    label: "form.tripUntilLabel",
-                    placeholder: "form.tripUntilPlaceholder",
-                    widgetProps: {valueFormat: "YYYY-MM-DD"},
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "minRentalDays",
-                    widget: "#Input",
-                    label: "form.minRentalDaysLabel",
-                    placeholder: "form.minRentalDaysPlaceholder",
-                    widgetProps: {type: "number", min: 1, step: "any"},
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "usageLimit",
-                    widget: "#Input",
-                    label: "form.usageLimitLabel",
-                    placeholder: "form.usageLimitPlaceholder",
-                    widgetProps: {type: "number", min: 1, step: "any"},
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "usageLimitPerEmail",
-                    widget: "#Input",
-                    label: "form.usageLimitPerEmailLabel",
-                    placeholder: "form.usageLimitPerEmailPlaceholder",
-                    widgetProps: {type: "number", min: 1, step: "any"},
-                },
-            },
+        ],
+    },
+    {
+        render: "#TitleWithCollapse",
+        props: {title: "form.visibilitySectionTitle"},
+        children: [
             {
                 render: "#Field",
                 field: {
@@ -366,94 +421,58 @@ const rentalPromoCodeCreateFormNodes: ViewConfig["nodes"] = [
             },
         ],
     },
-    {
-        render: "#Field",
-        field: {
-            name: "description",
-            widget: "#Textarea",
-            label: "form.descriptionLabel",
-            placeholder: "form.descriptionPlaceholder",
-            widgetProps: {
-                rows: 3,
-                maxLength: RENTAL_PROMO_CODE_DESCRIPTION_MAX,
-            },
-        },
-    },
 ];
 
 const rentalPromoCodeEditFormNodes: ViewConfig["nodes"] = [
     {
-        render: "#FormGrid",
-        props: {columns: 2},
-        permissions: {
-            readAny: [
-                "code",
-                "type",
-                "value",
-                "category",
-                "bookableFrom",
-                "bookableUntil",
-                "tripFrom",
-                "tripUntil",
-                "minRentalDays",
-                "usageLimit",
-                "usageLimitPerEmail",
-                "isActive",
-            ],
-            writeAny: [
-                "code",
-                "type",
-                "value",
-                "category",
-                "bookableFrom",
-                "bookableUntil",
-                "tripFrom",
-                "tripUntil",
-                "minRentalDays",
-                "usageLimit",
-                "usageLimitPerEmail",
-                "isActive",
-            ],
-        },
+        render: "#TitleWithCollapse",
+        props: {title: "form.discountSectionTitle"},
+        permissions: {readAny: ["code", "type", "value", "category", "description"], writeAny: ["code", "type", "value", "category", "description"]},
         children: [
             {
-                render: "#Field",
-                permissions: {read: "code", write: "code"},
-                field: {
-                    name: "code",
-                    widget: "#Input",
-                    label: "form.codeLabel",
-                    placeholder: "form.codePlaceholder",
-                    required: true,
-                    widgetProps: {maxLength: RENTAL_PROMO_CODE_CODE_MAX},
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "type", write: "type"},
-                field: {
-                    name: "type",
-                    widget: "#SimpleSelect",
-                    label: "form.typeLabel",
-                    placeholder: "form.typePlaceholder",
-                    required: true,
-                    widgetProps: {
-                        options: typeOptions,
-                        className: "grow w-full",
+                render: "#FormGrid",
+                props: {columns: 3},
+                children: [
+                    {
+                        render: "#Field",
+                        permissions: {read: "code", write: "code"},
+                        field: {
+                            name: "code",
+                            widget: "#Input",
+                            label: "form.codeLabel",
+                            placeholder: "form.codePlaceholder",
+                            required: true,
+                            widgetProps: {maxLength: RENTAL_PROMO_CODE_CODE_MAX},
+                        },
                     },
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "value", write: "value"},
-                field: {
-                    name: "value",
-                    widget: "#Input",
-                    label: "form.valueLabel",
-                    placeholder: "form.valuePlaceholder",
-                    required: true,
-                    widgetProps: {type: "number", min: 0, step: "any"},
-                },
+                    {
+                        render: "#Field",
+                        permissions: {read: "type", write: "type"},
+                        field: {
+                            name: "type",
+                            widget: "#SimpleSelect",
+                            label: "form.typeLabel",
+                            placeholder: "form.typePlaceholder",
+                            required: true,
+                            widgetProps: {
+                                options: typeOptions,
+                                className: "grow w-full",
+                            },
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "value", write: "value"},
+                        field: {
+                            name: "value",
+                            widget: "#Input",
+                            label: "form.valueLabel",
+                            placeholder: "form.valuePlaceholder",
+                            required: true,
+                            widgetProps: {type: "number", min: 0, step: "any"},
+                        },
+                    },
+                ],
             },
             {
                 render: "#Field",
@@ -473,84 +492,137 @@ const rentalPromoCodeEditFormNodes: ViewConfig["nodes"] = [
             },
             {
                 render: "#Field",
-                permissions: {read: "bookableFrom", write: "bookableFrom"},
+                permissions: {read: "description", write: "description"},
                 field: {
-                    name: "bookableFrom",
-                    widget: "#DateInput",
-                    label: "form.bookableFromLabel",
-                    placeholder: "form.bookableFromPlaceholder",
-                    widgetProps: {valueFormat: "YYYY-MM-DD"},
+                    name: "description",
+                    widget: "#Textarea",
+                    label: "form.descriptionLabel",
+                    placeholder: "form.descriptionPlaceholder",
+                    widgetProps: {
+                        rows: 3,
+                        maxLength: RENTAL_PROMO_CODE_DESCRIPTION_MAX,
+                    },
                 },
+            },
+        ],
+    },
+    {
+        render: "#TitleWithCollapse",
+        props: {title: "form.datesSectionTitle"},
+        permissions: {readAny: ["bookableFrom", "bookableUntil", "tripFrom", "tripUntil"], writeAny: ["bookableFrom", "bookableUntil", "tripFrom", "tripUntil"]},
+        children: [
+            {
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        permissions: {read: "bookableFrom", write: "bookableFrom"},
+                        field: {
+                            name: "bookableFrom",
+                            widget: "#DateInput",
+                            label: "form.bookableFromLabel",
+                            placeholder: "form.bookableFromPlaceholder",
+                            widgetProps: {valueFormat: "YYYY-MM-DD"},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "bookableUntil", write: "bookableUntil"},
+                        field: {
+                            name: "bookableUntil",
+                            widget: "#DateInput",
+                            label: "form.bookableUntilLabel",
+                            placeholder: "form.bookableUntilPlaceholder",
+                            widgetProps: {valueFormat: "YYYY-MM-DD"},
+                        },
+                    },
+                ],
             },
             {
-                render: "#Field",
-                permissions: {read: "bookableUntil", write: "bookableUntil"},
-                field: {
-                    name: "bookableUntil",
-                    widget: "#DateInput",
-                    label: "form.bookableUntilLabel",
-                    placeholder: "form.bookableUntilPlaceholder",
-                    widgetProps: {valueFormat: "YYYY-MM-DD"},
-                },
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        permissions: {read: "tripFrom", write: "tripFrom"},
+                        field: {
+                            name: "tripFrom",
+                            widget: "#DateInput",
+                            label: "form.tripFromLabel",
+                            placeholder: "form.tripFromPlaceholder",
+                            widgetProps: {valueFormat: "YYYY-MM-DD"},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "tripUntil", write: "tripUntil"},
+                        field: {
+                            name: "tripUntil",
+                            widget: "#DateInput",
+                            label: "form.tripUntilLabel",
+                            placeholder: "form.tripUntilPlaceholder",
+                            widgetProps: {valueFormat: "YYYY-MM-DD"},
+                        },
+                    },
+                ],
             },
+        ],
+    },
+    {
+        render: "#TitleWithCollapse",
+        props: {title: "form.limitsSectionTitle"},
+        permissions: {readAny: ["minRentalDays", "usageLimit", "usageLimitPerEmail"], writeAny: ["minRentalDays", "usageLimit", "usageLimitPerEmail"]},
+        children: [
             {
-                render: "#Field",
-                permissions: {read: "tripFrom", write: "tripFrom"},
-                field: {
-                    name: "tripFrom",
-                    widget: "#DateInput",
-                    label: "form.tripFromLabel",
-                    placeholder: "form.tripFromPlaceholder",
-                    widgetProps: {valueFormat: "YYYY-MM-DD"},
-                },
+                render: "#FormGrid",
+                props: {columns: 3},
+                children: [
+                    {
+                        render: "#Field",
+                        permissions: {read: "minRentalDays", write: "minRentalDays"},
+                        field: {
+                            name: "minRentalDays",
+                            widget: "#Input",
+                            label: "form.minRentalDaysLabel",
+                            placeholder: "form.minRentalDaysPlaceholder",
+                            widgetProps: {type: "number", min: 1, step: 1},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "usageLimit", write: "usageLimit"},
+                        field: {
+                            name: "usageLimit",
+                            widget: "#Input",
+                            label: "form.usageLimitLabel",
+                            placeholder: "form.usageLimitPlaceholder",
+                            widgetProps: {type: "number", min: 1, step: 1},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {
+                            read: "usageLimitPerEmail",
+                            write: "usageLimitPerEmail",
+                        },
+                        field: {
+                            name: "usageLimitPerEmail",
+                            widget: "#Input",
+                            label: "form.usageLimitPerEmailLabel",
+                            placeholder: "form.usageLimitPerEmailPlaceholder",
+                            widgetProps: {type: "number", min: 1, step: 1},
+                        },
+                    },
+                ],
             },
-            {
-                render: "#Field",
-                permissions: {read: "tripUntil", write: "tripUntil"},
-                field: {
-                    name: "tripUntil",
-                    widget: "#DateInput",
-                    label: "form.tripUntilLabel",
-                    placeholder: "form.tripUntilPlaceholder",
-                    widgetProps: {valueFormat: "YYYY-MM-DD"},
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "minRentalDays", write: "minRentalDays"},
-                field: {
-                    name: "minRentalDays",
-                    widget: "#Input",
-                    label: "form.minRentalDaysLabel",
-                    placeholder: "form.minRentalDaysPlaceholder",
-                    widgetProps: {type: "number", min: 1, step: "any"},
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "usageLimit", write: "usageLimit"},
-                field: {
-                    name: "usageLimit",
-                    widget: "#Input",
-                    label: "form.usageLimitLabel",
-                    placeholder: "form.usageLimitPlaceholder",
-                    widgetProps: {type: "number", min: 1, step: "any"},
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {
-                    read: "usageLimitPerEmail",
-                    write: "usageLimitPerEmail",
-                },
-                field: {
-                    name: "usageLimitPerEmail",
-                    widget: "#Input",
-                    label: "form.usageLimitPerEmailLabel",
-                    placeholder: "form.usageLimitPerEmailPlaceholder",
-                    widgetProps: {type: "number", min: 1, step: "any"},
-                },
-            },
+        ],
+    },
+    {
+        render: "#TitleWithCollapse",
+        props: {title: "form.visibilitySectionTitle"},
+        permissions: {readAny: ["isActive"], writeAny: ["isActive"]},
+        children: [
             {
                 render: "#Field",
                 permissions: {read: "isActive", write: "isActive"},
@@ -561,20 +633,6 @@ const rentalPromoCodeEditFormNodes: ViewConfig["nodes"] = [
                 },
             },
         ],
-    },
-    {
-        render: "#Field",
-        permissions: {read: "description", write: "description"},
-        field: {
-            name: "description",
-            widget: "#Textarea",
-            label: "form.descriptionLabel",
-            placeholder: "form.descriptionPlaceholder",
-            widgetProps: {
-                rows: 3,
-                maxLength: RENTAL_PROMO_CODE_DESCRIPTION_MAX,
-            },
-        },
     },
 ];
 

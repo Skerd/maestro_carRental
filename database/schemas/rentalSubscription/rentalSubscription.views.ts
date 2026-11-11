@@ -204,22 +204,37 @@ const rentalSubscriptionCreateFormNodes: ViewConfig["nodes"] = [
         props: {title: "form.contactSectionTitle"},
         children: [
             {
+                render: "#Field",
+                field: {
+                    name: "businessAccount",
+                    widget: "#ApiSelect",
+                    label: "form.businessAccountLabel",
+                    placeholder: "form.businessAccountPlaceholder",
+                    widgetProps: {
+                        apiUrl: "/api/carRental/rentalBusinessAccount/select",
+                        method: "POST",
+                        pageSize: 50,
+                        normalizeEmptyToUndefined: true,
+                    },
+                },
+            },
+            {
+                render: "#Field",
+                field: {
+                    name: "contactName",
+                    widget: "#Input",
+                    label: "form.contactNameLabel",
+                    placeholder: "form.contactNamePlaceholder",
+                    required: true,
+                    widgetProps: {
+                        maxLength: RENTAL_SUBSCRIPTION_CONTACT_NAME_MAX,
+                    },
+                },
+            },
+            {
                 render: "#FormGrid",
                 props: {columns: 2},
                 children: [
-                    {
-                        render: "#Field",
-                        field: {
-                            name: "contactName",
-                            widget: "#Input",
-                            label: "form.contactNameLabel",
-                            placeholder: "form.contactNamePlaceholder",
-                            required: true,
-                            widgetProps: {
-                                maxLength: RENTAL_SUBSCRIPTION_CONTACT_NAME_MAX,
-                            },
-                        },
-                    },
                     {
                         render: "#Field",
                         field: {
@@ -286,21 +301,6 @@ const rentalSubscriptionCreateFormNodes: ViewConfig["nodes"] = [
                             },
                         },
                     },
-                    {
-                        render: "#Field",
-                        field: {
-                            name: "businessAccount",
-                            widget: "#ApiSelect",
-                            label: "form.businessAccountLabel",
-                            placeholder: "form.businessAccountPlaceholder",
-                            widgetProps: {
-                                apiUrl: "/api/carRental/rentalBusinessAccount/select",
-                                method: "POST",
-                                pageSize: 50,
-                                normalizeEmptyToUndefined: true,
-                            },
-                        },
-                    },
                 ],
             },
         ],
@@ -334,10 +334,17 @@ const rentalSubscriptionCreateFormNodes: ViewConfig["nodes"] = [
                             widget: "#Input",
                             label: "form.priceLabel",
                             placeholder: "form.pricePlaceholder",
+                            description: "form.amountCurrencyDescription",
                             required: true,
                             widgetProps: {type: "number", min: 0, step: "any"},
                         },
                     },
+                ],
+            },
+            {
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
                     {
                         render: "#Field",
                         field: {
@@ -373,29 +380,45 @@ const rentalSubscriptionEditFormNodes: ViewConfig["nodes"] = [
     {
         render: "#TitleWithCollapse",
         props: {title: "form.contactSectionTitle"},
-        permissions: {
-            readAny: ["contactName", "email", "phone"],
-            writeAny: ["contactName", "email", "phone"],
-        },
+        permissions: {readAny: ["businessAccount", "contactName", "email", "phone"], writeAny: ["businessAccount", "contactName", "email", "phone"]},
         children: [
+            {
+                render: "#Field",
+                permissions: {
+                    read: "businessAccount",
+                    write: "businessAccount",
+                },
+                field: {
+                    name: "businessAccount",
+                    widget: "#ApiSelect",
+                    label: "form.businessAccountLabel",
+                    placeholder: "form.businessAccountPlaceholder",
+                    widgetProps: {
+                        apiUrl: "/api/carRental/rentalBusinessAccount/select",
+                        method: "POST",
+                        pageSize: 50,
+                        normalizeEmptyToUndefined: true,
+                    },
+                },
+            },
+            {
+                render: "#Field",
+                permissions: {read: "contactName", write: "contactName"},
+                field: {
+                    name: "contactName",
+                    widget: "#Input",
+                    label: "form.contactNameLabel",
+                    placeholder: "form.contactNamePlaceholder",
+                    required: true,
+                    widgetProps: {
+                        maxLength: RENTAL_SUBSCRIPTION_CONTACT_NAME_MAX,
+                    },
+                },
+            },
             {
                 render: "#FormGrid",
                 props: {columns: 2},
                 children: [
-                    {
-                        render: "#Field",
-                        permissions: {read: "contactName", write: "contactName"},
-                        field: {
-                            name: "contactName",
-                            widget: "#Input",
-                            label: "form.contactNameLabel",
-                            placeholder: "form.contactNamePlaceholder",
-                            required: true,
-                            widgetProps: {
-                                maxLength: RENTAL_SUBSCRIPTION_CONTACT_NAME_MAX,
-                            },
-                        },
-                    },
                     {
                         render: "#Field",
                         permissions: {read: "email", write: "email"},
@@ -427,10 +450,7 @@ const rentalSubscriptionEditFormNodes: ViewConfig["nodes"] = [
     {
         render: "#TitleWithCollapse",
         props: {title: "form.bookingSectionTitle"},
-        permissions: {
-            readAny: ["category", "pickupLocation", "businessAccount"],
-            writeAny: ["category", "pickupLocation", "businessAccount"],
-        },
+        permissions: {readAny: ["category", "pickupLocation"], writeAny: ["category", "pickupLocation"]},
         children: [
             {
                 render: "#FormGrid",
@@ -470,25 +490,6 @@ const rentalSubscriptionEditFormNodes: ViewConfig["nodes"] = [
                             },
                         },
                     },
-                    {
-                        render: "#Field",
-                        permissions: {
-                            read: "businessAccount",
-                            write: "businessAccount",
-                        },
-                        field: {
-                            name: "businessAccount",
-                            widget: "#ApiSelect",
-                            label: "form.businessAccountLabel",
-                            placeholder: "form.businessAccountPlaceholder",
-                            widgetProps: {
-                                apiUrl: "/api/carRental/rentalBusinessAccount/select",
-                                method: "POST",
-                                pageSize: 50,
-                                normalizeEmptyToUndefined: true,
-                            },
-                        },
-                    },
                 ],
             },
         ],
@@ -496,10 +497,7 @@ const rentalSubscriptionEditFormNodes: ViewConfig["nodes"] = [
     {
         render: "#TitleWithCollapse",
         props: {title: "form.scheduleSectionTitle"},
-        permissions: {
-            readAny: ["period", "price", "status", "nextRunAt"],
-            writeAny: ["period", "price", "status", "nextRunAt"],
-        },
+        permissions: {readAny: ["period", "price", "status", "nextRunAt"], writeAny: ["period", "price", "status", "nextRunAt"]},
         children: [
             {
                 render: "#FormGrid",
@@ -528,10 +526,17 @@ const rentalSubscriptionEditFormNodes: ViewConfig["nodes"] = [
                             widget: "#Input",
                             label: "form.priceLabel",
                             placeholder: "form.pricePlaceholder",
+                            description: "form.amountCurrencyDescription",
                             required: true,
                             widgetProps: {type: "number", min: 0, step: "any"},
                         },
                     },
+                ],
+            },
+            {
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
                     {
                         render: "#Field",
                         permissions: {read: "status", write: "status"},

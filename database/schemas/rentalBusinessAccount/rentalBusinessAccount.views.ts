@@ -248,7 +248,7 @@ const rentalBusinessAccountCreateFormNodes: ViewConfig["nodes"] = [
                             widget: "#Input",
                             label: "form.paymentTermsDaysLabel",
                             placeholder: "form.paymentTermsDaysPlaceholder",
-                            widgetProps: {type: "number", min: 0, step: "any"},
+                            widgetProps: {type: "number", min: 0, step: 1},
                         },
                     },
                     {
@@ -393,7 +393,7 @@ const rentalBusinessAccountEditFormNodes: ViewConfig["nodes"] = [
                             widget: "#Input",
                             label: "form.paymentTermsDaysLabel",
                             placeholder: "form.paymentTermsDaysPlaceholder",
-                            widgetProps: {type: "number", min: 0, step: "any"},
+                            widgetProps: {type: "number", min: 0, step: 1},
                         },
                     },
                     {

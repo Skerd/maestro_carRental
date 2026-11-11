@@ -28,7 +28,7 @@ export interface IRentalReview extends Document, IOwnershipPluginFields, ISoftDe
 const RentalReviewSchema = new Schema<IRentalReview>(
     {
         reservation: {type: SchemaTypes.ObjectId, ref: "RentalReservation", required: true, refAllowlist: RentalReservationSimpleSnippet, dynamicTableConfiguration: {refDisplayKey: ["number"]}},
-        rating: {type: SchemaTypes.Number, required: true, min: 1},
+        rating: {type: SchemaTypes.Number, required: true, min: 1, max: 5},
         comment: {type: SchemaTypes.String, trim: true, maxlength: RENTAL_REVIEW_COMMENT_MAX, dynamicTableConfiguration: {hideColumn: true}},
         authorName: {type: SchemaTypes.String, required: true, trim: true, minlength: 1, maxlength: RENTAL_REVIEW_AUTHOR_NAME_MAX},
         isPublished: {type: SchemaTypes.Boolean, default: false},

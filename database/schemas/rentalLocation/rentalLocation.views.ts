@@ -284,82 +284,62 @@ export const rentalLocationSheetView: ViewConfig = {
 
 const rentalLocationCreateFormNodes: ViewConfig["nodes"] = [
     {
-        render: "#FormGrid",
-        props: {columns: 2},
+        render: "#TitleWithCollapse",
+        props: {title: "form.basicsSectionTitle"},
         children: [
             {
-                render: "#Field",
-                field: {
-                    name: "name",
-                    widget: "#Input",
-                    label: "form.nameLabel",
-                    placeholder: "form.namePlaceholder",
-                    required: true,
-                    widgetProps: {maxLength: RENTAL_LOCATION_NAME_MAX},
-                },
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "name",
+                            widget: "#Input",
+                            label: "form.nameLabel",
+                            placeholder: "form.namePlaceholder",
+                            required: true,
+                            widgetProps: {maxLength: RENTAL_LOCATION_NAME_MAX},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "timezone",
+                            widget: "#Input",
+                            label: "form.timezoneLabel",
+                            placeholder: "form.timezonePlaceholder",
+                            required: true,
+                            widgetProps: {maxLength: RENTAL_LOCATION_TIMEZONE_MAX},
+                        },
+                    },
+                ],
             },
             {
-                render: "#Field",
-                field: {
-                    name: "timezone",
-                    widget: "#Input",
-                    label: "form.timezoneLabel",
-                    placeholder: "form.timezonePlaceholder",
-                    required: true,
-                    widgetProps: {maxLength: RENTAL_LOCATION_TIMEZONE_MAX},
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "phone",
-                    widget: "#Input",
-                    label: "form.phoneLabel",
-                    placeholder: "form.phonePlaceholder",
-                    widgetProps: {maxLength: RENTAL_LOCATION_PHONE_MAX},
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "email",
-                    widget: "#Input",
-                    label: "form.emailLabel",
-                    placeholder: "form.emailPlaceholder",
-                    widgetProps: {type: "email"},
-                },
-            },
-        ],
-    },
-    {
-        render: "#FormGrid",
-        props: {columns: 2},
-        children: [
-            {
-                render: "#Field",
-                field: {
-                    name: "pickupAllowed",
-                    widget: "#Switch",
-                    label: "form.pickupAllowedLabel",
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "returnAllowed",
-                    widget: "#Switch",
-                    label: "form.returnAllowedLabel",
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "oneWayFee",
-                    widget: "#Input",
-                    label: "form.oneWayFeeLabel",
-                    placeholder: "form.oneWayFeePlaceholder",
-                    widgetProps: {type: "number", min: 0, step: "any"},
-                },
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "phone",
+                            widget: "#Input",
+                            label: "form.phoneLabel",
+                            placeholder: "form.phonePlaceholder",
+                            widgetProps: {maxLength: RENTAL_LOCATION_PHONE_MAX},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "email",
+                            widget: "#Input",
+                            label: "form.emailLabel",
+                            placeholder: "form.emailPlaceholder",
+                            widgetProps: {type: "email"},
+                        },
+                    },
+                ],
             },
         ],
     },
@@ -369,7 +349,7 @@ const rentalLocationCreateFormNodes: ViewConfig["nodes"] = [
         children: [
             {
                 render: "#FormGrid",
-                props: {columns: 2, className: "gap-6"},
+                props: {columns: 2},
                 children: [
                     {
                         render: "#Field",
@@ -409,6 +389,12 @@ const rentalLocationCreateFormNodes: ViewConfig["nodes"] = [
                             },
                         },
                     },
+                ],
+            },
+            {
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
                     {
                         render: "#Field",
                         field: {
@@ -433,6 +419,12 @@ const rentalLocationCreateFormNodes: ViewConfig["nodes"] = [
                             },
                         },
                     },
+                ],
+            },
+            {
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
                     {
                         render: "#Field",
                         field: {
@@ -461,6 +453,45 @@ const rentalLocationCreateFormNodes: ViewConfig["nodes"] = [
                                 max: 180,
                                 step: "any",
                             },
+                        },
+                    },
+                ],
+            },
+        ],
+    },
+    {
+        render: "#TitleWithCollapse",
+        props: {title: "form.pickupsSectionTitle"},
+        children: [
+            {
+                render: "#FormGrid",
+                props: {columns: 3},
+                children: [
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "pickupAllowed",
+                            widget: "#Switch",
+                            label: "form.pickupAllowedLabel",
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "returnAllowed",
+                            widget: "#Switch",
+                            label: "form.returnAllowedLabel",
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "oneWayFee",
+                            widget: "#Input",
+                            label: "form.oneWayFeeLabel",
+                            placeholder: "form.oneWayFeePlaceholder",
+                            description: "form.amountCurrencyDescription",
+                            widgetProps: {type: "number", min: 0, step: "any"},
                         },
                     },
                 ],
@@ -587,108 +618,78 @@ const rentalLocationCreateFormNodes: ViewConfig["nodes"] = [
 
 const rentalLocationEditFormNodes: ViewConfig["nodes"] = [
     {
-        render: "#FormGrid",
-        props: {columns: 2},
-        permissions: {
-            readAny: ["name", "timezone", "phone", "email"],
-            writeAny: ["name", "timezone", "phone", "email"],
-        },
+        render: "#TitleWithCollapse",
+        props: {title: "form.basicsSectionTitle"},
+        permissions: {readAny: ["name", "timezone", "phone", "email"], writeAny: ["name", "timezone", "phone", "email"]},
         children: [
             {
-                render: "#Field",
-                permissions: {read: "name", write: "name"},
-                field: {
-                    name: "name",
-                    widget: "#Input",
-                    label: "form.nameLabel",
-                    placeholder: "form.namePlaceholder",
-                    required: true,
-                    widgetProps: {maxLength: RENTAL_LOCATION_NAME_MAX},
-                },
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        permissions: {read: "name", write: "name"},
+                        field: {
+                            name: "name",
+                            widget: "#Input",
+                            label: "form.nameLabel",
+                            placeholder: "form.namePlaceholder",
+                            required: true,
+                            widgetProps: {maxLength: RENTAL_LOCATION_NAME_MAX},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "timezone", write: "timezone"},
+                        field: {
+                            name: "timezone",
+                            widget: "#Input",
+                            label: "form.timezoneLabel",
+                            placeholder: "form.timezonePlaceholder",
+                            required: true,
+                            widgetProps: {maxLength: RENTAL_LOCATION_TIMEZONE_MAX},
+                        },
+                    },
+                ],
             },
             {
-                render: "#Field",
-                permissions: {read: "timezone", write: "timezone"},
-                field: {
-                    name: "timezone",
-                    widget: "#Input",
-                    label: "form.timezoneLabel",
-                    placeholder: "form.timezonePlaceholder",
-                    required: true,
-                    widgetProps: {maxLength: RENTAL_LOCATION_TIMEZONE_MAX},
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "phone", write: "phone"},
-                field: {
-                    name: "phone",
-                    widget: "#Input",
-                    label: "form.phoneLabel",
-                    placeholder: "form.phonePlaceholder",
-                    widgetProps: {maxLength: RENTAL_LOCATION_PHONE_MAX},
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "email", write: "email"},
-                field: {
-                    name: "email",
-                    widget: "#Input",
-                    label: "form.emailLabel",
-                    placeholder: "form.emailPlaceholder",
-                    widgetProps: {type: "email"},
-                },
-            },
-        ],
-    },
-    {
-        render: "#FormGrid",
-        props: {columns: 2},
-        permissions: {
-            readAny: ["pickupAllowed", "returnAllowed", "oneWayFee"],
-            writeAny: ["pickupAllowed", "returnAllowed", "oneWayFee"],
-        },
-        children: [
-            {
-                render: "#Field",
-                permissions: {read: "pickupAllowed", write: "pickupAllowed"},
-                field: {
-                    name: "pickupAllowed",
-                    widget: "#Switch",
-                    label: "form.pickupAllowedLabel",
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "returnAllowed", write: "returnAllowed"},
-                field: {
-                    name: "returnAllowed",
-                    widget: "#Switch",
-                    label: "form.returnAllowedLabel",
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "oneWayFee", write: "oneWayFee"},
-                field: {
-                    name: "oneWayFee",
-                    widget: "#Input",
-                    label: "form.oneWayFeeLabel",
-                    placeholder: "form.oneWayFeePlaceholder",
-                    widgetProps: {type: "number", min: 0, step: "any"},
-                },
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        permissions: {read: "phone", write: "phone"},
+                        field: {
+                            name: "phone",
+                            widget: "#Input",
+                            label: "form.phoneLabel",
+                            placeholder: "form.phonePlaceholder",
+                            widgetProps: {maxLength: RENTAL_LOCATION_PHONE_MAX},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "email", write: "email"},
+                        field: {
+                            name: "email",
+                            widget: "#Input",
+                            label: "form.emailLabel",
+                            placeholder: "form.emailPlaceholder",
+                            widgetProps: {type: "email"},
+                        },
+                    },
+                ],
             },
         ],
     },
     {
         render: "#TitleWithCollapse",
         props: {title: "form.addressSectionTitle"},
-        permissions: {writeAny: ["address"]},
+        permissions: {readAny: ["address.country", "address.city", "address.street", "address.postalCode", "address.latitude", "address.longitude"], writeAny: ["address.country", "address.city", "address.street", "address.postalCode", "address.latitude", "address.longitude"]},
         children: [
             {
                 render: "#FormGrid",
-                props: {columns: 2, className: "gap-6"},
+                props: {columns: 2},
                 children: [
                     {
                         render: "#Field",
@@ -728,6 +729,12 @@ const rentalLocationEditFormNodes: ViewConfig["nodes"] = [
                             },
                         },
                     },
+                ],
+            },
+            {
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
                     {
                         render: "#Field",
                         field: {
@@ -752,6 +759,12 @@ const rentalLocationEditFormNodes: ViewConfig["nodes"] = [
                             },
                         },
                     },
+                ],
+            },
+            {
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
                     {
                         render: "#Field",
                         field: {
@@ -780,6 +793,49 @@ const rentalLocationEditFormNodes: ViewConfig["nodes"] = [
                                 max: 180,
                                 step: "any",
                             },
+                        },
+                    },
+                ],
+            },
+        ],
+    },
+    {
+        render: "#TitleWithCollapse",
+        props: {title: "form.pickupsSectionTitle"},
+        permissions: {readAny: ["pickupAllowed", "returnAllowed", "oneWayFee"], writeAny: ["pickupAllowed", "returnAllowed", "oneWayFee"]},
+        children: [
+            {
+                render: "#FormGrid",
+                props: {columns: 3},
+                children: [
+                    {
+                        render: "#Field",
+                        permissions: {read: "pickupAllowed", write: "pickupAllowed"},
+                        field: {
+                            name: "pickupAllowed",
+                            widget: "#Switch",
+                            label: "form.pickupAllowedLabel",
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "returnAllowed", write: "returnAllowed"},
+                        field: {
+                            name: "returnAllowed",
+                            widget: "#Switch",
+                            label: "form.returnAllowedLabel",
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "oneWayFee", write: "oneWayFee"},
+                        field: {
+                            name: "oneWayFee",
+                            widget: "#Input",
+                            label: "form.oneWayFeeLabel",
+                            placeholder: "form.oneWayFeePlaceholder",
+                            description: "form.amountCurrencyDescription",
+                            widgetProps: {type: "number", min: 0, step: "any"},
                         },
                     },
                 ],

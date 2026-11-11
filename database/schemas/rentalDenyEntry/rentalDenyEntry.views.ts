@@ -90,31 +90,54 @@ export const rentalDenyEntrySheetView: ViewConfig = {
 
 const rentalDenyEntryCreateFormNodes: ViewConfig["nodes"] = [
     {
-        render: "#FormGrid",
-        props: {columns: 2},
+        render: "#TitleWithCollapse",
+        props: {title: "form.personSectionTitle"},
         children: [
             {
-                render: "#Field",
-                field: {
-                    name: "email",
-                    widget: "#Input",
-                    label: "form.emailLabel",
-                    placeholder: "form.emailPlaceholder",
-                    widgetProps: {maxLength: RENTAL_DENY_ENTRY_EMAIL_MAX},
-                },
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "email",
+                            widget: "#Input",
+                            label: "form.emailLabel",
+                            placeholder: "form.emailPlaceholder",
+                            widgetProps: {maxLength: RENTAL_DENY_ENTRY_EMAIL_MAX},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "licenseNumber",
+                            widget: "#Input",
+                            label: "form.licenseNumberLabel",
+                            placeholder: "form.licenseNumberPlaceholder",
+                            widgetProps: {
+                                maxLength: RENTAL_DENY_ENTRY_LICENSE_NUMBER_MAX,
+                            },
+                        },
+                    },
+                ],
             },
             {
                 render: "#Field",
                 field: {
-                    name: "licenseNumber",
-                    widget: "#Input",
-                    label: "form.licenseNumberLabel",
-                    placeholder: "form.licenseNumberPlaceholder",
-                    widgetProps: {
-                        maxLength: RENTAL_DENY_ENTRY_LICENSE_NUMBER_MAX,
-                    },
+                    name: "reason",
+                    widget: "#Textarea",
+                    label: "form.reasonLabel",
+                    placeholder: "form.reasonPlaceholder",
+                    required: true,
+                    widgetProps: {rows: 3, maxLength: RENTAL_DENY_ENTRY_REASON_MAX},
                 },
             },
+        ],
+    },
+    {
+        render: "#TitleWithCollapse",
+        props: {title: "form.statusSectionTitle"},
+        children: [
             {
                 render: "#Field",
                 field: {
@@ -125,52 +148,63 @@ const rentalDenyEntryCreateFormNodes: ViewConfig["nodes"] = [
             },
         ],
     },
-    {
-        render: "#Field",
-        field: {
-            name: "reason",
-            widget: "#Textarea",
-            label: "form.reasonLabel",
-            placeholder: "form.reasonPlaceholder",
-            required: true,
-            widgetProps: {rows: 3, maxLength: RENTAL_DENY_ENTRY_REASON_MAX},
-        },
-    },
 ];
 
 const rentalDenyEntryEditFormNodes: ViewConfig["nodes"] = [
     {
-        render: "#FormGrid",
-        props: {columns: 2},
-        permissions: {
-            readAny: ["email", "licenseNumber", "isActive"],
-            writeAny: ["email", "licenseNumber", "isActive"],
-        },
+        render: "#TitleWithCollapse",
+        props: {title: "form.personSectionTitle"},
+        permissions: {readAny: ["email", "licenseNumber", "reason"], writeAny: ["email", "licenseNumber", "reason"]},
         children: [
             {
-                render: "#Field",
-                permissions: {read: "email", write: "email"},
-                field: {
-                    name: "email",
-                    widget: "#Input",
-                    label: "form.emailLabel",
-                    placeholder: "form.emailPlaceholder",
-                    widgetProps: {maxLength: RENTAL_DENY_ENTRY_EMAIL_MAX},
-                },
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        permissions: {read: "email", write: "email"},
+                        field: {
+                            name: "email",
+                            widget: "#Input",
+                            label: "form.emailLabel",
+                            placeholder: "form.emailPlaceholder",
+                            widgetProps: {maxLength: RENTAL_DENY_ENTRY_EMAIL_MAX},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "licenseNumber", write: "licenseNumber"},
+                        field: {
+                            name: "licenseNumber",
+                            widget: "#Input",
+                            label: "form.licenseNumberLabel",
+                            placeholder: "form.licenseNumberPlaceholder",
+                            widgetProps: {
+                                maxLength: RENTAL_DENY_ENTRY_LICENSE_NUMBER_MAX,
+                            },
+                        },
+                    },
+                ],
             },
             {
                 render: "#Field",
-                permissions: {read: "licenseNumber", write: "licenseNumber"},
+                permissions: {read: "reason", write: "reason"},
                 field: {
-                    name: "licenseNumber",
-                    widget: "#Input",
-                    label: "form.licenseNumberLabel",
-                    placeholder: "form.licenseNumberPlaceholder",
-                    widgetProps: {
-                        maxLength: RENTAL_DENY_ENTRY_LICENSE_NUMBER_MAX,
-                    },
+                    name: "reason",
+                    widget: "#Textarea",
+                    label: "form.reasonLabel",
+                    placeholder: "form.reasonPlaceholder",
+                    required: true,
+                    widgetProps: {rows: 3, maxLength: RENTAL_DENY_ENTRY_REASON_MAX},
                 },
             },
+        ],
+    },
+    {
+        render: "#TitleWithCollapse",
+        props: {title: "form.statusSectionTitle"},
+        permissions: {readAny: ["isActive"], writeAny: ["isActive"]},
+        children: [
             {
                 render: "#Field",
                 permissions: {read: "isActive", write: "isActive"},
@@ -181,18 +215,6 @@ const rentalDenyEntryEditFormNodes: ViewConfig["nodes"] = [
                 },
             },
         ],
-    },
-    {
-        render: "#Field",
-        permissions: {read: "reason", write: "reason"},
-        field: {
-            name: "reason",
-            widget: "#Textarea",
-            label: "form.reasonLabel",
-            placeholder: "form.reasonPlaceholder",
-            required: true,
-            widgetProps: {rows: 3, maxLength: RENTAL_DENY_ENTRY_REASON_MAX},
-        },
     },
 ];
 

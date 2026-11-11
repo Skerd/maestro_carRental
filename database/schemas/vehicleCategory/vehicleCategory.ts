@@ -1,4 +1,5 @@
 import {Document, model, Schema, SchemaTypes} from "mongoose";
+import slugify from "slugify";
 import {IMedia} from "@coreModule/database/schemas/media/media";
 import {normalizeSchemaPermissions} from "@coreModule/database/utilities";
 import ownershipPlugin from "@coreModule/database/plugins/ownershipPlugin";
@@ -171,6 +172,20 @@ const VehicleCategorySchema = new Schema<IVehicleCategory>(
     },
     {accessMode: "loose"},
 );
+
+/**
+ * A car class saved without a web address gets one from its name, unique among the company's live classes
+ * ("compact", then "compact-2"): staff shouldn't have to invent a slug (UX-05).
+ */
+VehicleCategorySchema.pre("validate", async function () {
+    if (this.slug || !this.name) return;
+    const base = slugify(this.name, {lower: true, strict: true}).slice(0, VEHICLE_CATEGORY_SLUG_MAX - 4) || "class";
+    let candidate = base;
+    for (let n = 2; await VehicleCategory.exists({company: this.get("company"), slug: candidate, deletedAt: null, _id: {$ne: this._id}}); n += 1) {
+        candidate = `${base}-${n}`;
+    }
+    this.slug = candidate;
+});
 
 ownershipPlugin(VehicleCategorySchema);
 publicMediaPlugin(VehicleCategorySchema, {schemaDef: VehicleCategorySchemaDef});

@@ -177,90 +177,133 @@ const pricingOptions = [
 
 const rentalExtraCreateFormNodes: ViewConfig["nodes"] = [
     {
-        render: "#FormGrid",
-        props: {columns: 2},
+        render: "#TitleWithCollapse",
+        props: {title: "form.basicsSectionTitle"},
         children: [
             {
-                render: "#Field",
-                field: {
-                    name: "name",
-                    widget: "#Input",
-                    label: "form.nameLabel",
-                    placeholder: "form.namePlaceholder",
-                    required: true,
-                    widgetProps: {maxLength: RENTAL_EXTRA_NAME_MAX},
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "kind",
-                    widget: "#SimpleSelect",
-                    label: "form.kindLabel",
-                    placeholder: "form.kindPlaceholder",
-                    required: true,
-                    widgetProps: {
-                        options: kindOptions,
-                        className: "grow w-full",
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "name",
+                            widget: "#Input",
+                            label: "form.nameLabel",
+                            placeholder: "form.namePlaceholder",
+                            required: true,
+                            widgetProps: {maxLength: RENTAL_EXTRA_NAME_MAX},
+                        },
                     },
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "pricing",
-                    widget: "#SimpleSelect",
-                    label: "form.pricingLabel",
-                    placeholder: "form.pricingPlaceholder",
-                    required: true,
-                    widgetProps: {
-                        options: pricingOptions,
-                        className: "grow w-full",
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "kind",
+                            widget: "#SimpleSelect",
+                            label: "form.kindLabel",
+                            placeholder: "form.kindPlaceholder",
+                            required: true,
+                            widgetProps: {
+                                options: kindOptions,
+                                className: "grow w-full",
+                            },
+                        },
                     },
-                },
+                ],
             },
             {
                 render: "#Field",
                 field: {
-                    name: "price",
-                    widget: "#Input",
-                    label: "form.priceLabel",
-                    placeholder: "form.pricePlaceholder",
-                    required: true,
-                    widgetProps: {type: "number", min: 0, step: "any"},
+                    name: "description",
+                    widget: "#Textarea",
+                    label: "form.descriptionLabel",
+                    placeholder: "form.descriptionPlaceholder",
+                    widgetProps: {rows: 3, maxLength: RENTAL_EXTRA_DESCRIPTION_MAX},
                 },
+            },
+        ],
+    },
+    {
+        render: "#TitleWithCollapse",
+        props: {title: "form.pricingSectionTitle"},
+        children: [
+            {
+                render: "#FormGrid",
+                props: {columns: 3},
+                children: [
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "pricing",
+                            widget: "#SimpleSelect",
+                            label: "form.pricingLabel",
+                            placeholder: "form.pricingPlaceholder",
+                            required: true,
+                            widgetProps: {
+                                options: pricingOptions,
+                                className: "grow w-full",
+                            },
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "price",
+                            widget: "#Input",
+                            label: "form.priceLabel",
+                            placeholder: "form.pricePlaceholder",
+                            description: "form.amountCurrencyDescription",
+                            required: true,
+                            widgetProps: {type: "number", min: 0, step: "any"},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "maxQuantity",
+                            widget: "#Input",
+                            label: "form.maxQuantityLabel",
+                            placeholder: "form.maxQuantityPlaceholder",
+                            required: true,
+                            widgetProps: {type: "number", min: 1, max: 10},
+                        },
+                    },
+                ],
             },
             {
-                render: "#Field",
-                field: {
-                    name: "maxQuantity",
-                    widget: "#Input",
-                    label: "form.maxQuantityLabel",
-                    placeholder: "form.maxQuantityPlaceholder",
-                    required: true,
-                    widgetProps: {type: "number", min: 1, max: 10},
-                },
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "excessAmount",
+                            widget: "#Input",
+                            label: "form.excessAmountLabel",
+                            placeholder: "form.excessAmountPlaceholder",
+                            description: "form.amountCurrencyDescription",
+                            widgetProps: {type: "number", min: 0, step: "any"},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "depositAmount",
+                            widget: "#Input",
+                            label: "form.depositAmountLabel",
+                            placeholder: "form.depositAmountPlaceholder",
+                            description: "form.amountCurrencyDescription",
+                            widgetProps: {type: "number", min: 0, step: "any"},
+                        },
+                    },
+                ],
             },
-            {
-                render: "#Field",
-                field: {
-                    name: "excessAmount",
-                    widget: "#Input",
-                    label: "form.excessAmountLabel",
-                    placeholder: "form.excessAmountPlaceholder",
-                    widgetProps: {type: "number", min: 0, step: "any"},
-                },
-            },
-            {
-                render: "#Field",
-                field: {
-                    name: "depositAmount",
-                    widget: "#Input",
-                    label: "form.depositAmountLabel",
-                    placeholder: "form.depositAmountPlaceholder",
-                    widgetProps: {type: "number", min: 0, step: "any"},
-                },
-            },
+        ],
+    },
+    {
+        render: "#TitleWithCollapse",
+        props: {title: "form.visibilitySectionTitle"},
+        children: [
             {
                 render: "#Field",
                 field: {
@@ -273,133 +316,148 @@ const rentalExtraCreateFormNodes: ViewConfig["nodes"] = [
             },
         ],
     },
-    {
-        render: "#Field",
-        field: {
-            name: "description",
-            widget: "#Textarea",
-            label: "form.descriptionLabel",
-            placeholder: "form.descriptionPlaceholder",
-            widgetProps: {rows: 3, maxLength: RENTAL_EXTRA_DESCRIPTION_MAX},
-        },
-    },
 ];
 
 const rentalExtraEditFormNodes: ViewConfig["nodes"] = [
     {
-        render: "#FormGrid",
-        props: {columns: 2},
-        permissions: {
-            readAny: [
-                "name",
-                "kind",
-                "pricing",
-                "price",
-                "maxQuantity",
-                "excessAmount",
-                "depositAmount",
-                "sortOrder",
-            ],
-            writeAny: [
-                "name",
-                "kind",
-                "pricing",
-                "price",
-                "maxQuantity",
-                "excessAmount",
-                "depositAmount",
-                "sortOrder",
-            ],
-        },
+        render: "#TitleWithCollapse",
+        props: {title: "form.basicsSectionTitle"},
+        permissions: {readAny: ["name", "kind", "description"], writeAny: ["name", "kind", "description"]},
         children: [
             {
-                render: "#Field",
-                permissions: {read: "name", write: "name"},
-                field: {
-                    name: "name",
-                    widget: "#Input",
-                    label: "form.nameLabel",
-                    placeholder: "form.namePlaceholder",
-                    required: true,
-                    widgetProps: {maxLength: RENTAL_EXTRA_NAME_MAX},
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "kind", write: "kind"},
-                field: {
-                    name: "kind",
-                    widget: "#SimpleSelect",
-                    label: "form.kindLabel",
-                    placeholder: "form.kindPlaceholder",
-                    required: true,
-                    widgetProps: {
-                        options: kindOptions,
-                        className: "grow w-full",
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        permissions: {read: "name", write: "name"},
+                        field: {
+                            name: "name",
+                            widget: "#Input",
+                            label: "form.nameLabel",
+                            placeholder: "form.namePlaceholder",
+                            required: true,
+                            widgetProps: {maxLength: RENTAL_EXTRA_NAME_MAX},
+                        },
                     },
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "pricing", write: "pricing"},
-                field: {
-                    name: "pricing",
-                    widget: "#SimpleSelect",
-                    label: "form.pricingLabel",
-                    placeholder: "form.pricingPlaceholder",
-                    required: true,
-                    widgetProps: {
-                        options: pricingOptions,
-                        className: "grow w-full",
+                    {
+                        render: "#Field",
+                        permissions: {read: "kind", write: "kind"},
+                        field: {
+                            name: "kind",
+                            widget: "#SimpleSelect",
+                            label: "form.kindLabel",
+                            placeholder: "form.kindPlaceholder",
+                            required: true,
+                            widgetProps: {
+                                options: kindOptions,
+                                className: "grow w-full",
+                            },
+                        },
                     },
-                },
+                ],
             },
             {
                 render: "#Field",
-                permissions: {read: "price", write: "price"},
+                permissions: {read: "description", write: "description"},
                 field: {
-                    name: "price",
-                    widget: "#Input",
-                    label: "form.priceLabel",
-                    placeholder: "form.pricePlaceholder",
-                    required: true,
-                    widgetProps: {type: "number", min: 0, step: "any"},
+                    name: "description",
+                    widget: "#Textarea",
+                    label: "form.descriptionLabel",
+                    placeholder: "form.descriptionPlaceholder",
+                    widgetProps: {rows: 3, maxLength: RENTAL_EXTRA_DESCRIPTION_MAX},
                 },
+            },
+        ],
+    },
+    {
+        render: "#TitleWithCollapse",
+        props: {title: "form.pricingSectionTitle"},
+        permissions: {readAny: ["pricing", "price", "maxQuantity", "excessAmount", "depositAmount"], writeAny: ["pricing", "price", "maxQuantity", "excessAmount", "depositAmount"]},
+        children: [
+            {
+                render: "#FormGrid",
+                props: {columns: 3},
+                children: [
+                    {
+                        render: "#Field",
+                        permissions: {read: "pricing", write: "pricing"},
+                        field: {
+                            name: "pricing",
+                            widget: "#SimpleSelect",
+                            label: "form.pricingLabel",
+                            placeholder: "form.pricingPlaceholder",
+                            required: true,
+                            widgetProps: {
+                                options: pricingOptions,
+                                className: "grow w-full",
+                            },
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "price", write: "price"},
+                        field: {
+                            name: "price",
+                            widget: "#Input",
+                            label: "form.priceLabel",
+                            placeholder: "form.pricePlaceholder",
+                            description: "form.amountCurrencyDescription",
+                            required: true,
+                            widgetProps: {type: "number", min: 0, step: "any"},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "maxQuantity", write: "maxQuantity"},
+                        field: {
+                            name: "maxQuantity",
+                            widget: "#Input",
+                            label: "form.maxQuantityLabel",
+                            placeholder: "form.maxQuantityPlaceholder",
+                            required: true,
+                            widgetProps: {type: "number", min: 1, max: 10},
+                        },
+                    },
+                ],
             },
             {
-                render: "#Field",
-                permissions: {read: "maxQuantity", write: "maxQuantity"},
-                field: {
-                    name: "maxQuantity",
-                    widget: "#Input",
-                    label: "form.maxQuantityLabel",
-                    placeholder: "form.maxQuantityPlaceholder",
-                    required: true,
-                    widgetProps: {type: "number", min: 1, max: 10},
-                },
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        permissions: {read: "excessAmount", write: "excessAmount"},
+                        field: {
+                            name: "excessAmount",
+                            widget: "#Input",
+                            label: "form.excessAmountLabel",
+                            placeholder: "form.excessAmountPlaceholder",
+                            description: "form.amountCurrencyDescription",
+                            widgetProps: {type: "number", min: 0, step: "any"},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "depositAmount", write: "depositAmount"},
+                        field: {
+                            name: "depositAmount",
+                            widget: "#Input",
+                            label: "form.depositAmountLabel",
+                            placeholder: "form.depositAmountPlaceholder",
+                            description: "form.amountCurrencyDescription",
+                            widgetProps: {type: "number", min: 0, step: "any"},
+                        },
+                    },
+                ],
             },
-            {
-                render: "#Field",
-                permissions: {read: "excessAmount", write: "excessAmount"},
-                field: {
-                    name: "excessAmount",
-                    widget: "#Input",
-                    label: "form.excessAmountLabel",
-                    placeholder: "form.excessAmountPlaceholder",
-                    widgetProps: {type: "number", min: 0, step: "any"},
-                },
-            },
-            {
-                render: "#Field",
-                permissions: {read: "depositAmount", write: "depositAmount"},
-                field: {
-                    name: "depositAmount",
-                    widget: "#Input",
-                    label: "form.depositAmountLabel",
-                    placeholder: "form.depositAmountPlaceholder",
-                    widgetProps: {type: "number", min: 0, step: "any"},
-                },
-            },
+        ],
+    },
+    {
+        render: "#TitleWithCollapse",
+        props: {title: "form.visibilitySectionTitle"},
+        permissions: {readAny: ["sortOrder"], writeAny: ["sortOrder"]},
+        children: [
             {
                 render: "#Field",
                 permissions: {read: "sortOrder", write: "sortOrder"},
@@ -412,17 +470,6 @@ const rentalExtraEditFormNodes: ViewConfig["nodes"] = [
                 },
             },
         ],
-    },
-    {
-        render: "#Field",
-        permissions: {read: "description", write: "description"},
-        field: {
-            name: "description",
-            widget: "#Textarea",
-            label: "form.descriptionLabel",
-            placeholder: "form.descriptionPlaceholder",
-            widgetProps: {rows: 3, maxLength: RENTAL_EXTRA_DESCRIPTION_MAX},
-        },
     },
 ];
 

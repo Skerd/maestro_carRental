@@ -436,65 +436,77 @@ const mileagePolicyOptions = [
 
 const vehicleCategoryCreateFormNodes: ViewConfig["nodes"] = [
     {
-        render: "#FormGrid",
-        props: {columns: 2},
+        render: "#TitleWithCollapse",
+        props: {title: "form.basicsSectionTitle"},
         children: [
             {
-                render: "#Field",
-                field: {
-                    name: "name",
-                    widget: "#Input",
-                    label: "form.nameLabel",
-                    placeholder: "form.namePlaceholder",
-                    required: true,
-                    widgetProps: {maxLength: VEHICLE_CATEGORY_NAME_MAX},
-                },
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "name",
+                            widget: "#Input",
+                            label: "form.nameLabel",
+                            placeholder: "form.namePlaceholder",
+                            required: true,
+                            widgetProps: {maxLength: VEHICLE_CATEGORY_NAME_MAX},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "slug",
+                            widget: "#Input",
+                            label: "form.slugLabel",
+                            placeholder: "form.slugPlaceholder",
+                                    description: "form.slugDescription",
+                            widgetProps: {maxLength: VEHICLE_CATEGORY_SLUG_MAX},
+                        },
+                    },
+                ],
             },
             {
                 render: "#Field",
                 field: {
-                    name: "slug",
-                    widget: "#Input",
-                    label: "form.slugLabel",
-                    placeholder: "form.slugPlaceholder",
-                    required: true,
-                    widgetProps: {maxLength: VEHICLE_CATEGORY_SLUG_MAX},
+                    name: "description",
+                    widget: "#Textarea",
+                    label: "form.descriptionLabel",
+                    placeholder: "form.descriptionPlaceholder",
+                    widgetProps: {
+                        rows: 5,
+                        maxLength: VEHICLE_CATEGORY_DESCRIPTION_MAX,
+                        className:
+                            "field-sizing-fixed max-h-56 min-h-24 overflow-y-auto",
+                    },
                 },
             },
         ],
     },
     {
-        render: "#Field",
-        field: {
-            name: "description",
-            widget: "#Textarea",
-            label: "form.descriptionLabel",
-            placeholder: "form.descriptionPlaceholder",
-            widgetProps: {
-                rows: 5,
-                maxLength: VEHICLE_CATEGORY_DESCRIPTION_MAX,
-                className:
-                    "field-sizing-fixed max-h-56 min-h-24 overflow-y-auto",
+        render: "#TitleWithCollapse",
+        props: {title: "form.mediaSectionTitle"},
+        children: [
+            {
+                render: "#Field",
+                field: {
+                    name: "images",
+                    widget: "#MediaField",
+                    label: "form.imagesLabel",
+                    widgetProps: {mediaType: "image", mode: "multiple", maxCount: 12},
+                },
             },
-        },
-    },
-    {
-        render: "#Field",
-        field: {
-            name: "images",
-            widget: "#MediaField",
-            label: "form.imagesLabel",
-            widgetProps: {mediaType: "image", mode: "multiple", maxCount: 12},
-        },
-    },
-    {
-        render: "#Field",
-        field: {
-            name: "videos",
-            widget: "#MediaField",
-            label: "form.videosLabel",
-            widgetProps: {mediaType: "video", mode: "multiple", maxCount: 3},
-        },
+            {
+                render: "#Field",
+                field: {
+                    name: "videos",
+                    widget: "#MediaField",
+                    label: "form.videosLabel",
+                    widgetProps: {mediaType: "video", mode: "multiple", maxCount: 3},
+                },
+            },
+        ],
     },
     {
         render: "#TitleWithCollapse",
@@ -512,7 +524,7 @@ const vehicleCategoryCreateFormNodes: ViewConfig["nodes"] = [
                             label: "form.seatsLabel",
                             placeholder: "form.seatsPlaceholder",
                             required: true,
-                            widgetProps: {type: "number", min: 1, step: "any"},
+                            widgetProps: {type: "number", min: 1, step: 1},
                         },
                     },
                     {
@@ -522,7 +534,7 @@ const vehicleCategoryCreateFormNodes: ViewConfig["nodes"] = [
                             widget: "#Input",
                             label: "form.doorsLabel",
                             placeholder: "form.doorsPlaceholder",
-                            widgetProps: {type: "number", min: 0, step: "any"},
+                            widgetProps: {type: "number", min: 0, step: 1},
                         },
                     },
                     {
@@ -532,9 +544,15 @@ const vehicleCategoryCreateFormNodes: ViewConfig["nodes"] = [
                             widget: "#Input",
                             label: "form.luggageLabel",
                             placeholder: "form.luggagePlaceholder",
-                            widgetProps: {type: "number", min: 0, step: "any"},
+                            widgetProps: {type: "number", min: 0, step: 1},
                         },
                     },
+                ],
+            },
+            {
+                render: "#FormGrid",
+                props: {columns: 3},
+                children: [
                     {
                         render: "#Field",
                         field: {
@@ -570,7 +588,7 @@ const vehicleCategoryCreateFormNodes: ViewConfig["nodes"] = [
                             widget: "#Input",
                             label: "form.minDriverAgeLabel",
                             placeholder: "form.minDriverAgePlaceholder",
-                            widgetProps: {type: "number", min: 16, step: "any"},
+                            widgetProps: {type: "number", min: 16, step: 1},
                         },
                     },
                 ],
@@ -605,6 +623,7 @@ const vehicleCategoryCreateFormNodes: ViewConfig["nodes"] = [
                             widget: "#Input",
                             label: "form.dailyRateLabel",
                             placeholder: "form.dailyRatePlaceholder",
+                            description: "form.amountCurrencyDescription",
                             required: true,
                             widgetProps: {type: "number", min: 0, step: "any"},
                         },
@@ -616,6 +635,7 @@ const vehicleCategoryCreateFormNodes: ViewConfig["nodes"] = [
                             widget: "#Input",
                             label: "form.weekendDailyRateLabel",
                             placeholder: "form.weekendDailyRatePlaceholder",
+                            description: "form.amountCurrencyDescription",
                             widgetProps: {type: "number", min: 0, step: "any"},
                         },
                     },
@@ -626,9 +646,16 @@ const vehicleCategoryCreateFormNodes: ViewConfig["nodes"] = [
                             widget: "#Input",
                             label: "form.weeklyRateLabel",
                             placeholder: "form.weeklyRatePlaceholder",
+                            description: "form.amountCurrencyDescription",
                             widgetProps: {type: "number", min: 0, step: "any"},
                         },
                     },
+                ],
+            },
+            {
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
                     {
                         render: "#Field",
                         field: {
@@ -636,24 +663,7 @@ const vehicleCategoryCreateFormNodes: ViewConfig["nodes"] = [
                             widget: "#Input",
                             label: "form.depositAmountLabel",
                             placeholder: "form.depositAmountPlaceholder",
-                            widgetProps: {type: "number", min: 0, step: "any"},
-                        },
-                    },
-                    {
-                        render: "#Field",
-                        field: {
-                            name: "crossBorderAllowed",
-                            widget: "#Switch",
-                            label: "form.crossBorderAllowedLabel",
-                        },
-                    },
-                    {
-                        render: "#Field",
-                        field: {
-                            name: "crossBorderFee",
-                            widget: "#Input",
-                            label: "form.crossBorderFeeLabel",
-                            placeholder: "form.crossBorderFeePlaceholder",
+                            description: "form.amountCurrencyDescription",
                             widgetProps: {type: "number", min: 0, step: "any"},
                         },
                     },
@@ -692,7 +702,7 @@ const vehicleCategoryCreateFormNodes: ViewConfig["nodes"] = [
                                     widgetProps: {
                                         type: "number",
                                         min: 0,
-                                        step: "any",
+                                        step: 1,
                                     },
                                 },
                             },
@@ -703,6 +713,7 @@ const vehicleCategoryCreateFormNodes: ViewConfig["nodes"] = [
                                     widget: "#Input",
                                     label: "form.extraKmPriceLabel",
                                     placeholder: "form.extraKmPricePlaceholder",
+                                    description: "form.amountCurrencyDescription",
                                     widgetProps: {
                                         type: "number",
                                         min: 0,
@@ -715,6 +726,31 @@ const vehicleCategoryCreateFormNodes: ViewConfig["nodes"] = [
                 ],
             },
             {
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "crossBorderAllowed",
+                            widget: "#Switch",
+                            label: "form.crossBorderAllowedLabel",
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "crossBorderFee",
+                            widget: "#Input",
+                            label: "form.crossBorderFeeLabel",
+                            placeholder: "form.crossBorderFeePlaceholder",
+                            description: "form.amountCurrencyDescription",
+                            widgetProps: {type: "number", min: 0, step: "any"},
+                        },
+                    },
+                ],
+            },
+            {
                 render: "#Field",
                 field: {
                     name: "rateSeasons",
@@ -722,7 +758,7 @@ const vehicleCategoryCreateFormNodes: ViewConfig["nodes"] = [
                     widgetProps: {
                         title: "form.rateSeasonsSectionTitle",
                         arrayField: "rateSeasons",
-                        defaultItem: {startDate: "", endDate: "", dailyRate: 0},
+                        defaultItem: {startDate: "", endDate: ""},
                         addLabel: "form.seasonAddRow",
                         removeLabel: "form.seasonRemoveRow",
                         rowTitleFields: ["startDate", "endDate", "dailyRate"],
@@ -763,6 +799,7 @@ const vehicleCategoryCreateFormNodes: ViewConfig["nodes"] = [
                                             name: "dailyRate",
                                             widget: "#Input",
                                             label: "form.seasonDailyRateLabel",
+                                            description: "form.amountCurrencyDescription",
                                             required: true,
                                             widgetProps: {
                                                 type: "number",
@@ -780,108 +817,123 @@ const vehicleCategoryCreateFormNodes: ViewConfig["nodes"] = [
         ],
     },
     {
-        render: "#Field",
-        field: {
-            name: "sortOrder",
-            widget: "#Input",
-            label: "form.sortOrderLabel",
-            placeholder: "form.sortOrderPlaceholder",
-            widgetProps: {type: "number", min: 0, step: "any"},
-        },
+        render: "#TitleWithCollapse",
+        props: {title: "form.visibilitySectionTitle"},
+        children: [
+            {
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "isPublic",
+                            widget: "#Switch",
+                            label: "form.isPublicLabel",
+                            description: "form.isPublicDescription",
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "sortOrder",
+                            widget: "#Input",
+                            label: "form.sortOrderLabel",
+                            placeholder: "form.sortOrderPlaceholder",
+                            widgetProps: {type: "number", min: 0, step: 1},
+                        },
+                    },
+                ],
+            },
+        ],
     },
 ];
 
 const vehicleCategoryEditFormNodes: ViewConfig["nodes"] = [
     {
-        render: "#FormGrid",
-        props: {columns: 2},
-        permissions: {readAny: ["name", "slug"], writeAny: ["name", "slug"]},
+        render: "#TitleWithCollapse",
+        props: {title: "form.basicsSectionTitle"},
+        permissions: {readAny: ["name", "slug", "description"], writeAny: ["name", "slug", "description"]},
         children: [
             {
-                render: "#Field",
-                permissions: {read: "name", write: "name"},
-                field: {
-                    name: "name",
-                    widget: "#Input",
-                    label: "form.nameLabel",
-                    placeholder: "form.namePlaceholder",
-                    required: true,
-                    widgetProps: {maxLength: VEHICLE_CATEGORY_NAME_MAX},
-                },
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        permissions: {read: "name", write: "name"},
+                        field: {
+                            name: "name",
+                            widget: "#Input",
+                            label: "form.nameLabel",
+                            placeholder: "form.namePlaceholder",
+                            required: true,
+                            widgetProps: {maxLength: VEHICLE_CATEGORY_NAME_MAX},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "slug", write: "slug"},
+                        field: {
+                            name: "slug",
+                            widget: "#Input",
+                            label: "form.slugLabel",
+                            placeholder: "form.slugPlaceholder",
+                                    description: "form.slugDescription",
+                            widgetProps: {maxLength: VEHICLE_CATEGORY_SLUG_MAX},
+                        },
+                    },
+                ],
             },
             {
                 render: "#Field",
-                permissions: {read: "slug", write: "slug"},
+                permissions: {read: "description", write: "description"},
                 field: {
-                    name: "slug",
-                    widget: "#Input",
-                    label: "form.slugLabel",
-                    placeholder: "form.slugPlaceholder",
-                    required: true,
-                    widgetProps: {maxLength: VEHICLE_CATEGORY_SLUG_MAX},
+                    name: "description",
+                    widget: "#Textarea",
+                    label: "form.descriptionLabel",
+                    placeholder: "form.descriptionPlaceholder",
+                    widgetProps: {
+                        rows: 5,
+                        maxLength: VEHICLE_CATEGORY_DESCRIPTION_MAX,
+                        className:
+                            "field-sizing-fixed max-h-56 min-h-24 overflow-y-auto",
+                    },
                 },
             },
         ],
     },
     {
-        render: "#Field",
-        permissions: {read: "description", write: "description"},
-        field: {
-            name: "description",
-            widget: "#Textarea",
-            label: "form.descriptionLabel",
-            placeholder: "form.descriptionPlaceholder",
-            widgetProps: {
-                rows: 5,
-                maxLength: VEHICLE_CATEGORY_DESCRIPTION_MAX,
-                className:
-                    "field-sizing-fixed max-h-56 min-h-24 overflow-y-auto",
+        render: "#TitleWithCollapse",
+        props: {title: "form.mediaSectionTitle"},
+        permissions: {readAny: ["images", "videos"], writeAny: ["images", "videos"]},
+        children: [
+            {
+                render: "#Field",
+                permissions: {read: "images", write: "images"},
+                field: {
+                    name: "images",
+                    widget: "#MediaField",
+                    label: "form.imagesLabel",
+                    widgetProps: {mediaType: "image", mode: "multiple", maxCount: 12},
+                },
             },
-        },
-    },
-    {
-        render: "#Field",
-        permissions: {read: "images", write: "images"},
-        field: {
-            name: "images",
-            widget: "#MediaField",
-            label: "form.imagesLabel",
-            widgetProps: {mediaType: "image", mode: "multiple", maxCount: 12},
-        },
-    },
-    {
-        render: "#Field",
-        permissions: {read: "videos", write: "videos"},
-        field: {
-            name: "videos",
-            widget: "#MediaField",
-            label: "form.videosLabel",
-            widgetProps: {mediaType: "video", mode: "multiple", maxCount: 3},
-        },
+            {
+                render: "#Field",
+                permissions: {read: "videos", write: "videos"},
+                field: {
+                    name: "videos",
+                    widget: "#MediaField",
+                    label: "form.videosLabel",
+                    widgetProps: {mediaType: "video", mode: "multiple", maxCount: 3},
+                },
+            },
+        ],
     },
     {
         render: "#TitleWithCollapse",
         props: {title: "form.specsSectionTitle"},
-        permissions: {
-            readAny: [
-                "seats",
-                "doors",
-                "luggage",
-                "transmission",
-                "fuelType",
-                "minDriverAge",
-                "features",
-            ],
-            writeAny: [
-                "seats",
-                "doors",
-                "luggage",
-                "transmission",
-                "fuelType",
-                "minDriverAge",
-                "features",
-            ],
-        },
+        permissions: {readAny: ["seats", "doors", "luggage", "transmission", "fuelType", "minDriverAge", "features"], writeAny: ["seats", "doors", "luggage", "transmission", "fuelType", "minDriverAge", "features"]},
         children: [
             {
                 render: "#FormGrid",
@@ -896,7 +948,7 @@ const vehicleCategoryEditFormNodes: ViewConfig["nodes"] = [
                             label: "form.seatsLabel",
                             placeholder: "form.seatsPlaceholder",
                             required: true,
-                            widgetProps: {type: "number", min: 1, step: "any"},
+                            widgetProps: {type: "number", min: 1, step: 1},
                         },
                     },
                     {
@@ -907,7 +959,7 @@ const vehicleCategoryEditFormNodes: ViewConfig["nodes"] = [
                             widget: "#Input",
                             label: "form.doorsLabel",
                             placeholder: "form.doorsPlaceholder",
-                            widgetProps: {type: "number", min: 0, step: "any"},
+                            widgetProps: {type: "number", min: 0, step: 1},
                         },
                     },
                     {
@@ -918,9 +970,15 @@ const vehicleCategoryEditFormNodes: ViewConfig["nodes"] = [
                             widget: "#Input",
                             label: "form.luggageLabel",
                             placeholder: "form.luggagePlaceholder",
-                            widgetProps: {type: "number", min: 0, step: "any"},
+                            widgetProps: {type: "number", min: 0, step: 1},
                         },
                     },
+                ],
+            },
+            {
+                render: "#FormGrid",
+                props: {columns: 3},
+                children: [
                     {
                         render: "#Field",
                         permissions: {
@@ -965,7 +1023,7 @@ const vehicleCategoryEditFormNodes: ViewConfig["nodes"] = [
                             widget: "#Input",
                             label: "form.minDriverAgeLabel",
                             placeholder: "form.minDriverAgePlaceholder",
-                            widgetProps: {type: "number", min: 16, step: "any"},
+                            widgetProps: {type: "number", min: 16, step: 1},
                         },
                     },
                 ],
@@ -989,28 +1047,7 @@ const vehicleCategoryEditFormNodes: ViewConfig["nodes"] = [
     {
         render: "#TitleWithCollapse",
         props: {title: "form.pricingSectionTitle"},
-        permissions: {
-            readAny: [
-                "dailyRate",
-                "weekendDailyRate",
-                "weeklyRate",
-                "depositAmount",
-                "mileagePolicy",
-                "includedKmPerDay",
-                "extraKmPrice",
-                "rateSeasons",
-            ],
-            writeAny: [
-                "dailyRate",
-                "weekendDailyRate",
-                "weeklyRate",
-                "depositAmount",
-                "mileagePolicy",
-                "includedKmPerDay",
-                "extraKmPrice",
-                "rateSeasons",
-            ],
-        },
+        permissions: {readAny: ["dailyRate", "weekendDailyRate", "weeklyRate", "depositAmount", "mileagePolicy", "includedKmPerDay", "extraKmPrice", "crossBorderAllowed", "crossBorderFee", "rateSeasons"], writeAny: ["dailyRate", "weekendDailyRate", "weeklyRate", "depositAmount", "mileagePolicy", "includedKmPerDay", "extraKmPrice", "crossBorderAllowed", "crossBorderFee", "rateSeasons"]},
         children: [
             {
                 render: "#FormGrid",
@@ -1024,6 +1061,7 @@ const vehicleCategoryEditFormNodes: ViewConfig["nodes"] = [
                             widget: "#Input",
                             label: "form.dailyRateLabel",
                             placeholder: "form.dailyRatePlaceholder",
+                            description: "form.amountCurrencyDescription",
                             required: true,
                             widgetProps: {type: "number", min: 0, step: "any"},
                         },
@@ -1039,6 +1077,7 @@ const vehicleCategoryEditFormNodes: ViewConfig["nodes"] = [
                             widget: "#Input",
                             label: "form.weekendDailyRateLabel",
                             placeholder: "form.weekendDailyRatePlaceholder",
+                            description: "form.amountCurrencyDescription",
                             widgetProps: {type: "number", min: 0, step: "any"},
                         },
                     },
@@ -1050,9 +1089,16 @@ const vehicleCategoryEditFormNodes: ViewConfig["nodes"] = [
                             widget: "#Input",
                             label: "form.weeklyRateLabel",
                             placeholder: "form.weeklyRatePlaceholder",
+                            description: "form.amountCurrencyDescription",
                             widgetProps: {type: "number", min: 0, step: "any"},
                         },
                     },
+                ],
+            },
+            {
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
                     {
                         render: "#Field",
                         permissions: {
@@ -1064,32 +1110,7 @@ const vehicleCategoryEditFormNodes: ViewConfig["nodes"] = [
                             widget: "#Input",
                             label: "form.depositAmountLabel",
                             placeholder: "form.depositAmountPlaceholder",
-                            widgetProps: {type: "number", min: 0, step: "any"},
-                        },
-                    },
-                    {
-                        render: "#Field",
-                        permissions: {
-                            read: "crossBorderAllowed",
-                            write: "crossBorderAllowed",
-                        },
-                        field: {
-                            name: "crossBorderAllowed",
-                            widget: "#Switch",
-                            label: "form.crossBorderAllowedLabel",
-                        },
-                    },
-                    {
-                        render: "#Field",
-                        permissions: {
-                            read: "crossBorderFee",
-                            write: "crossBorderFee",
-                        },
-                        field: {
-                            name: "crossBorderFee",
-                            widget: "#Input",
-                            label: "form.crossBorderFeeLabel",
-                            placeholder: "form.crossBorderFeePlaceholder",
+                            description: "form.amountCurrencyDescription",
                             widgetProps: {type: "number", min: 0, step: "any"},
                         },
                     },
@@ -1136,7 +1157,7 @@ const vehicleCategoryEditFormNodes: ViewConfig["nodes"] = [
                                     widgetProps: {
                                         type: "number",
                                         min: 0,
-                                        step: "any",
+                                        step: 1,
                                     },
                                 },
                             },
@@ -1151,6 +1172,7 @@ const vehicleCategoryEditFormNodes: ViewConfig["nodes"] = [
                                     widget: "#Input",
                                     label: "form.extraKmPriceLabel",
                                     placeholder: "form.extraKmPricePlaceholder",
+                                    description: "form.amountCurrencyDescription",
                                     widgetProps: {
                                         type: "number",
                                         min: 0,
@@ -1163,6 +1185,39 @@ const vehicleCategoryEditFormNodes: ViewConfig["nodes"] = [
                 ],
             },
             {
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        permissions: {
+                            read: "crossBorderAllowed",
+                            write: "crossBorderAllowed",
+                        },
+                        field: {
+                            name: "crossBorderAllowed",
+                            widget: "#Switch",
+                            label: "form.crossBorderAllowedLabel",
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {
+                            read: "crossBorderFee",
+                            write: "crossBorderFee",
+                        },
+                        field: {
+                            name: "crossBorderFee",
+                            widget: "#Input",
+                            label: "form.crossBorderFeeLabel",
+                            placeholder: "form.crossBorderFeePlaceholder",
+                            description: "form.amountCurrencyDescription",
+                            widgetProps: {type: "number", min: 0, step: "any"},
+                        },
+                    },
+                ],
+            },
+            {
                 render: "#Field",
                 permissions: {read: "rateSeasons", write: "rateSeasons"},
                 field: {
@@ -1171,7 +1226,7 @@ const vehicleCategoryEditFormNodes: ViewConfig["nodes"] = [
                     widgetProps: {
                         title: "form.rateSeasonsSectionTitle",
                         arrayField: "rateSeasons",
-                        defaultItem: {startDate: "", endDate: "", dailyRate: 0},
+                        defaultItem: {startDate: "", endDate: ""},
                         addLabel: "form.seasonAddRow",
                         removeLabel: "form.seasonRemoveRow",
                         rowTitleFields: ["startDate", "endDate", "dailyRate"],
@@ -1212,6 +1267,7 @@ const vehicleCategoryEditFormNodes: ViewConfig["nodes"] = [
                                             name: "dailyRate",
                                             widget: "#Input",
                                             label: "form.seasonDailyRateLabel",
+                                            description: "form.amountCurrencyDescription",
                                             required: true,
                                             widgetProps: {
                                                 type: "number",
@@ -1229,15 +1285,38 @@ const vehicleCategoryEditFormNodes: ViewConfig["nodes"] = [
         ],
     },
     {
-        render: "#Field",
-        permissions: {read: "sortOrder", write: "sortOrder"},
-        field: {
-            name: "sortOrder",
-            widget: "#Input",
-            label: "form.sortOrderLabel",
-            placeholder: "form.sortOrderPlaceholder",
-            widgetProps: {type: "number", min: 0, step: "any"},
-        },
+        render: "#TitleWithCollapse",
+        props: {title: "form.visibilitySectionTitle"},
+        permissions: {readAny: ["isPublic", "sortOrder"], writeAny: ["isPublic", "sortOrder"]},
+        children: [
+            {
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        permissions: {read: "isPublic", write: "isPublic"},
+                        field: {
+                            name: "isPublic",
+                            widget: "#Switch",
+                            label: "form.isPublicLabel",
+                            description: "form.isPublicDescription",
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "sortOrder", write: "sortOrder"},
+                        field: {
+                            name: "sortOrder",
+                            widget: "#Input",
+                            label: "form.sortOrderLabel",
+                            placeholder: "form.sortOrderPlaceholder",
+                            widgetProps: {type: "number", min: 0, step: 1},
+                        },
+                    },
+                ],
+            },
+        ],
     },
 ];
 

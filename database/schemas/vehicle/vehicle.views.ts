@@ -388,8 +388,24 @@ const vehicleCreateFormNodes: ViewConfig["nodes"] = [
         children: [
             {
                 render: "#FormGrid",
-                props: {columns: 3},
+                props: {columns: 2},
                 children: [
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "category",
+                            widget: "#ApiSelect",
+                            label: "form.categoryLabel",
+                            placeholder: "form.categoryPlaceholder",
+                            required: true,
+                            widgetProps: {
+                                apiUrl: "/api/carRental/vehicleCategory/select",
+                                method: "POST",
+                                pageSize: 50,
+                                normalizeEmptyToUndefined: true,
+                            },
+                        },
+                    },
                     {
                         render: "#Field",
                         field: {
@@ -401,6 +417,12 @@ const vehicleCreateFormNodes: ViewConfig["nodes"] = [
                             widgetProps: {maxLength: VEHICLE_PLATE_MAX},
                         },
                     },
+                ],
+            },
+            {
+                render: "#FormGrid",
+                props: {columns: 3},
+                children: [
                     {
                         render: "#Field",
                         field: {
@@ -433,6 +455,12 @@ const vehicleCreateFormNodes: ViewConfig["nodes"] = [
                             widgetProps: {type: "number", min: 1950, max: 2100},
                         },
                     },
+                ],
+            },
+            {
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
                     {
                         render: "#Field",
                         field: {
@@ -451,22 +479,6 @@ const vehicleCreateFormNodes: ViewConfig["nodes"] = [
                             label: "form.vinLabel",
                             placeholder: "form.vinPlaceholder",
                             widgetProps: {maxLength: VEHICLE_VIN_MAX},
-                        },
-                    },
-                    {
-                        render: "#Field",
-                        field: {
-                            name: "category",
-                            widget: "#ApiSelect",
-                            label: "form.categoryLabel",
-                            placeholder: "form.categoryPlaceholder",
-                            required: true,
-                            widgetProps: {
-                                apiUrl: "/api/carRental/vehicleCategory/select",
-                                method: "POST",
-                                pageSize: 50,
-                                normalizeEmptyToUndefined: true,
-                            },
                         },
                     },
                 ],
@@ -536,6 +548,12 @@ const vehicleCreateFormNodes: ViewConfig["nodes"] = [
                             widgetProps: {type: "number", min: 0},
                         },
                     },
+                ],
+            },
+            {
+                render: "#FormGrid",
+                props: {columns: 3},
+                children: [
                     {
                         render: "#Field",
                         field: {
@@ -553,6 +571,7 @@ const vehicleCreateFormNodes: ViewConfig["nodes"] = [
                             widget: "#Input",
                             label: "form.purchasePriceLabel",
                             placeholder: "form.purchasePricePlaceholder",
+                            description: "form.amountCurrencyDescription",
                             widgetProps: {type: "number", min: 0, step: "0.01"},
                         },
                     },
@@ -608,33 +627,29 @@ const vehicleEditFormNodes: ViewConfig["nodes"] = [
     {
         render: "#TitleWithCollapse",
         props: {title: "form.vehicleSectionTitle"},
-        permissions: {
-            readAny: [
-                "plate",
-                "make",
-                "model",
-                "year",
-                "color",
-                "vin",
-                "category",
-                "notes",
-            ],
-            writeAny: [
-                "plate",
-                "make",
-                "model",
-                "year",
-                "color",
-                "vin",
-                "category",
-                "notes",
-            ],
-        },
+        permissions: {readAny: ["category", "plate", "make", "model", "year", "color", "vin", "notes"], writeAny: ["category", "plate", "make", "model", "year", "color", "vin", "notes"]},
         children: [
             {
                 render: "#FormGrid",
-                props: {columns: 3},
+                props: {columns: 2},
                 children: [
+                    {
+                        render: "#Field",
+                        permissions: {read: "category", write: "category"},
+                        field: {
+                            name: "category",
+                            widget: "#ApiSelect",
+                            label: "form.categoryLabel",
+                            placeholder: "form.categoryPlaceholder",
+                            required: true,
+                            widgetProps: {
+                                apiUrl: "/api/carRental/vehicleCategory/select",
+                                method: "POST",
+                                pageSize: 50,
+                                normalizeEmptyToUndefined: true,
+                            },
+                        },
+                    },
                     {
                         render: "#Field",
                         permissions: {read: "plate", write: "plate"},
@@ -647,6 +662,12 @@ const vehicleEditFormNodes: ViewConfig["nodes"] = [
                             widgetProps: {maxLength: VEHICLE_PLATE_MAX},
                         },
                     },
+                ],
+            },
+            {
+                render: "#FormGrid",
+                props: {columns: 3},
+                children: [
                     {
                         render: "#Field",
                         permissions: {read: "make", write: "make"},
@@ -682,6 +703,12 @@ const vehicleEditFormNodes: ViewConfig["nodes"] = [
                             widgetProps: {type: "number", min: 1950, max: 2100},
                         },
                     },
+                ],
+            },
+            {
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
                     {
                         render: "#Field",
                         permissions: {read: "color", write: "color"},
@@ -702,23 +729,6 @@ const vehicleEditFormNodes: ViewConfig["nodes"] = [
                             label: "form.vinLabel",
                             placeholder: "form.vinPlaceholder",
                             widgetProps: {maxLength: VEHICLE_VIN_MAX},
-                        },
-                    },
-                    {
-                        render: "#Field",
-                        permissions: {read: "category", write: "category"},
-                        field: {
-                            name: "category",
-                            widget: "#ApiSelect",
-                            label: "form.categoryLabel",
-                            placeholder: "form.categoryPlaceholder",
-                            required: true,
-                            widgetProps: {
-                                apiUrl: "/api/carRental/vehicleCategory/select",
-                                method: "POST",
-                                pageSize: 50,
-                                normalizeEmptyToUndefined: true,
-                            },
                         },
                     },
                 ],
@@ -744,24 +754,7 @@ const vehicleEditFormNodes: ViewConfig["nodes"] = [
     {
         render: "#TitleWithCollapse",
         props: {title: "form.fleetSectionTitle"},
-        permissions: {
-            readAny: [
-                "homeLocation",
-                "status",
-                "odometerKm",
-                "acquiredAt",
-                "purchasePrice",
-                "trackerId",
-            ],
-            writeAny: [
-                "homeLocation",
-                "status",
-                "odometerKm",
-                "acquiredAt",
-                "purchasePrice",
-                "trackerId",
-            ],
-        },
+        permissions: {readAny: ["homeLocation", "status", "odometerKm", "acquiredAt", "purchasePrice", "trackerId"], writeAny: ["homeLocation", "status", "odometerKm", "acquiredAt", "purchasePrice", "trackerId"]},
         children: [
             {
                 render: "#FormGrid",
@@ -813,6 +806,12 @@ const vehicleEditFormNodes: ViewConfig["nodes"] = [
                             widgetProps: {type: "number", min: 0},
                         },
                     },
+                ],
+            },
+            {
+                render: "#FormGrid",
+                props: {columns: 3},
+                children: [
                     {
                         render: "#Field",
                         permissions: {read: "acquiredAt", write: "acquiredAt"},
@@ -835,6 +834,7 @@ const vehicleEditFormNodes: ViewConfig["nodes"] = [
                             widget: "#Input",
                             label: "form.purchasePriceLabel",
                             placeholder: "form.purchasePricePlaceholder",
+                            description: "form.amountCurrencyDescription",
                             widgetProps: {type: "number", min: 0, step: "0.01"},
                         },
                     },
@@ -856,10 +856,7 @@ const vehicleEditFormNodes: ViewConfig["nodes"] = [
     {
         render: "#TitleWithCollapse",
         props: {title: "form.photosSectionTitle"},
-        permissions: {
-            readAny: ["images", "videos"],
-            writeAny: ["images", "videos"],
-        },
+        permissions: {readAny: ["images", "videos"], writeAny: ["images", "videos"]},
         children: [
             {
                 render: "#Field",
