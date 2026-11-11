@@ -181,7 +181,9 @@ export function planDemoBookings(vehicles: DemoVehicle[], today: string): DemoBo
         }
         kmAfter.set(vehicle.index, km);
     }
-    return [...bookings, ...counterDayBookings(vehicles, today, kmAfter)];
+    // Each car's bookings in date order, the counter's day among them (a stable sort keeps the fleet's car order).
+    return [...bookings, ...counterDayBookings(vehicles, today, kmAfter)]
+        .sort((a, b) => a.vehicleIndex - b.vehicleIndex || a.pickupDate.localeCompare(b.pickupDate));
 }
 
 export type DemoPolicy = {
