@@ -240,19 +240,23 @@ const VehicleSchema = new Schema<IVehicle>(
         trackerId: {
             type: SchemaTypes.String,
             trim: true,
-            maxlength: 64
+            maxlength: 64,
+            // Technical columns open hidden (UX-03); staff can still add them.
+            dynamicTableConfiguration: {visible: false},
         },
         lastLatitude: {
             type: SchemaTypes.Number,
             min: -90,
             max: 90,
             permissions: NoWritePermission,
+            dynamicTableConfiguration: {visible: false},
         },
         lastLongitude: {
             type: SchemaTypes.Number,
             min: -180,
             max: 180,
             permissions: NoWritePermission,
+            dynamicTableConfiguration: {visible: false},
         },
         lastReportedAt: {
             type: SchemaTypes.Date,

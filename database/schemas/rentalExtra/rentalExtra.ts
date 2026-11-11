@@ -57,7 +57,7 @@ const RentalExtraSchema = new Schema<IRentalExtra>(
         excessAmount: {type: SchemaTypes.Number, min: 0},
         depositAmount: {type: SchemaTypes.Number, min: 0},
         isActive: {type: SchemaTypes.Boolean, default: true}, // activate / deactivate actions
-        sortOrder: {type: SchemaTypes.Number, default: 0},
+        sortOrder: {type: SchemaTypes.Number, default: 0, dynamicTableConfiguration: {visible: false}},
     },
     {accessMode: "loose"},
 );

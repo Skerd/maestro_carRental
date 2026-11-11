@@ -85,6 +85,8 @@ const VehicleCategorySchema = new Schema<IVehicleCategory>(
             lowercase: true,
             minlength: 1,
             maxlength: VEHICLE_CATEGORY_SLUG_MAX,
+            // Technical: the address part, not something staff read in a table (UX-03).
+            dynamicTableConfiguration: {visible: false},
         },
         description: {
             type: SchemaTypes.String,
@@ -165,7 +167,7 @@ const VehicleCategorySchema = new Schema<IVehicleCategory>(
         crossBorderAllowed: {type: SchemaTypes.Boolean, default: true},
         crossBorderFee: {type: SchemaTypes.Number, min: 0},
         isPublic: {type: SchemaTypes.Boolean, default: true},
-        sortOrder: {type: SchemaTypes.Number, default: 0},
+        sortOrder: {type: SchemaTypes.Number, default: 0, dynamicTableConfiguration: {visible: false}},
     },
     {accessMode: "loose"},
 );
