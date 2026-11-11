@@ -197,7 +197,7 @@ export class RentalReservationActions {
         );
         assertDriverList(
             params.drivers,
-            {pickupDate, minDriverAge: category?.minDriverAge},
+            {pickupDate, returnDate: localDateOf(reservation.returnAt, reservation.snapshot.timezone), minDriverAge: category?.minDriverAge},
             params.languageCode,
         );
 

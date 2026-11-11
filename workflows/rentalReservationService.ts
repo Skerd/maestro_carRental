@@ -535,6 +535,10 @@ export async function buildRentalReservation(
                     trip.pickupAt,
                     trip.pickupLocation.timezone,
                 ),
+                returnDate: localDateOf(
+                    trip.returnAt,
+                    trip.returnLocation.timezone,
+                ),
                 minDriverAge: category.minDriverAge,
             },
             ctx.languageCode,

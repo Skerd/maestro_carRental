@@ -25,8 +25,8 @@ const fullName = (driver: Pick<IRentalDriver, "firstName" | "lastName">) => `${d
  * old enough on the pickup day. Licence details may still be missing.
  */
 export function assertDriverList(
-    drivers: Pick<IRentalDriver, "role" | "firstName" | "lastName" | "birthDate">[],
-    rules: {pickupDate: string; minDriverAge?: number},
+    drivers: Pick<IRentalDriver, "role" | "firstName" | "lastName" | "birthDate" | "licenseIssuedAt" | "licenseExpiresAt">[],
+    rules: {pickupDate: string; returnDate?: string; minDriverAge?: number},
     languageCode: string,
 ): void {
     if (drivers.filter((driver) => driver.role === "primary").length !== 1) {
@@ -39,6 +39,14 @@ export function assertDriverList(
         if (rules.minDriverAge && yearsBetween(driver.birthDate, rules.pickupDate) < rules.minDriverAge) {
             throw apiValidationException("rental_driver_too_young", "", null, languageCode, [fullName(driver), String(rules.minDriverAge)]);
         }
+        // A licence is issued before it expires, and by the pickup day at the latest.
+        if (driver.licenseIssuedAt && (driver.licenseIssuedAt > rules.pickupDate || (driver.licenseExpiresAt && driver.licenseIssuedAt > driver.licenseExpiresAt))) {
+            throw apiValidationException("rental_driver_license_dates_invalid", "", null, languageCode, [fullName(driver)]);
+        }
+        // Caught when the drivers are saved, not only at the handover (assertDriversReadyForHandover).
+        if (rules.returnDate && driver.licenseExpiresAt && driver.licenseExpiresAt < rules.returnDate) {
+            throw apiValidationException("rental_driver_license_expired", "", null, languageCode, [fullName(driver)]);
+        }
     }
 }
 
@@ -48,8 +56,8 @@ export function assertDriverList(
  */
 export function assertDriversReadyForHandover(reservation: IRentalReservation, minDriverAge: number | undefined, languageCode: string): void {
     const {timezone} = reservation.snapshot;
-    assertDriverList(reservation.drivers ?? [], {pickupDate: localDateOf(reservation.pickupAt, timezone), minDriverAge}, languageCode);
     const returnDate = localDateOf(reservation.returnAt, timezone);
+    assertDriverList(reservation.drivers ?? [], {pickupDate: localDateOf(reservation.pickupAt, timezone), returnDate, minDriverAge}, languageCode);
     for (const driver of reservation.drivers) {
         if (!driver.licenseNumber) {
             throw apiValidationException("rental_driver_license_missing", "", null, languageCode, [fullName(driver)]);

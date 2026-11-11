@@ -544,9 +544,11 @@ describe("on the road", {timeout: 60000}, () => {
 
         // The online booking named the customer as main driver, without a licence yet.
         expect((await handover()).body.error_code).toBe("rental_driver_license_missing");
-        // The trip ends on 11 June 2027; a licence valid only to the day before is not enough.
-        await action("saveDrivers", {_id: id, drivers: [driver, {...driver, role: "additional", firstName: "Charles", licenseExpiresAt: "2027-06-10"}]});
-        expect((await handover()).body.error_code).toBe("rental_driver_license_expired");
+        // The trip ends on 11 June 2027; a licence valid only to the day before is refused already when the drivers
+        // are saved, not first at the handover.
+        const shortLicence = await action("saveDrivers", {_id: id, drivers: [driver, {...driver, role: "additional", firstName: "Charles", licenseExpiresAt: "2027-06-10"}]});
+        expect(shortLicence.body.error_code).toBe("rental_driver_license_expired");
+        expect((await handover()).body.error_code).toBe("rental_driver_license_missing");
         await action("saveDrivers", {_id: id, drivers: [driver, {...driver, role: "additional", firstName: "Charles", licenseExpiresAt: "2027-06-11"}]});
         expect((await handover()).body.status).toBe("in_progress");
     }));
@@ -561,6 +563,11 @@ describe("on the road", {timeout: 60000}, () => {
         expect(young.body.error_code).toBe("rental_driver_too_young");
         const birthday = await action("saveDrivers", {_id: id, drivers: [{...driver, birthDate: "2006-06-09"}]});
         expect(birthday.status).toBe(200);
+        // A licence issued after it expires, or after the pickup day, is a typing mistake.
+        const backwards = await action("saveDrivers", {_id: id, drivers: [{...driver, licenseIssuedAt: "2031-01-01", licenseExpiresAt: "2030-01-01"}]});
+        expect(backwards.body.error_code).toBe("rental_driver_license_dates_invalid");
+        const issuedLater = await action("saveDrivers", {_id: id, drivers: [{...driver, licenseIssuedAt: "2027-07-01"}]});
+        expect(issuedLater.body.error_code).toBe("rental_driver_license_dates_invalid");
     }));
 
     it("keeps the damage the customer saw at pickup and files new damage found at the return", () => asCompany(async () => {
