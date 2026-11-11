@@ -86,9 +86,56 @@ function extrasOf(k: number): DemoExtraName[] {
     return extras;
 }
 
+/**
+ * The counter's day: three pickups today, two cars due back today and one a day late. Keyed by the day, so each
+ * run adds that day's desk work; the cars rotate by date among those with no current or next booking (every
+ * fourth car), and a car still busy from an earlier day is skipped when the booking is made.
+ */
+const COUNTER_DAY = [
+    {start: 0, days: 2, time: "10:00", outcome: "confirmed"},
+    {start: 0, days: 3, time: "14:00", outcome: "confirmed"},
+    {start: 0, days: 1, time: "17:30", outcome: "confirmed"},
+    {start: -2, days: 2, time: "09:00", outcome: "in_progress"},
+    {start: -3, days: 3, time: "17:30", outcome: "in_progress"},
+    {start: -4, days: 3, time: "10:00", outcome: "in_progress"},
+] as const;
+
+function counterDayBookings(vehicles: DemoVehicle[], today: string, kmAfter: Map<number, number>): DemoBooking[] {
+    // Not the cars whose papers lapse or run out within weeks (planVehicleHistory): their bookings would be refused.
+    const papersLapse = (i: number) => i === 7 || i === 40 || i % 16 === 3 || i % 14 === 6;
+    const free = vehicles.filter((vehicle) => vehicle.status === "active" && vehicle.index % 4 === 3 && !papersLapse(vehicle.index));
+    if (!free.length) return [];
+    const rotation = Math.round(Date.parse(`${today}T00:00:00Z`) / (24 * 3600 * 1000)) % free.length;
+    return COUNTER_DAY.map((shape, n) => {
+        const vehicle = free[(rotation + n) % free.length];
+        const booking: DemoBooking = {
+            key: `demo-counter-${today}-${n}`,
+            vehicleIndex: vehicle.index,
+            plate: vehicle.plate,
+            pickupDate: addLocalDays(today, shape.start),
+            returnDate: addLocalDays(today, shape.start + shape.days),
+            time: shape.time,
+            pickupLocation: vehicle.home,
+            returnLocation: vehicle.home,
+            outcome: shape.outcome,
+            bookedDaysBefore: 3 + n,
+            extras: [],
+            contact: (vehicle.index * 3 + n) % 40,
+            extraCharges: [],
+            paidShare: 0,
+        };
+        if (shape.outcome === "in_progress") {
+            booking.handoverKm = kmAfter.get(vehicle.index) ?? vehicle.baseKm;
+            booking.paidShare = 1;
+        }
+        return booking;
+    });
+}
+
 /** Every booking of the fleet, each car's in date order, with odometer readings that only go up. */
 export function planDemoBookings(vehicles: DemoVehicle[], today: string): DemoBooking[] {
     const bookings: DemoBooking[] = [];
+    const kmAfter = new Map<number, number>();
     for (const vehicle of vehicles) {
         let km = vehicle.baseKm;
         for (const slot of slotsOf(vehicle)) {
@@ -132,8 +179,9 @@ export function planDemoBookings(vehicles: DemoVehicle[], today: string): DemoBo
             }
             bookings.push(booking);
         }
+        kmAfter.set(vehicle.index, km);
     }
-    return bookings;
+    return [...bookings, ...counterDayBookings(vehicles, today, kmAfter)];
 }
 
 export type DemoPolicy = {

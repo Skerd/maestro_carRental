@@ -121,21 +121,35 @@ describe("car rental demo seed", () => {
         );
         expect(await Vehicle.countDocuments({status: "maintenance"})).toBe(3);
         expect(await Vehicle.countDocuments({status: "retired"})).toBe(2);
-        expect(await VehicleBlock.countDocuments({})).toBe(5);
+        // Three of the fleet plan's, plus the transfers on the road and done (a called-off one has none).
+        expect(await VehicleBlock.countDocuments({})).toBe(7);
         expect(await RentalExtra.countDocuments({kind: "protection"})).toBe(2);
         expect(await RentalPromoCode.countDocuments({})).toBe(3);
-        // One of each outcome; the paid one can still be recharged.
+        // One in each state (P9.7); the paid driver_identified one can still be recharged.
         expect(
             await VehicleFine.countDocuments({status: "driver_identified"}),
         ).toBe(2);
-        expect(await VehicleFine.countDocuments({status: "transferred"})).toBe(1);
-        expect(await VehicleFine.countDocuments({status: "disputed"})).toBe(1);
+        for (const status of ["transferred", "disputed", "received", "charged", "paid_by_company", "cancelled"]) {
+            expect(await VehicleFine.countDocuments({status})).toBe(1);
+        }
         expect(
             await VehicleFine.countDocuments({paidAt: {$exists: true}}),
+        ).toBe(2);
+        // The recharged fine added its line to the booking, as the action does.
+        const charged = await VehicleFine.findOne({status: "charged"});
+        expect(charged!.chargedAmount).toBe(35);
+        expect(
+            await RentalReservation.countDocuments({_id: charged!.reservation, "pricing.lines.code": "fine"}),
         ).toBe(1);
         expect(await VehicleTransfer.countDocuments({status: "planned"})).toBe(
             2,
         );
+        for (const status of ["in_transit", "done", "cancelled"]) {
+            expect(await VehicleTransfer.countDocuments({status})).toBe(1);
+        }
+        // The counter has work today: pickups, and cars due back today or late.
+        expect(await RentalReservation.countDocuments({idempotencyKey: /^demo-counter-/, status: "confirmed"})).toBe(3);
+        expect(await RentalReservation.countDocuments({idempotencyKey: /^demo-counter-/, status: "in_progress"})).toBe(3);
         expect(await RentalBusinessAccount.countDocuments({})).toBe(2);
         expect(await RentalDenyEntry.countDocuments({})).toBe(2);
         expect(await RentalReview.countDocuments({})).toBe(2);

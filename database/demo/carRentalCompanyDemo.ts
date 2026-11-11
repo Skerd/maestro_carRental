@@ -68,12 +68,14 @@ import {
     loadSelectedExtras,
 } from "@carRentalModule/workflows/rentalReservationService";
 import {
+    addReservationCharges,
     expireRentalHold,
     handOverRentalReservation,
     markRentalNoShow,
     returnRentalReservation,
 } from "@carRentalModule/workflows/rentalLifecycle";
 import {recordCounterPayment} from "@carRentalModule/utilities/services/rentalPayments";
+import {rentalPricingLabel} from "@carRentalModule/utilities/services/rentalPricingLabels";
 import {resolveRentalTrip} from "@carRentalModule/utilities/services/rentalTrip";
 import {syncVehicleServiceDue} from "@carRentalModule/utilities/services/vehicleRecords";
 import {
@@ -803,38 +805,30 @@ async function seedVehicleHistory(
     }
 }
 
+/**
+ * One fine in each state the fines list filters on: matched to a driver (twice, one already paid and still to
+ * recharge), named to the authority, contested, just received, recharged to the booking, paid and kept by the
+ * company, and annulled.
+ */
 const DEMO_FINES = [
-    {
-        reference: "DEMO-FINE-1",
-        type: "speeding",
-        authority: "Policia Rrugore",
-        amount: 50,
-        place: "Tirana–Durrës",
-    },
-    {
-        reference: "DEMO-FINE-2",
-        type: "parking",
-        authority: "Bashkia Tiranë",
-        amount: 20,
-        place: "Blloku",
-    },
-    {
-        reference: "DEMO-FINE-3",
-        type: "toll",
-        authority: "Autostrada",
-        amount: 5,
-        place: "Rinas toll",
-    },
-    {
-        reference: "DEMO-FINE-4",
-        type: "red_light",
-        authority: "Policia Rrugore",
-        amount: 40,
-        place: "Rruga e Kavajës",
-    },
+    {reference: "DEMO-FINE-1", type: "speeding", authority: "Policia Rrugore", amount: 50, place: "Tirana–Durrës", outcome: "driver_identified"},
+    {reference: "DEMO-FINE-2", type: "parking", authority: "Bashkia Tiranë", amount: 20, place: "Blloku", outcome: "transferred"},
+    {reference: "DEMO-FINE-3", type: "toll", authority: "Autostrada", amount: 5, place: "Rinas toll", outcome: "paid_to_recharge"},
+    {reference: "DEMO-FINE-4", type: "red_light", authority: "Policia Rrugore", amount: 40, place: "Rruga e Kavajës", outcome: "disputed"},
+    {reference: "DEMO-FINE-5", type: "parking", authority: "Bashkia Durrës", amount: 15, place: "Durrës promenade", outcome: "received"},
+    {reference: "DEMO-FINE-6", type: "speeding", authority: "Policia Rrugore", amount: 35, place: "Rinas road", outcome: "charged"},
+    {reference: "DEMO-FINE-7", type: "toll", authority: "Autostrada", amount: 5, place: "Milot toll", outcome: "paid_by_company"},
+    {reference: "DEMO-FINE-8", type: "parking", authority: "Bashkia Tiranë", amount: 20, place: "Skanderbeg Square", outcome: "cancelled"},
 ] as const;
 
-const DEMO_TRANSFER_NOTES = ["Demo night transfer 1", "Demo night transfer 2"];
+/** One transfer in each state: two night moves ahead, one on the road now, one done yesterday, one called off. */
+const DEMO_TRANSFERS = [
+    {notes: "Demo night transfer 1", status: "planned", depart: {days: 70, time: "23:00"}, hours: 2},
+    {notes: "Demo night transfer 2", status: "planned", depart: {days: 70, time: "23:00"}, hours: 2},
+    {notes: "Demo transfer on the road", status: "in_transit", depart: {hoursFromNow: -1}, hours: 3},
+    {notes: "Demo transfer done yesterday", status: "done", depart: {days: -1, time: "20:00"}, hours: 2},
+    {notes: "Demo transfer called off", status: "cancelled", depart: {days: 21, time: "22:00"}, hours: 2},
+] as const;
 
 /**
  * The lists that are not part of the fleet or the booking plan: fees are on the
@@ -1050,26 +1044,42 @@ async function seedCounterRecords(input: {
         );
         if (!booking)
             throw new Error(`Demo fine ${fine.reference} matched no booking`);
-        // One of each outcome: to recharge, driver named, paid before recharging, contested.
-        const outcome = [
-            {status: "driver_identified"},
-            {status: "transferred"},
-            {
-                status: "driver_identified",
-                paidAt: offenceAt,
-                paidAmount: fine.amount,
-                paymentReference: `PAY-${fine.reference}`,
-            },
-            {status: "disputed"},
-        ][index];
-        await VehicleFine.create({
-            ...owned,
-            ...fine,
-            ...outcome,
-            vehicle: vehicleId,
-            offenceAt,
-            reservation: booking._id,
-            driverName: mainDriverName(booking),
+        const {outcome, ...details} = fine;
+        const paid = {paidAt: new Date(offenceAt.getTime() + 3 * DAY_MS), paidAmount: fine.amount, paymentReference: `PAY-${fine.reference}`};
+        // Received and kept-by-the-company fines were never matched to the booking that had the car.
+        const matched = outcome !== "received" && outcome !== "paid_by_company";
+        const state = {
+            driver_identified: {status: "driver_identified"},
+            transferred: {status: "transferred"},
+            paid_to_recharge: {status: "driver_identified", ...paid},
+            disputed: {status: "disputed"},
+            received: {status: "received"},
+            charged: {status: "driver_identified"},
+            paid_by_company: {status: "paid_by_company", ...paid},
+            cancelled: {status: "cancelled", notes: "The authority withdrew the ticket: the car was parked legally."},
+        }[outcome];
+        await runInTransaction(logger, async (session) => {
+            const [created] = await VehicleFine.create(
+                [{
+                    ...owned,
+                    ...details,
+                    ...state,
+                    vehicle: vehicleId,
+                    offenceAt,
+                    ...(matched ? {reservation: booking._id, driverName: mainDriverName(booking)} : {}),
+                }],
+                {session},
+            );
+            if (outcome !== "charged") return;
+            // Recharged the way the "Charge customer" action does it: a booking line the fine keeps, to take back if annulled.
+            const charges = [{code: "fine" as const, label: rentalPricingLabel(LANGUAGE, "fine", {reference: fine.reference}), amount: fine.amount}];
+            const held = await RentalReservation.findById(booking._id).session(session);
+            if (!held) throw new Error(`Booking for ${fine.reference} vanished`);
+            await addReservationCharges(held, charges, {by: owned.createdBy}, {session, logger, languageCode: LANGUAGE, auditUserId: owned.createdBy});
+            created.chargedAmount = fine.amount;
+            created.charges = charges.map(({label, amount}) => ({label, amount}));
+            created.status = "charged";
+            await created.save({session});
         });
     }
 
@@ -1094,74 +1104,63 @@ async function seedCounterRecords(input: {
         }
     });
 
-    const departAt = at(addLocalDays(today, 70), "23:00");
-    const arriveAt = at(addLocalDays(today, 71), "01:00");
-    const busy = await RentalReservation.distinct("vehicle", {
-        company: companyId,
-        pickupAt: {$lt: arriveAt},
-        blockedUntil: {$gt: departAt},
-        ...blockingReservationFilter(new Date()),
-    });
-    const blocked = await VehicleBlock.distinct("vehicle", {
-        company: companyId,
-        startAt: {$lt: arriveAt},
-        endAt: {$gt: departAt},
-        deletedAt: null,
-    });
-    const candidates = await Vehicle.find({
-        company: companyId,
-        status: "active",
-        _id: {$nin: [...busy, ...blocked]},
-    })
-        .sort({plate: 1})
-        .select("homeLocation")
-        .limit(8);
+    // A car is free for a transfer when no live or finished booking and no block shares the window.
+    const freeCars = async (start: Date, end: Date) => {
+        const [busy, blocked] = await Promise.all([
+            RentalReservation.distinct("vehicle", {
+                company: companyId,
+                pickupAt: {$lt: end},
+                blockedUntil: {$gt: start},
+                status: {$in: ["held", "confirmed", "in_progress", "completed"]},
+            }),
+            VehicleBlock.distinct("vehicle", {company: companyId, startAt: {$lt: end}, endAt: {$gt: start}, deletedAt: null}),
+        ]);
+        return Vehicle.find({company: companyId, status: "active", _id: {$nin: [...busy, ...blocked]}})
+            .sort({plate: 1})
+            .select("homeLocation")
+            .limit(8);
+    };
 
-    let cursor = 0;
-    for (const notes of DEMO_TRANSFER_NOTES) {
-        if (await VehicleTransfer.exists({company: companyId, notes})) continue;
-        const vehicle = candidates[cursor++];
-        if (!vehicle) throw new Error(`No free car for ${notes}`);
+    const taken = new Set<string>();
+    for (const transfer of DEMO_TRANSFERS) {
+        if (await VehicleTransfer.exists({company: companyId, notes: transfer.notes})) continue;
+        const departAt = "hoursFromNow" in transfer.depart
+            ? new Date(Date.now() + transfer.depart.hoursFromNow * 3600 * 1000)
+            : at(addLocalDays(today, transfer.depart.days), transfer.depart.time);
+        const arriveAt = new Date(departAt.getTime() + transfer.hours * 3600 * 1000);
+        const vehicle = (await freeCars(departAt, arriveAt)).find((car) => !taken.has(String(car._id)));
+        if (!vehicle) throw new Error(`No free car for ${transfer.notes}`);
+        taken.add(String(vehicle._id));
         const homeId = nestedEntityToRef(vehicle.homeLocation);
         const fromLocation = homeId ?? city._id;
-        const toLocation =
-            String(fromLocation) === String(city._id) ? airport._id : city._id;
+        const toLocation = String(fromLocation) === String(city._id) ? airport._id : city._id;
         await runInTransaction(logger, async (session) => {
-            await assertNoBookingClash(
-                vehicle._id,
-                {start: departAt, end: arriveAt},
-                {companyId, session, languageCode: LANGUAGE},
-            );
-            const [block] = await VehicleBlock.create(
-                [
-                    {
-                        ...owned,
-                        vehicle: vehicle._id,
-                        startAt: departAt,
-                        endAt: arriveAt,
-                        reason: "transfer",
-                        source: "transfer",
-                        note: notes,
-                    },
-                ],
-                {session},
-            );
+            await assertNoBookingClash(vehicle._id, {start: departAt, end: arriveAt}, {companyId, session, languageCode: LANGUAGE});
+            // A called-off transfer no longer keeps the car out of bookings, so it has no block (the cancel action removes it).
+            const [block] = transfer.status === "cancelled"
+                ? [undefined]
+                : await VehicleBlock.create(
+                    [{...owned, vehicle: vehicle._id, startAt: departAt, endAt: arriveAt, reason: "transfer", source: "transfer", note: transfer.notes}],
+                    {session},
+                );
             await VehicleTransfer.create(
-                [
-                    {
-                        ...owned,
-                        vehicle: vehicle._id,
-                        fromLocation,
-                        toLocation,
-                        departAt,
-                        arriveAt,
-                        status: "planned",
-                        notes,
-                        block: block._id,
-                    },
-                ],
+                [{
+                    ...owned,
+                    vehicle: vehicle._id,
+                    fromLocation,
+                    toLocation,
+                    departAt,
+                    arriveAt,
+                    status: transfer.status,
+                    notes: transfer.notes,
+                    ...(block ? {block: block._id} : {}),
+                }],
                 {session},
             );
+            // Arrived: the car counts at the new location from then on, as the "Complete" action sets it.
+            if (transfer.status === "done") {
+                await Vehicle.updateOne({_id: vehicle._id}, {$set: {currentLocation: toLocation}}, {session});
+            }
         });
     }
 }
