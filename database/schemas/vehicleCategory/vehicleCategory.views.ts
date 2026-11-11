@@ -47,16 +47,6 @@ export const vehicleCategorySheetView: ViewConfig = {
                     children: [
                         {
                             render: "#DisplayCard",
-                            permissions: {read: "slug"},
-                            field: {
-                                name: "slug",
-                                widget: "#DisplayCard",
-                                label: "slug",
-                                widgetProps: {icon: "#Hash"},
-                            },
-                        },
-                        {
-                            render: "#DisplayCard",
                             permissions: {read: "seats"},
                             field: {
                                 name: "seats",
@@ -70,6 +60,7 @@ export const vehicleCategorySheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "doors",
                             permissions: {read: "doors"},
                             field: {
                                 name: "doors",
@@ -83,6 +74,7 @@ export const vehicleCategorySheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "luggage",
                             permissions: {read: "luggage"},
                             field: {
                                 name: "luggage",
@@ -137,16 +129,7 @@ export const vehicleCategorySheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
-                            permissions: {read: "sortOrder"},
-                            field: {
-                                name: "sortOrder",
-                                widget: "#DisplayCard",
-                                label: "sortOrder",
-                                widgetProps: {icon: "#Hash", type: "number"},
-                            },
-                        },
-                        {
-                            render: "#DisplayCard",
+                            dependent: "minDriverAge",
                             permissions: {read: "minDriverAge"},
                             field: {
                                 name: "minDriverAge",
@@ -166,6 +149,7 @@ export const vehicleCategorySheetView: ViewConfig = {
                     children: [
                         {
                             render: "#DisplayCard",
+                            dependent: "description",
                             permissions: {read: "description"},
                             field: {
                                 name: "description",
@@ -186,6 +170,7 @@ export const vehicleCategorySheetView: ViewConfig = {
                     children: [
                         {
                             render: "#DisplayCard",
+                            dependent: "features",
                             permissions: {read: "features"},
                             field: {
                                 name: "features",
@@ -231,6 +216,7 @@ export const vehicleCategorySheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "weekendDailyRate",
                             permissions: {read: "weekendDailyRate"},
                             field: {
                                 name: "weekendDailyRate",
@@ -251,6 +237,7 @@ export const vehicleCategorySheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "weeklyRate",
                             permissions: {read: "weeklyRate"},
                             field: {
                                 name: "weeklyRate",
@@ -271,6 +258,7 @@ export const vehicleCategorySheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "depositAmount",
                             permissions: {read: "depositAmount"},
                             field: {
                                 name: "depositAmount",
@@ -304,6 +292,7 @@ export const vehicleCategorySheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "crossBorderFee",
                             permissions: {read: "crossBorderFee"},
                             field: {
                                 name: "crossBorderFee",
@@ -338,6 +327,7 @@ export const vehicleCategorySheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "includedKmPerDay",
                             permissions: {read: "includedKmPerDay"},
                             field: {
                                 name: "includedKmPerDay",
@@ -351,6 +341,7 @@ export const vehicleCategorySheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "extraKmPrice",
                             permissions: {read: "extraKmPrice"},
                             field: {
                                 name: "extraKmPrice",
@@ -374,47 +365,60 @@ export const vehicleCategorySheetView: ViewConfig = {
             ],
         },
         {
-            render: "#SheetGroup",
-            props: {title: "rateSeasons"},
-            dependent: "rateSeasons",
-            permissions: {read: "rateSeasons"},
+            render: "#ReferencesViewModeScope",
+            props: {storageKey: "carRental.category.sheet.seasons.listDisplay", defaultMode: "compact"},
             children: [
                 {
-                    render: "#SheetEmbeddedItemsList",
+                    render: "#SheetGroup",
+                    props: {title: "rateSeasons", titleActions: "#ReferencesViewModeToggle"},
+                    dependent: "rateSeasons",
                     permissions: {read: "rateSeasons"},
-                    field: {
-                        name: "rateSeasons",
-                        widget: "#SheetEmbeddedItemsList",
-                        widgetProps: {
-                            cardColumns: 3,
-                            fields: [
+                    children: [
+                        {
+                            render: "div",
+                            props: {className: "rounded-lg bg-muted/30 border border-border/50"},
+                            children: [
                                 {
-                                    name: "startDate",
-                                    type: "text",
-                                    labelKey: "startDate",
-                                    className: "text-sm font-medium",
-                                },
-                                {
-                                    name: "endDate",
-                                    type: "text",
-                                    labelKey: "endDate",
-                                    className: "text-sm",
-                                },
-                                {
-                                    name: "dailyRate",
-                                    type: "text",
-                                    labelKey: "dailyRate",
-                                    className: "text-sm",
+                                    render: "#SheetEmbeddedItemsList",
+                                    permissions: {read: "rateSeasons"},
+                                    field: {
+                                        name: "rateSeasons",
+                                        widget: "#SheetEmbeddedItemsList",
+                                        widgetProps: {
+                                            pageSize: 6,
+                                            entityCards: true,
+                                            columns: 2,
+                                            fields: [
+                                                {
+                                                    name: "startDate",
+                                                    type: "text",
+                                                    format: "date",
+                                                    labelKey: "startDate",
+                                                    className: "text-sm font-medium",
+                                                },
+                                                {
+                                                    name: "endDate",
+                                                    type: "text",
+                                                    format: "date",
+                                                    labelKey: "endDate",
+                                                    className: "text-sm",
+                                                },
+                                                {
+                                                    name: "dailyRate",
+                                                    type: "text",
+                                                    currencyField: "currency",
+                                                    labelKey: "dailyRate",
+                                                    className: "text-sm",
+                                                },
+                                            ],
+                                            compactSummaryFields: ["startDate", "endDate", "dailyRate"],
+                                            compactSummaryJoinSeparator: " · ",
+                                        },
+                                    },
                                 },
                             ],
-                            compactSummaryFields: [
-                                "startDate",
-                                "endDate",
-                                "dailyRate",
-                            ],
-                            compactSummaryJoinSeparator: " · ",
                         },
-                    },
+                    ],
                 },
             ],
         },

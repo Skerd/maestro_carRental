@@ -111,6 +111,7 @@ export const vehicleInsuranceSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "premium",
                             permissions: {read: "premium"},
                             field: {
                                 name: "premium",
@@ -131,6 +132,7 @@ export const vehicleInsuranceSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "deductible",
                             permissions: {read: "deductible"},
                             field: {
                                 name: "deductible",
@@ -149,20 +151,6 @@ export const vehicleInsuranceSheetView: ViewConfig = {
                                 },
                             },
                         },
-                        {
-                            render: "#DisplayCard",
-                            permissions: {read: "status"},
-                            field: {
-                                name: "status",
-                                widget: "#DisplayCard",
-                                label: "status",
-                                widgetProps: {
-                                    icon: "#IconStatusChange",
-                                    type: "enum",
-                                    languageKeyCategory: "statusValues",
-                                },
-                            },
-                        },
                     ],
                 },
                 {
@@ -171,6 +159,7 @@ export const vehicleInsuranceSheetView: ViewConfig = {
                     children: [
                         {
                             render: "#DisplayCard",
+                            dependent: "notes",
                             permissions: {read: "notes"},
                             field: {
                                 name: "notes",
@@ -189,6 +178,7 @@ export const vehicleInsuranceSheetView: ViewConfig = {
         },
         {
             render: "#SheetGroup",
+            dependentAny: ["supersedes.policyNumber", "supersededBy.policyNumber"],
             props: {title: "renewalGroup"},
             permissions: {readAny: ["supersedes", "supersededBy"]},
             children: [
@@ -198,6 +188,7 @@ export const vehicleInsuranceSheetView: ViewConfig = {
                     children: [
                         {
                             render: "#DisplayCard",
+                            dependent: "supersedes.policyNumber",
                             permissions: {read: "supersedes"},
                             field: {
                                 name: "supersedes.policyNumber",
@@ -215,6 +206,7 @@ export const vehicleInsuranceSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "supersededBy.policyNumber",
                             permissions: {read: "supersededBy"},
                             field: {
                                 name: "supersededBy.policyNumber",

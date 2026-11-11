@@ -13,7 +13,8 @@ import {
 import {createVehicleFormSchema} from "armonia/src/modules/carRental/api/carRental/private/vehicle/createVehicle.form.validator";
 import {editVehicleFormSchema} from "armonia/src/modules/carRental/api/carRental/private/vehicle/editVehicle.form.validator";
 import {vehicleSelectFormSchema} from "armonia/src/modules/carRental/api/carRental/private/vehicle/vehicleSelect.form.validator";
-import Vehicle from "@carRentalModule/database/schemas/vehicle/vehicle";
+import Vehicle, {type IVehicle} from "@carRentalModule/database/schemas/vehicle/vehicle";
+import type {UserContext} from "@coreModule/utilities/types/types";
 import {vehicleService} from "@carRentalModule/database/schemas/vehicle/vehicle.service";
 import {vehicleToDTO, vehiclesToDTO} from "@carRentalModule/utilities/mappers/vehicle/vehicleMapper.dto";
 import {vehiclesToSelect} from "@carRentalModule/utilities/mappers/vehicle/vehicleMapper.select";
@@ -21,6 +22,12 @@ import {blockingReservationFilter, lockVehicle} from "@carRentalModule/utilities
 
 import {rentalReservationService} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation.service";
 import {withRentalCurrency} from "@carRentalModule/utilities/services/rentalCurrency";
+import {vehicleHub} from "@carRentalModule/utilities/services/vehicleHub";
+async function vehicleWithHub(doc: IVehicle, {company, actionUserCtx, languageCode}: {company: {_id: ObjectId}; actionUserCtx: UserContext; languageCode: string}) {
+    const [vehicle] = await withRentalCurrency([vehicleToDTO(doc)], company._id, languageCode);
+    return {...vehicle, ...(await vehicleHub(doc._id, {companyId: company._id, actionUserCtx, languageCode, currency: vehicle.currency}))};
+}
+
 const mediaUpload = mediaUploadMW({
     fields: {images: VEHICLE_IMAGES_MAX, videos: VEHICLE_VIDEOS_MAX},
     fieldMimeTypes: {
@@ -45,8 +52,10 @@ export const {router} = createCrudRouter({
     toDTOArray: vehiclesToDTO,
     // Every amount is in the rental currency (UX-07).
     enrichList: (docs, params: any) => withRentalCurrency(vehiclesToDTO(docs), params.company._id, params.languageCode),
-    enrichSingle: async (doc, params: any) => (await withRentalCurrency([vehicleToDTO(doc)], params.company._id, params.languageCode))[0],
-    enrichUpdate: async (doc, params: any) => (await withRentalCurrency([vehicleToDTO(doc)], params.company._id, params.languageCode))[0],
+    // The single read is the car's hub: its bookings, damages, services, papers, fines and blocks (UX-03); an edit
+    // returns it too, so the open sheet keeps its lists.
+    enrichSingle: (doc, params: any) => vehicleWithHub(doc, params),
+    enrichUpdate: (doc, params: any) => vehicleWithHub(doc, params),
     toSelect: vehiclesToSelect,
     selectSearchField: "plate",
     selectProjection: "_id plate make model",

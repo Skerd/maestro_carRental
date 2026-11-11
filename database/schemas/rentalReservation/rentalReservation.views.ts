@@ -30,28 +30,17 @@ export const rentalReservationSheetView: ViewConfig = {
                     children: [
                         {
                             render: "#DisplayCard",
+                            dependent: "needsTransfer",
                             permissions: {read: "needsTransfer"},
                             field: {
                                 name: "needsTransfer",
                                 widget: "#DisplayCard",
                                 label: "needsTransfer",
+                                // Shown only when a car must be moved before pickup, as an alert (UX-03).
                                 widgetProps: {
                                     icon: "#IconTruckDelivery",
                                     type: "boolean",
-                                },
-                            },
-                        },
-                        {
-                            render: "#DisplayCard",
-                            permissions: {read: "status"},
-                            field: {
-                                name: "status",
-                                widget: "#DisplayCard",
-                                label: "status",
-                                widgetProps: {
-                                    icon: "#IconStatusChange",
-                                    type: "enum",
-                                    languageKeyCategory: "statusValues",
+                                    variant: "warning",
                                 },
                             },
                         },
@@ -71,6 +60,7 @@ export const rentalReservationSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "paymentChoice",
                             permissions: {read: "paymentChoice"},
                             field: {
                                 name: "paymentChoice",
@@ -101,6 +91,7 @@ export const rentalReservationSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "vehicle.plate",
                             permissions: {read: "vehicle"},
                             field: {
                                 name: "vehicle.plate",
@@ -161,6 +152,7 @@ export const rentalReservationSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "holdExpiresAt",
                             permissions: {read: "holdExpiresAt"},
                             field: {
                                 name: "holdExpiresAt",
@@ -204,6 +196,7 @@ export const rentalReservationSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "customer.name",
                             permissions: {read: "customer"},
                             field: {
                                 name: "customer.name",
@@ -220,6 +213,7 @@ export const rentalReservationSheetView: ViewConfig = {
                     children: [
                         {
                             render: "#DisplayCard",
+                            dependent: "notes",
                             permissions: {read: "notes"},
                             field: {
                                 name: "notes",
@@ -230,59 +224,6 @@ export const rentalReservationSheetView: ViewConfig = {
                                     expandable: true,
                                     maxLength: 250,
                                 },
-                            },
-                        },
-                    ],
-                },
-            ],
-        },
-        {
-            render: "#SheetGroup",
-            props: {title: "contact"},
-            permissions: {read: "contact"},
-            children: [
-                {
-                    render: "#SheetGrid",
-                    props: {columns: 2},
-                    children: [
-                        {
-                            render: "#DisplayCard",
-                            permissions: {read: "contact"},
-                            field: {
-                                name: "contact.firstName",
-                                widget: "#DisplayCard",
-                                label: "firstName",
-                                widgetProps: {icon: "#IconUser"},
-                            },
-                        },
-                        {
-                            render: "#DisplayCard",
-                            permissions: {read: "contact"},
-                            field: {
-                                name: "contact.lastName",
-                                widget: "#DisplayCard",
-                                label: "lastName",
-                                widgetProps: {icon: "#IconUser"},
-                            },
-                        },
-                        {
-                            render: "#DisplayCard",
-                            permissions: {read: "contact"},
-                            field: {
-                                name: "contact.email",
-                                widget: "#DisplayCard",
-                                label: "email",
-                                widgetProps: {icon: "#IconMail"},
-                            },
-                        },
-                        {
-                            render: "#DisplayCard",
-                            permissions: {read: "contact"},
-                            field: {
-                                name: "contact.phone",
-                                widget: "#DisplayCard",
-                                label: "phone",
-                                widgetProps: {icon: "#Phone"},
                             },
                         },
                     ],
@@ -393,109 +334,68 @@ export const rentalReservationSheetView: ViewConfig = {
                         },
                     ],
                 },
-                {
-                    render: "#SheetEmbeddedItemsList",
-                    permissions: {read: "pricing"},
-                    field: {
-                        name: "pricing.lines",
-                        widget: "#SheetEmbeddedItemsList",
-                        widgetProps: {
-                            cardColumns: 2,
-                            fields: [
-                                {
-                                    name: "label",
-                                    type: "text",
-                                    labelKey: "lineLabel",
-                                    className: "text-sm font-medium",
-                                },
-                                {
-                                    name: "quantity",
-                                    type: "text",
-                                    labelKey: "quantity",
-                                    className: "text-sm",
-                                },
-                                {
-                                    name: "unitPrice",
-                                    type: "text",
-                                    labelKey: "unitPrice",
-                                    className: "text-sm",
-                                },
-                                {
-                                    name: "total",
-                                    type: "text",
-                                    labelKey: "total",
-                                    className: "text-sm",
-                                },
-                            ],
-                            compactSummaryFields: ["label", "total"],
-                            compactSummaryJoinSeparator: " · ",
-                        },
-                    },
-                },
             ],
         },
         {
-            render: "#SheetGroup",
-            props: {title: "drivers"},
-            permissions: {read: "drivers"},
+            render: "#ReferencesViewModeScope",
+            props: {storageKey: "carRental.reservation.sheet.lines.listDisplay", defaultMode: "compact"},
             children: [
                 {
-                    render: "#SheetEmbeddedItemsList",
-                    permissions: {read: "drivers"},
-                    field: {
-                        name: "drivers",
-                        widget: "#SheetEmbeddedItemsList",
-                        widgetProps: {
-                            cardColumns: 2,
-                            fields: [
+                    render: "#SheetGroup",
+                    dependent: "pricing.lines",
+                    props: {title: "priceLines", titleActions: "#ReferencesViewModeToggle"},
+                    permissions: {read: "pricing"},
+                    children: [
+                        {
+                            render: "div",
+                            props: {className: "rounded-lg bg-muted/30 border border-border/50"},
+                            children: [
                                 {
-                                    name: "role",
-                                    type: "text",
-                                    languageKeyCategory: "driverRole",
-                                    labelKey: "role",
-                                    className: "text-sm font-medium",
-                                },
-                                {
-                                    name: "firstName",
-                                    type: "text",
-                                    labelKey: "firstName",
-                                    className: "text-sm",
-                                },
-                                {
-                                    name: "lastName",
-                                    type: "text",
-                                    labelKey: "lastName",
-                                    className: "text-sm",
-                                },
-                                {
-                                    name: "birthDate",
-                                    type: "text",
-                                    labelKey: "birthDate",
-                                    className: "text-sm",
-                                },
-                                {
-                                    name: "licenseNumber",
-                                    type: "text",
-                                    labelKey: "licenseNumber",
-                                    className: "text-sm",
-                                },
-                                {
-                                    name: "licenseCountry",
-                                    type: "text",
-                                    labelKey: "licenseCountry",
-                                    className: "text-sm",
-                                },
-                                {
-                                    name: "licenseExpiresAt",
-                                    type: "text",
-                                    labelKey: "licenseExpiresAt",
-                                    className: "text-sm",
+                                    render: "#SheetEmbeddedItemsList",
+                                    permissions: {read: "pricing"},
+                                    field: {
+                                        name: "pricing.lines",
+                                        widget: "#SheetEmbeddedItemsList",
+                                        widgetProps: {
+                                            pageSize: 6,
+                                            entityCards: true,
+                                            columns: 2,
+                                            fields: [
+                                                {
+                                                    name: "label",
+                                                    type: "text",
+                                                    labelKey: "lineLabel",
+                                                    className: "text-sm font-medium",
+                                                },
+                                                {
+                                                    name: "quantity",
+                                                    type: "text",
+                                                    labelKey: "quantity",
+                                                    className: "text-sm",
+                                                },
+                                                {
+                                                    name: "unitPrice",
+                                                    type: "text",
+                                                    labelKey: "unitPrice",
+                                                    className: "text-sm",
+                                                    currencyField: "currency",
+                                                },
+                                                {
+                                                    name: "total",
+                                                    type: "text",
+                                                    labelKey: "total",
+                                                    className: "text-sm",
+                                                    currencyField: "currency",
+                                                },
+                                            ],
+                                            compactSummaryFields: ["label", "total"],
+                                            compactSummaryJoinSeparator: " · ",
+                                        },
+                                    },
                                 },
                             ],
-                            compactSummaryFields: ["firstName", "lastName"],
-                            compactSummaryJoinSeparator: " ",
                         },
-                    },
+                    ],
                 },
             ],
         },
@@ -510,6 +410,7 @@ export const rentalReservationSheetView: ViewConfig = {
                     children: [
                         {
                             render: "#DisplayCard",
+                            dependent: "deposit.method",
                             permissions: {read: "deposit"},
                             field: {
                                 name: "deposit.method",
@@ -524,6 +425,7 @@ export const rentalReservationSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "deposit.status",
                             permissions: {read: "deposit"},
                             field: {
                                 name: "deposit.status",
@@ -538,6 +440,7 @@ export const rentalReservationSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "deposit.amount",
                             permissions: {read: "deposit"},
                             field: {
                                 name: "deposit.amount",
@@ -558,6 +461,7 @@ export const rentalReservationSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "deposit.capturedAmount",
                             permissions: {read: "deposit"},
                             field: {
                                 name: "deposit.capturedAmount",
@@ -582,6 +486,141 @@ export const rentalReservationSheetView: ViewConfig = {
         },
         {
             render: "#SheetGroup",
+            props: {title: "contact"},
+            permissions: {read: "contact"},
+            children: [
+                {
+                    render: "#SheetGrid",
+                    props: {columns: 2},
+                    children: [
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "contact"},
+                            field: {
+                                name: "contact.firstName",
+                                widget: "#DisplayCard",
+                                label: "firstName",
+                                widgetProps: {icon: "#IconUser"},
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "contact"},
+                            field: {
+                                name: "contact.lastName",
+                                widget: "#DisplayCard",
+                                label: "lastName",
+                                widgetProps: {icon: "#IconUser"},
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "contact"},
+                            field: {
+                                name: "contact.email",
+                                widget: "#DisplayCard",
+                                label: "email",
+                                widgetProps: {icon: "#IconMail"},
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "contact"},
+                            field: {
+                                name: "contact.phone",
+                                widget: "#DisplayCard",
+                                label: "phone",
+                                widgetProps: {icon: "#Phone"},
+                            },
+                        },
+                    ],
+                },
+            ],
+        },
+        {
+            render: "#ReferencesViewModeScope",
+            props: {storageKey: "carRental.reservation.sheet.drivers.listDisplay", defaultMode: "cards"},
+            children: [
+                {
+                    render: "#SheetGroup",
+                    dependent: "drivers",
+                    props: {title: "drivers", titleActions: "#ReferencesViewModeToggle"},
+                    permissions: {read: "drivers"},
+                    children: [
+                        {
+                            render: "div",
+                            props: {className: "rounded-lg bg-muted/30 border border-border/50"},
+                            children: [
+                                {
+                                    render: "#SheetEmbeddedItemsList",
+                                    permissions: {read: "drivers"},
+                                    field: {
+                                        name: "drivers",
+                                        widget: "#SheetEmbeddedItemsList",
+                                        widgetProps: {
+                                            pageSize: 6,
+                                            entityCards: true,
+                                            columns: 2,
+                                            fields: [
+                                                {
+                                                    name: "role",
+                                                    type: "text",
+                                                    languageKeyCategory: "driverRole",
+                                                    labelKey: "role",
+                                                    className: "text-sm font-medium",
+                                                },
+                                                {
+                                                    name: "firstName",
+                                                    type: "text",
+                                                    labelKey: "firstName",
+                                                    className: "text-sm",
+                                                },
+                                                {
+                                                    name: "lastName",
+                                                    type: "text",
+                                                    labelKey: "lastName",
+                                                    className: "text-sm",
+                                                },
+                                                {
+                                                    name: "birthDate",
+                                                    type: "text",
+                                                    format: "date",
+                                                    labelKey: "birthDate",
+                                                    className: "text-sm",
+                                                },
+                                                {
+                                                    name: "licenseNumber",
+                                                    type: "text",
+                                                    labelKey: "licenseNumber",
+                                                    className: "text-sm",
+                                                },
+                                                {
+                                                    name: "licenseCountry",
+                                                    type: "text",
+                                                    labelKey: "licenseCountry",
+                                                    className: "text-sm",
+                                                },
+                                                {
+                                                    name: "licenseExpiresAt",
+                                                    type: "text",
+                                                    format: "date",
+                                                    labelKey: "licenseExpiresAt",
+                                                    className: "text-sm",
+                                                },
+                                            ],
+                                            compactSummaryFields: ["firstName", "lastName", "role"],
+                                            compactSummaryJoinSeparator: " ",
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+        {
+            render: "#SheetGroup",
             props: {title: "inspection", defaultOpen: false},
             dependent: "handover",
             children: [
@@ -591,6 +630,7 @@ export const rentalReservationSheetView: ViewConfig = {
                     children: [
                         {
                             render: "#DisplayCard",
+                            dependent: "handover.odometerKm",
                             permissions: {read: "handover"},
                             field: {
                                 name: "handover.odometerKm",
@@ -604,6 +644,7 @@ export const rentalReservationSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "handover.fuelLevel",
                             permissions: {read: "handover"},
                             field: {
                                 name: "handover.fuelLevel",
@@ -618,6 +659,7 @@ export const rentalReservationSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "returnInfo.odometerKm",
                             permissions: {read: "returnInfo"},
                             field: {
                                 name: "returnInfo.odometerKm",
@@ -631,6 +673,7 @@ export const rentalReservationSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "returnInfo.fuelLevel",
                             permissions: {read: "returnInfo"},
                             field: {
                                 name: "returnInfo.fuelLevel",
@@ -645,6 +688,7 @@ export const rentalReservationSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "agreement.signerName",
                             permissions: {read: "agreement"},
                             field: {
                                 name: "agreement.signerName",
@@ -655,6 +699,7 @@ export const rentalReservationSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "agreement.signedAt",
                             permissions: {read: "agreement"},
                             field: {
                                 name: "agreement.signedAt",
@@ -689,45 +734,60 @@ export const rentalReservationSheetView: ViewConfig = {
             ],
         },
         {
-            render: "#SheetGroup",
-            props: {title: "timeline", defaultOpen: false},
-            permissions: {read: "timeline"},
+            render: "#ReferencesViewModeScope",
+            props: {storageKey: "carRental.reservation.sheet.timeline.listDisplay", defaultMode: "compact"},
             children: [
                 {
-                    render: "#SheetEmbeddedItemsList",
+                    render: "#SheetGroup",
+                    dependent: "timeline",
+                    props: {title: "timeline", titleActions: "#ReferencesViewModeToggle", defaultOpen: false},
                     permissions: {read: "timeline"},
-                    field: {
-                        name: "timeline",
-                        widget: "#SheetEmbeddedItemsList",
-                        widgetProps: {
-                            cardColumns: 1,
-                            sortField: "at",
-                            fields: [
+                    children: [
+                        {
+                            render: "div",
+                            props: {className: "rounded-lg bg-muted/30 border border-border/50"},
+                            children: [
                                 {
-                                    name: "event",
-                                    type: "text",
-                                    languageKeyCategory: "timelineEvent",
-                                    labelKey: "event",
-                                    className: "text-sm font-medium",
-                                },
-                                {
-                                    name: "at",
-                                    type: "text",
-                                    format: "dateTime",
-                                    labelKey: "at",
-                                    className: "text-sm",
-                                },
-                                {
-                                    name: "note",
-                                    type: "text",
-                                    labelKey: "note",
-                                    className: "text-sm",
+                                    render: "#SheetEmbeddedItemsList",
+                                    permissions: {read: "timeline"},
+                                    field: {
+                                        name: "timeline",
+                                        widget: "#SheetEmbeddedItemsList",
+                                        widgetProps: {
+                                            pageSize: 6,
+                                            entityCards: true,
+                                            columns: 1,
+                                            sortField: "at",
+                                            fields: [
+                                                {
+                                                    name: "event",
+                                                    type: "text",
+                                                    languageKeyCategory: "timelineEvent",
+                                                    labelKey: "event",
+                                                    className: "text-sm font-medium",
+                                                },
+                                                {
+                                                    name: "at",
+                                                    type: "text",
+                                                    format: "dateTime",
+                                                    labelKey: "at",
+                                                    className: "text-sm",
+                                                },
+                                                {
+                                                    name: "note",
+                                                    type: "text",
+                                                    labelKey: "note",
+                                                    className: "text-sm",
+                                                },
+                                            ],
+                                            compactSummaryFields: ["event", "note", "at"],
+                                            compactSummaryJoinSeparator: " · ",
+                                        },
+                                    },
                                 },
                             ],
-                            compactSummaryFields: ["event", "at"],
-                            compactSummaryJoinSeparator: " · ",
                         },
-                    },
+                    ],
                 },
             ],
         },

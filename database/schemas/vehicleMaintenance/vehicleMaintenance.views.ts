@@ -63,20 +63,7 @@ export const vehicleMaintenanceSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
-                            permissions: {read: "status"},
-                            field: {
-                                name: "status",
-                                widget: "#DisplayCard",
-                                label: "status",
-                                widgetProps: {
-                                    icon: "#IconStatusChange",
-                                    type: "enum",
-                                    languageKeyCategory: "statusValues",
-                                },
-                            },
-                        },
-                        {
-                            render: "#DisplayCard",
+                            dependent: "provider",
                             permissions: {read: "provider"},
                             field: {
                                 name: "provider",
@@ -101,6 +88,7 @@ export const vehicleMaintenanceSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "readyAt",
                             permissions: {read: "readyAt"},
                             field: {
                                 name: "readyAt",
@@ -108,13 +96,13 @@ export const vehicleMaintenanceSheetView: ViewConfig = {
                                 label: "readyAt",
                                 widgetProps: {
                                     icon: "#IconCalendarCheck",
-                                    format: "date",
-                                    type: "date",
+                                    type: "dateTime",
                                 },
                             },
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "odometerKm",
                             permissions: {read: "odometerKm"},
                             field: {
                                 name: "odometerKm",
@@ -128,6 +116,7 @@ export const vehicleMaintenanceSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "cost",
                             permissions: {read: "cost"},
                             field: {
                                 name: "cost",
@@ -154,6 +143,7 @@ export const vehicleMaintenanceSheetView: ViewConfig = {
                     children: [
                         {
                             render: "#DisplayCard",
+                            dependent: "description",
                             permissions: {read: "description"},
                             field: {
                                 name: "description",
@@ -172,6 +162,7 @@ export const vehicleMaintenanceSheetView: ViewConfig = {
         },
         {
             render: "#SheetGroup",
+            dependentAny: ["nextDueAt", "nextDueKm"],
             props: {title: "nextServiceGroup"},
             permissions: {readAny: ["nextDueAt", "nextDueKm"]},
             children: [
@@ -181,6 +172,7 @@ export const vehicleMaintenanceSheetView: ViewConfig = {
                     children: [
                         {
                             render: "#DisplayCard",
+                            dependent: "nextDueAt",
                             permissions: {read: "nextDueAt"},
                             field: {
                                 name: "nextDueAt",
@@ -195,6 +187,7 @@ export const vehicleMaintenanceSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "nextDueKm",
                             permissions: {read: "nextDueKm"},
                             field: {
                                 name: "nextDueKm",
@@ -245,7 +238,9 @@ export const vehicleMaintenanceSheetView: ViewConfig = {
                                             compactRow: {
                                                 icon: "#IconCarCrash",
                                                 label: "damages",
-                                                valuePath: ["description"],
+                                                // Where and how bad, in words, then what staff noted (UX-09).
+                                                valuePath: ["area", "severity", "description"],
+                                                valueLanguageKeyCategories: ["areaValues", "severityValues", null],
                                                 joinSeparator: " · ",
                                                 linkedSheetModel: "vehicledamages",
                                                 linkedSheetWidget:

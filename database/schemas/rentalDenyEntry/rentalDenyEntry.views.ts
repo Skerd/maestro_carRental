@@ -29,6 +29,7 @@ export const rentalDenyEntrySheetView: ViewConfig = {
                     children: [
                         {
                             render: "#DisplayCard",
+                            dependent: "email",
                             permissions: {read: "email"},
                             field: {
                                 name: "email",
@@ -39,6 +40,7 @@ export const rentalDenyEntrySheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "licenseNumber",
                             permissions: {read: "licenseNumber"},
                             field: {
                                 name: "licenseNumber",

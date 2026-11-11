@@ -69,6 +69,7 @@ export const vehicleDamageSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "reservation.number",
                             permissions: {read: "reservation"},
                             field: {
                                 name: "reservation.number",
@@ -125,20 +126,6 @@ export const vehicleDamageSheetView: ViewConfig = {
                                 },
                             },
                         },
-                        {
-                            render: "#DisplayCard",
-                            permissions: {read: "status"},
-                            field: {
-                                name: "status",
-                                widget: "#DisplayCard",
-                                label: "status",
-                                widgetProps: {
-                                    icon: "#IconStatusChange",
-                                    type: "enum",
-                                    languageKeyCategory: "statusValues",
-                                },
-                            },
-                        },
                     ],
                 },
                 {
@@ -165,6 +152,7 @@ export const vehicleDamageSheetView: ViewConfig = {
         },
         {
             render: "#SheetGroup",
+            dependentAny: ["estimatedCost", "repair.status", "repair.cost", "repairedAt"],
             props: {title: "repairGroup"},
             permissions: {readAny: ["estimatedCost", "repair", "repairedAt"]},
             children: [
@@ -174,6 +162,7 @@ export const vehicleDamageSheetView: ViewConfig = {
                     children: [
                         {
                             render: "#DisplayCard",
+                            dependent: "estimatedCost",
                             permissions: {read: "estimatedCost"},
                             field: {
                                 name: "estimatedCost",
@@ -194,6 +183,7 @@ export const vehicleDamageSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "repair.status",
                             permissions: {read: "repair"},
                             field: {
                                 name: "repair.status",
@@ -213,6 +203,7 @@ export const vehicleDamageSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "repair.cost",
                             permissions: {read: "repair"},
                             field: {
                                 name: "repair.cost",
@@ -233,6 +224,7 @@ export const vehicleDamageSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "repairedAt",
                             permissions: {read: "repairedAt"},
                             field: {
                                 name: "repairedAt",
@@ -250,6 +242,7 @@ export const vehicleDamageSheetView: ViewConfig = {
         },
         {
             render: "#SheetGroup",
+            dependentAny: ["chargedAmount", "chargedAt", "insurance.policyNumber", "claimNumber", "insurerPaidAmount"],
             props: {title: "recoveryGroup"},
             permissions: {
                 readAny: [
@@ -267,6 +260,7 @@ export const vehicleDamageSheetView: ViewConfig = {
                     children: [
                         {
                             render: "#DisplayCard",
+                            dependent: "chargedAmount",
                             permissions: {read: "chargedAmount"},
                             field: {
                                 name: "chargedAmount",
@@ -287,6 +281,7 @@ export const vehicleDamageSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "chargedAt",
                             permissions: {read: "chargedAt"},
                             field: {
                                 name: "chargedAt",
@@ -300,6 +295,7 @@ export const vehicleDamageSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "insurance.policyNumber",
                             permissions: {read: "insurance"},
                             field: {
                                 name: "insurance.policyNumber",
@@ -317,6 +313,7 @@ export const vehicleDamageSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "claimNumber",
                             permissions: {read: "claimNumber"},
                             field: {
                                 name: "claimNumber",
@@ -327,6 +324,7 @@ export const vehicleDamageSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "insurerPaidAmount",
                             permissions: {read: "insurerPaidAmount"},
                             field: {
                                 name: "insurerPaidAmount",

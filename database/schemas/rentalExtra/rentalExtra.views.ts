@@ -86,6 +86,7 @@ export const rentalExtraSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "excessAmount",
                             permissions: {read: "excessAmount"},
                             field: {
                                 name: "excessAmount",
@@ -106,6 +107,7 @@ export const rentalExtraSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "depositAmount",
                             permissions: {read: "depositAmount"},
                             field: {
                                 name: "depositAmount",
@@ -145,6 +147,7 @@ export const rentalExtraSheetView: ViewConfig = {
                     children: [
                         {
                             render: "#DisplayCard",
+                            dependent: "description",
                             permissions: {read: "description"},
                             field: {
                                 name: "description",

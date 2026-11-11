@@ -101,6 +101,7 @@ export const vehicleTransferSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "driver.name",
                             permissions: {read: "driver"},
                             field: {
                                 name: "driver.name",
@@ -111,20 +112,7 @@ export const vehicleTransferSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
-                            permissions: {read: "status"},
-                            field: {
-                                name: "status",
-                                widget: "#DisplayCard",
-                                label: "status",
-                                widgetProps: {
-                                    icon: "#IconStatusChange",
-                                    type: "enum",
-                                    languageKeyCategory: "statusValues",
-                                },
-                            },
-                        },
-                        {
-                            render: "#DisplayCard",
+                            dependent: "odometerKm",
                             permissions: {read: "odometerKm"},
                             field: {
                                 name: "odometerKm",
@@ -144,6 +132,7 @@ export const vehicleTransferSheetView: ViewConfig = {
                     children: [
                         {
                             render: "#DisplayCard",
+                            dependent: "notes",
                             permissions: {read: "notes"},
                             field: {
                                 name: "notes",

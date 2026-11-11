@@ -60,9 +60,10 @@ function agreementToDTO(agreement: IRentalReservation["agreement"]) {
 
 function pricingToDTO(reservation: IRentalReservation) {
     const {pricing} = reservation;
+    const currency = mapSnippet<CurrencySimple>()(pricing.currency, CurrencySimpleSnippet);
     return {
         rentalDays: pricing.rentalDays,
-        currency: mapSnippet<CurrencySimple>()(pricing.currency, CurrencySimpleSnippet),
+        currency,
         lines: pricing.lines.map(({label, kind, code, quantity, unitPrice, total}) => ({
             label,
             kind,
@@ -70,6 +71,8 @@ function pricingToDTO(reservation: IRentalReservation) {
             quantity,
             unitPrice: decimalToNumber(unitPrice) ?? 0,
             total: decimalToNumber(total) ?? 0,
+            // Each line names the booking's currency so the sheet shows "€ 45.00", not "45" (UX-07).
+            currency,
         })),
         subtotal: decimalToNumber(pricing.subtotal) ?? 0,
         vatRate: pricing.vatRate,

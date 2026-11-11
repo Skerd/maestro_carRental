@@ -90,26 +90,13 @@ export const vehicleFineSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "place",
                             permissions: {read: "place"},
                             field: {
                                 name: "place",
                                 widget: "#DisplayCard",
                                 label: "place",
                                 widgetProps: {icon: "#IconMapPin"},
-                            },
-                        },
-                        {
-                            render: "#DisplayCard",
-                            permissions: {read: "status"},
-                            field: {
-                                name: "status",
-                                widget: "#DisplayCard",
-                                label: "status",
-                                widgetProps: {
-                                    icon: "#IconStatusChange",
-                                    type: "enum",
-                                    languageKeyCategory: "statusValues",
-                                },
                             },
                         },
                     ],
@@ -120,6 +107,7 @@ export const vehicleFineSheetView: ViewConfig = {
                     children: [
                         {
                             render: "#DisplayCard",
+                            dependent: "notes",
                             permissions: {read: "notes"},
                             field: {
                                 name: "notes",
@@ -177,6 +165,7 @@ export const vehicleFineSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "dueDate",
                             permissions: {read: "dueDate"},
                             field: {
                                 name: "dueDate",
@@ -194,6 +183,7 @@ export const vehicleFineSheetView: ViewConfig = {
         },
         {
             render: "#SheetGroup",
+            dependentAny: ["driverName", "reservation.number", "transfer.status", "chargedAmount"],
             props: {title: "driverGroup"},
             permissions: {
                 readAny: [
@@ -210,6 +200,7 @@ export const vehicleFineSheetView: ViewConfig = {
                     children: [
                         {
                             render: "#DisplayCard",
+                            dependent: "driverName",
                             permissions: {read: "driverName"},
                             field: {
                                 name: "driverName",
@@ -220,6 +211,7 @@ export const vehicleFineSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "reservation.number",
                             permissions: {read: "reservation"},
                             field: {
                                 name: "reservation.number",
@@ -237,6 +229,7 @@ export const vehicleFineSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "transfer.status",
                             permissions: {read: "transfer"},
                             field: {
                                 name: "transfer.status",
@@ -256,6 +249,7 @@ export const vehicleFineSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "chargedAmount",
                             permissions: {read: "chargedAmount"},
                             field: {
                                 name: "chargedAmount",
@@ -280,6 +274,7 @@ export const vehicleFineSheetView: ViewConfig = {
         },
         {
             render: "#SheetGroup",
+            dependentAny: ["paidAt", "paidAmount", "paymentReference"],
             props: {title: "paymentGroup"},
             permissions: {
                 readAny: ["paidAt", "paidAmount", "paymentReference"],
@@ -291,6 +286,7 @@ export const vehicleFineSheetView: ViewConfig = {
                     children: [
                         {
                             render: "#DisplayCard",
+                            dependent: "paidAt",
                             permissions: {read: "paidAt"},
                             field: {
                                 name: "paidAt",
@@ -304,6 +300,7 @@ export const vehicleFineSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "paidAmount",
                             permissions: {read: "paidAmount"},
                             field: {
                                 name: "paidAmount",
@@ -324,6 +321,7 @@ export const vehicleFineSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "paymentReference",
                             permissions: {read: "paymentReference"},
                             field: {
                                 name: "paymentReference",

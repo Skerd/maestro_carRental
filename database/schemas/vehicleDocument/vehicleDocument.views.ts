@@ -64,6 +64,7 @@ export const vehicleDocumentSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "documentNumber",
                             permissions: {read: "documentNumber"},
                             field: {
                                 name: "documentNumber",
@@ -74,6 +75,7 @@ export const vehicleDocumentSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "issuer",
                             permissions: {read: "issuer"},
                             field: {
                                 name: "issuer",
@@ -84,6 +86,7 @@ export const vehicleDocumentSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "issuedAt",
                             permissions: {read: "issuedAt"},
                             field: {
                                 name: "issuedAt",
@@ -98,6 +101,7 @@ export const vehicleDocumentSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "expiresAt",
                             permissions: {read: "expiresAt"},
                             field: {
                                 name: "expiresAt",
@@ -110,20 +114,6 @@ export const vehicleDocumentSheetView: ViewConfig = {
                                 },
                             },
                         },
-                        {
-                            render: "#DisplayCard",
-                            permissions: {read: "status"},
-                            field: {
-                                name: "status",
-                                widget: "#DisplayCard",
-                                label: "status",
-                                widgetProps: {
-                                    icon: "#IconStatusChange",
-                                    type: "enum",
-                                    languageKeyCategory: "statusValues",
-                                },
-                            },
-                        },
                     ],
                 },
                 {
@@ -132,6 +122,7 @@ export const vehicleDocumentSheetView: ViewConfig = {
                     children: [
                         {
                             render: "#DisplayCard",
+                            dependent: "notes",
                             permissions: {read: "notes"},
                             field: {
                                 name: "notes",
@@ -150,6 +141,7 @@ export const vehicleDocumentSheetView: ViewConfig = {
         },
         {
             render: "#SheetGroup",
+            dependentAny: ["supersedes.documentNumber", "supersededBy.documentNumber"],
             props: {title: "renewalGroup"},
             permissions: {readAny: ["supersedes", "supersededBy"]},
             children: [
@@ -159,6 +151,7 @@ export const vehicleDocumentSheetView: ViewConfig = {
                     children: [
                         {
                             render: "#DisplayCard",
+                            dependent: "supersedes.documentNumber",
                             permissions: {read: "supersedes"},
                             field: {
                                 name: "supersedes.documentNumber",
@@ -176,6 +169,7 @@ export const vehicleDocumentSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "supersededBy.documentNumber",
                             permissions: {read: "supersededBy"},
                             field: {
                                 name: "supersededBy.documentNumber",

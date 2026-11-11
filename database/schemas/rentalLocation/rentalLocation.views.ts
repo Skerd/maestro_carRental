@@ -62,6 +62,7 @@ export const rentalLocationSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "phone",
                             permissions: {read: "phone"},
                             field: {
                                 name: "phone",
@@ -72,6 +73,7 @@ export const rentalLocationSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "email",
                             permissions: {read: "email"},
                             field: {
                                 name: "email",
@@ -108,6 +110,7 @@ export const rentalLocationSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "oneWayFee",
                             permissions: {read: "oneWayFee"},
                             field: {
                                 name: "oneWayFee",
@@ -155,6 +158,7 @@ export const rentalLocationSheetView: ViewConfig = {
                     children: [
                         {
                             render: "#DisplayCard",
+                            dependent: "address.street",
                             permissions: {read: "address"},
                             field: {
                                 name: "address.street",
@@ -165,6 +169,7 @@ export const rentalLocationSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "address.postalCode",
                             permissions: {read: "address"},
                             field: {
                                 name: "address.postalCode",
@@ -175,6 +180,7 @@ export const rentalLocationSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "address.city.name",
                             permissions: {read: "address"},
                             field: {
                                 name: "address.city.name",
@@ -185,6 +191,7 @@ export const rentalLocationSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "address.country.name",
                             permissions: {read: "address"},
                             field: {
                                 name: "address.country.name",
@@ -204,77 +211,59 @@ export const rentalLocationSheetView: ViewConfig = {
             permissions: {read: "openingHours"},
             children: [
                 {
-                    render: "#SheetEmbeddedItemsList",
+                    render: "#WeeklyHours",
                     permissions: {read: "openingHours"},
-                    field: {
-                        name: "openingHours",
-                        widget: "#SheetEmbeddedItemsList",
-                        widgetProps: {
-                            cardColumns: 3,
-                            fields: [
-                                {
-                                    name: "dayOfWeek",
-                                    type: "text",
-                                    languageKeyCategory: "weekday",
-                                    labelKey: "dayOfWeek",
-                                    className: "text-sm font-medium",
-                                },
-                                {
-                                    name: "startTime",
-                                    type: "text",
-                                    labelKey: "startTime",
-                                    className: "text-sm",
-                                },
-                                {
-                                    name: "endTime",
-                                    type: "text",
-                                    labelKey: "endTime",
-                                    className: "text-sm",
-                                },
-                            ],
-                            compactSummaryFields: [
-                                "dayOfWeek",
-                                "startTime",
-                                "endTime",
-                            ],
-                            compactSummaryJoinSeparator: " - ",
-                        },
-                    },
+                    field: {name: "openingHours", widget: "#WeeklyHours", widgetProps: {closedKey: "closed"}},
                 },
             ],
         },
         {
-            render: "#SheetGroup",
-            props: {title: "closures"},
-            dependent: "closures",
-            permissions: {read: "closures"},
+            render: "#ReferencesViewModeScope",
+            props: {storageKey: "carRental.location.sheet.closures.listDisplay", defaultMode: "compact"},
             children: [
                 {
-                    render: "#SheetEmbeddedItemsList",
+                    render: "#SheetGroup",
+                    props: {title: "closures", titleActions: "#ReferencesViewModeToggle"},
+                    dependent: "closures",
                     permissions: {read: "closures"},
-                    field: {
-                        name: "closures",
-                        widget: "#SheetEmbeddedItemsList",
-                        widgetProps: {
-                            cardColumns: 3,
-                            fields: [
+                    children: [
+                        {
+                            render: "div",
+                            props: {className: "rounded-lg bg-muted/30 border border-border/50"},
+                            children: [
                                 {
-                                    name: "date",
-                                    type: "text",
-                                    labelKey: "closureDate",
-                                    className: "text-sm font-medium",
-                                },
-                                {
-                                    name: "reason",
-                                    type: "text",
-                                    labelKey: "closureReason",
-                                    className: "text-sm",
+                                    render: "#SheetEmbeddedItemsList",
+                                    permissions: {read: "closures"},
+                                    field: {
+                                        name: "closures",
+                                        widget: "#SheetEmbeddedItemsList",
+                                        widgetProps: {
+                                            pageSize: 6,
+                                            entityCards: true,
+                                            columns: 2,
+                                            fields: [
+                                                {
+                                                    name: "date",
+                                                    type: "text",
+                                                    format: "date",
+                                                    labelKey: "closureDate",
+                                                    className: "text-sm font-medium",
+                                                },
+                                                {
+                                                    name: "reason",
+                                                    type: "text",
+                                                    labelKey: "closureReason",
+                                                    className: "text-sm",
+                                                },
+                                            ],
+                                            compactSummaryFields: ["date", "reason"],
+                                            compactSummaryJoinSeparator: " · ",
+                                        },
+                                    },
                                 },
                             ],
-                            compactSummaryFields: ["date", "reason"],
-                            compactSummaryJoinSeparator: " · ",
                         },
-                    },
+                    ],
                 },
             ],
         },

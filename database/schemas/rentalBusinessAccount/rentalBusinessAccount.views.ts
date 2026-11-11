@@ -64,6 +64,7 @@ export const rentalBusinessAccountSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "address",
                             permissions: {read: "address"},
                             field: {
                                 name: "address",
@@ -89,6 +90,7 @@ export const rentalBusinessAccountSheetView: ViewConfig = {
                     children: [
                         {
                             render: "#DisplayCard",
+                            dependent: "discountPercent",
                             permissions: {read: "discountPercent"},
                             field: {
                                 name: "discountPercent",
@@ -102,6 +104,7 @@ export const rentalBusinessAccountSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "paymentTermsDays",
                             permissions: {read: "paymentTermsDays"},
                             field: {
                                 name: "paymentTermsDays",
@@ -132,6 +135,7 @@ export const rentalBusinessAccountSheetView: ViewConfig = {
         },
         {
             render: "#SheetGroup",
+            dependentAny: ["notes"],
             props: {title: "notesGroup"},
             permissions: {read: "notes"},
             children: [
@@ -141,6 +145,7 @@ export const rentalBusinessAccountSheetView: ViewConfig = {
                     children: [
                         {
                             render: "#DisplayCard",
+                            dependent: "notes",
                             permissions: {read: "notes"},
                             field: {
                                 name: "notes",

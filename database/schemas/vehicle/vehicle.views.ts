@@ -95,6 +95,7 @@ export const vehicleSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "currentLocation.name",
                             permissions: {read: "currentLocation"},
                             field: {
                                 name: "currentLocation.name",
@@ -126,33 +127,23 @@ export const vehicleSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
-                            permissions: {read: "status"},
-                            field: {
-                                name: "status",
-                                widget: "#DisplayCard",
-                                label: "status",
-                                widgetProps: {
-                                    icon: "#IconStatusChange",
-                                    type: "enum",
-                                    languageKeyCategory: "statusValues",
-                                },
-                            },
-                        },
-                        {
-                            render: "#DisplayCard",
+                            dependent: "year",
                             permissions: {read: "year"},
                             field: {
                                 name: "year",
                                 widget: "#DisplayCard",
                                 label: "year",
+                                // A model year, not a quantity: read through `valuePath` it is shown as written ("2022"),
+                                // not with a thousands separator.
                                 widgetProps: {
                                     icon: "#IconCalendar",
-                                    type: "number",
+                                    valuePath: ["year"],
                                 },
                             },
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "color",
                             permissions: {read: "color"},
                             field: {
                                 name: "color",
@@ -163,6 +154,7 @@ export const vehicleSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "odometerKm",
                             permissions: {read: "odometerKm"},
                             field: {
                                 name: "odometerKm",
@@ -176,6 +168,7 @@ export const vehicleSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "vin",
                             permissions: {read: "vin"},
                             field: {
                                 name: "vin",
@@ -192,6 +185,7 @@ export const vehicleSheetView: ViewConfig = {
                     children: [
                         {
                             render: "#DisplayCard",
+                            dependent: "notes",
                             permissions: {read: "notes"},
                             field: {
                                 name: "notes",
@@ -210,6 +204,7 @@ export const vehicleSheetView: ViewConfig = {
         },
         {
             render: "#SheetGroup",
+            dependentAny: ["nextServiceDueAt", "nextServiceDueKm", "acquiredAt", "purchasePrice", "lastReportedAt"],
             permissions: {
                 readAny: [
                     "nextServiceDueAt",
@@ -226,6 +221,7 @@ export const vehicleSheetView: ViewConfig = {
                     children: [
                         {
                             render: "#DisplayCard",
+                            dependent: "nextServiceDueAt",
                             permissions: {read: "nextServiceDueAt"},
                             field: {
                                 name: "nextServiceDueAt",
@@ -240,6 +236,7 @@ export const vehicleSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "nextServiceDueKm",
                             permissions: {read: "nextServiceDueKm"},
                             field: {
                                 name: "nextServiceDueKm",
@@ -253,6 +250,7 @@ export const vehicleSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "acquiredAt",
                             permissions: {read: "acquiredAt"},
                             field: {
                                 name: "acquiredAt",
@@ -267,6 +265,7 @@ export const vehicleSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "purchasePrice",
                             permissions: {read: "purchasePrice"},
                             field: {
                                 name: "purchasePrice",
@@ -287,45 +286,7 @@ export const vehicleSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
-                            permissions: {read: "trackerId"},
-                            field: {
-                                name: "trackerId",
-                                widget: "#DisplayCard",
-                                label: "trackerId",
-                                widgetProps: {
-                                    icon: "#IconMapPin",
-                                    type: "text",
-                                },
-                            },
-                        },
-                        {
-                            render: "#DisplayCard",
-                            permissions: {read: "lastLatitude"},
-                            field: {
-                                name: "lastLatitude",
-                                widget: "#DisplayCard",
-                                label: "lastLatitude",
-                                widgetProps: {
-                                    icon: "#IconMapPin",
-                                    type: "number",
-                                },
-                            },
-                        },
-                        {
-                            render: "#DisplayCard",
-                            permissions: {read: "lastLongitude"},
-                            field: {
-                                name: "lastLongitude",
-                                widget: "#DisplayCard",
-                                label: "lastLongitude",
-                                widgetProps: {
-                                    icon: "#IconMapPin",
-                                    type: "number",
-                                },
-                            },
-                        },
-                        {
-                            render: "#DisplayCard",
+                            dependent: "lastReportedAt",
                             permissions: {read: "lastReportedAt"},
                             field: {
                                 name: "lastReportedAt",
@@ -333,8 +294,7 @@ export const vehicleSheetView: ViewConfig = {
                                 label: "lastReportedAt",
                                 widgetProps: {
                                     icon: "#IconCalendar",
-                                    format: "date",
-                                    type: "date",
+                                    type: "dateTime",
                                 },
                             },
                         },
@@ -367,6 +327,338 @@ export const vehicleSheetView: ViewConfig = {
                                     previewLocation: "right",
                                 },
                             },
+                        },
+                    ],
+                },
+            ],
+        },
+        {
+            // Cards or one line each, the reader's choice (remembered per list).
+            render: "#ReferencesViewModeScope",
+            props: {storageKey: "carRental.vehicle.sheet.reservations.listDisplay", defaultMode: "compact"},
+            children: [
+                {
+                    // Read with the caller's own grants on that model; absent when they may not read it (vehicleHub).
+                    render: "#SheetGroup",
+                    dependent: "reservations",
+                    dependentRuntimeOnly: true,
+                    props: {title: "reservationsGroup", titleActions: "#ReferencesViewModeToggle", defaultOpen: false},
+                    children: [
+                        {
+                            render: "div",
+                            props: {className: "rounded-lg bg-muted/30 border border-border/50"},
+                            children: [
+                                {
+                                    render: "#ReferencesRender",
+                                    field: {
+                                        name: "reservations",
+                                        widget: "#ReferencesRender",
+                                        widgetProps: {
+                                            cardWidget: "#RentalReservationCard",
+                                            pageSize: 4,
+                                            columns: 2,
+                                            compactRow: {
+                                                icon: "#IconCalendarEvent",
+                                                label: "reservationsGroup",
+                                                // Who rented it, from when, how it stands and what it cost; the booking number stays on the opened sheet.
+                                                labelPath: ["contact.firstName", "contact.lastName"],
+                                                labelJoinSeparator: " ",
+                                                valuePath: ["pickupAt", "status", "pricing.grandTotal"],
+                                                valueLanguageKeyCategories: [null, "reservationStatus", null],
+                                                valueFormats: ["dateTime", null, {money: "pricing.currency"}],
+                                                joinSeparator: " · ",
+                                                linkedSheetModel: "rentalreservations",
+                                                linkedSheetWidget: "#RentalReservationSheetView",
+                                                linkedSheetEntityProp: "rentalReservation",
+                                            },
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+        {
+            // Cards or one line each, the reader's choice (remembered per list).
+            render: "#ReferencesViewModeScope",
+            props: {storageKey: "carRental.vehicle.sheet.damages.listDisplay", defaultMode: "compact"},
+            children: [
+                {
+                    // Read with the caller's own grants on that model; absent when they may not read it (vehicleHub).
+                    render: "#SheetGroup",
+                    dependent: "damages",
+                    dependentRuntimeOnly: true,
+                    props: {title: "damagesGroup", titleActions: "#ReferencesViewModeToggle", defaultOpen: false},
+                    children: [
+                        {
+                            render: "div",
+                            props: {className: "rounded-lg bg-muted/30 border border-border/50"},
+                            children: [
+                                {
+                                    render: "#ReferencesRender",
+                                    field: {
+                                        name: "damages",
+                                        widget: "#ReferencesRender",
+                                        widgetProps: {
+                                            cardWidget: "#VehicleDamageCard",
+                                            pageSize: 4,
+                                            columns: 2,
+                                            compactRow: {
+                                                icon: "#IconCarCrash",
+                                                label: "damagesGroup",
+                                                // When it was found, where, how bad, and whether it is repaired.
+                                                labelPath: "reportedAt",
+                                                labelFormat: "date",
+                                                valuePath: ["area", "severity", "status"],
+                                                valueLanguageKeyCategories: ["areaValues", "severityValues", "damageStatus"],
+                                                joinSeparator: " · ",
+                                                linkedSheetModel: "vehicledamages",
+                                                linkedSheetWidget: "#VehicleDamageSheetView",
+                                                linkedSheetEntityProp: "vehicleDamage",
+                                            },
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+        {
+            // Cards or one line each, the reader's choice (remembered per list).
+            render: "#ReferencesViewModeScope",
+            props: {storageKey: "carRental.vehicle.sheet.maintenance.listDisplay", defaultMode: "compact"},
+            children: [
+                {
+                    // Read with the caller's own grants on that model; absent when they may not read it (vehicleHub).
+                    render: "#SheetGroup",
+                    dependent: "maintenance",
+                    dependentRuntimeOnly: true,
+                    props: {title: "maintenanceGroup", titleActions: "#ReferencesViewModeToggle", defaultOpen: false},
+                    children: [
+                        {
+                            render: "div",
+                            props: {className: "rounded-lg bg-muted/30 border border-border/50"},
+                            children: [
+                                {
+                                    render: "#ReferencesRender",
+                                    field: {
+                                        name: "maintenance",
+                                        widget: "#ReferencesRender",
+                                        widgetProps: {
+                                            cardWidget: "#VehicleMaintenanceCard",
+                                            pageSize: 4,
+                                            columns: 2,
+                                            compactRow: {
+                                                icon: "#IconTool",
+                                                label: "maintenanceGroup",
+                                                // When, what kind of service, where, and what it cost.
+                                                labelPath: "serviceDate",
+                                                labelFormat: "date",
+                                                valuePath: ["type", "provider", "cost"],
+                                                valueLanguageKeyCategories: ["maintenanceType", null, null],
+                                                valueFormats: [null, null, {money: "currency"}],
+                                                joinSeparator: " · ",
+                                                linkedSheetModel: "vehiclemaintenances",
+                                                linkedSheetWidget: "#VehicleMaintenanceSheetView",
+                                                linkedSheetEntityProp: "vehicleMaintenance",
+                                            },
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+        {
+            // Cards or one line each, the reader's choice (remembered per list).
+            render: "#ReferencesViewModeScope",
+            props: {storageKey: "carRental.vehicle.sheet.documents.listDisplay", defaultMode: "compact"},
+            children: [
+                {
+                    // Read with the caller's own grants on that model; absent when they may not read it (vehicleHub).
+                    render: "#SheetGroup",
+                    dependent: "documents",
+                    dependentRuntimeOnly: true,
+                    props: {title: "documentsGroup", titleActions: "#ReferencesViewModeToggle", defaultOpen: false},
+                    children: [
+                        {
+                            render: "div",
+                            props: {className: "rounded-lg bg-muted/30 border border-border/50"},
+                            children: [
+                                {
+                                    render: "#ReferencesRender",
+                                    field: {
+                                        name: "documents",
+                                        widget: "#ReferencesRender",
+                                        widgetProps: {
+                                            cardWidget: "#VehicleDocumentCard",
+                                            pageSize: 4,
+                                            columns: 2,
+                                            compactRow: {
+                                                icon: "#IconFileText",
+                                                label: "documentsGroup",
+                                                // Until when each paper is valid, which paper, and whether it still is.
+                                                labelPath: "expiresAt",
+                                                labelFormat: "date",
+                                                valuePath: ["type", "status"],
+                                                valueLanguageKeyCategories: ["documentType", "documentStatus"],
+                                                joinSeparator: " · ",
+                                                linkedSheetModel: "vehicledocuments",
+                                                linkedSheetWidget: "#VehicleDocumentSheetView",
+                                                linkedSheetEntityProp: "vehicleDocument",
+                                            },
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+        {
+            // Cards or one line each, the reader's choice (remembered per list).
+            render: "#ReferencesViewModeScope",
+            props: {storageKey: "carRental.vehicle.sheet.insurances.listDisplay", defaultMode: "compact"},
+            children: [
+                {
+                    // Read with the caller's own grants on that model; absent when they may not read it (vehicleHub).
+                    render: "#SheetGroup",
+                    dependent: "insurances",
+                    dependentRuntimeOnly: true,
+                    props: {title: "insurancesGroup", titleActions: "#ReferencesViewModeToggle", defaultOpen: false},
+                    children: [
+                        {
+                            render: "div",
+                            props: {className: "rounded-lg bg-muted/30 border border-border/50"},
+                            children: [
+                                {
+                                    render: "#ReferencesRender",
+                                    field: {
+                                        name: "insurances",
+                                        widget: "#ReferencesRender",
+                                        widgetProps: {
+                                            cardWidget: "#VehicleInsuranceCard",
+                                            pageSize: 4,
+                                            columns: 2,
+                                            compactRow: {
+                                                icon: "#IconShieldCheck",
+                                                label: "insurancesGroup",
+                                                // Until when the car is covered, by whom, how, and whether the policy is current.
+                                                labelPath: "expiresAt",
+                                                labelFormat: "date",
+                                                valuePath: ["insurer", "coverage", "status"],
+                                                valueLanguageKeyCategories: [null, "coverage", "insuranceStatus"],
+                                                joinSeparator: " · ",
+                                                linkedSheetModel: "vehicleinsurances",
+                                                linkedSheetWidget: "#VehicleInsuranceSheetView",
+                                                linkedSheetEntityProp: "vehicleInsurance",
+                                            },
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+        {
+            // Cards or one line each, the reader's choice (remembered per list).
+            render: "#ReferencesViewModeScope",
+            props: {storageKey: "carRental.vehicle.sheet.fines.listDisplay", defaultMode: "compact"},
+            children: [
+                {
+                    // Read with the caller's own grants on that model; absent when they may not read it (vehicleHub).
+                    render: "#SheetGroup",
+                    dependent: "fines",
+                    dependentRuntimeOnly: true,
+                    props: {title: "finesGroup", titleActions: "#ReferencesViewModeToggle", defaultOpen: false},
+                    children: [
+                        {
+                            render: "div",
+                            props: {className: "rounded-lg bg-muted/30 border border-border/50"},
+                            children: [
+                                {
+                                    render: "#ReferencesRender",
+                                    field: {
+                                        name: "fines",
+                                        widget: "#ReferencesRender",
+                                        widgetProps: {
+                                            cardWidget: "#VehicleFineCard",
+                                            pageSize: 4,
+                                            columns: 2,
+                                            compactRow: {
+                                                icon: "#IconReceipt",
+                                                label: "finesGroup",
+                                                // When the offence happened, what it was, the amount, and how it stands.
+                                                labelPath: "offenceAt",
+                                                labelFormat: "dateTime",
+                                                valuePath: ["type", "amount", "status"],
+                                                valueLanguageKeyCategories: ["fineType", null, "fineStatus"],
+                                                valueFormats: [null, {money: "currency"}, null],
+                                                joinSeparator: " · ",
+                                                linkedSheetModel: "vehiclefines",
+                                                linkedSheetWidget: "#VehicleFineSheetView",
+                                                linkedSheetEntityProp: "vehicleFine",
+                                            },
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+        {
+            // Cards or one line each, the reader's choice (remembered per list).
+            render: "#ReferencesViewModeScope",
+            props: {storageKey: "carRental.vehicle.sheet.blocks.listDisplay", defaultMode: "compact"},
+            children: [
+                {
+                    // Read with the caller's own grants on that model; absent when they may not read it (vehicleHub).
+                    render: "#SheetGroup",
+                    dependent: "blocks",
+                    dependentRuntimeOnly: true,
+                    props: {title: "blocksGroup", titleActions: "#ReferencesViewModeToggle", defaultOpen: false},
+                    children: [
+                        {
+                            render: "div",
+                            props: {className: "rounded-lg bg-muted/30 border border-border/50"},
+                            children: [
+                                {
+                                    render: "#ReferencesRender",
+                                    field: {
+                                        name: "blocks",
+                                        widget: "#ReferencesRender",
+                                        widgetProps: {
+                                            cardWidget: "#VehicleBlockCard",
+                                            pageSize: 4,
+                                            columns: 2,
+                                            compactRow: {
+                                                icon: "#IconBan",
+                                                label: "blocksGroup",
+                                                // When the car is off the road and why.
+                                                labelPath: ["startAt", "endAt"],
+                                                labelFormat: "dateTime",
+                                                valuePath: ["reason", "note"],
+                                                valueLanguageKeyCategories: ["blockReason", null],
+                                                joinSeparator: " · ",
+                                                linkedSheetModel: "vehicleblocks",
+                                                linkedSheetWidget: "#VehicleBlockSheetView",
+                                                linkedSheetEntityProp: "vehicleBlock",
+                                            },
+                                        },
+                                    },
+                                },
+                            ],
                         },
                     ],
                 },

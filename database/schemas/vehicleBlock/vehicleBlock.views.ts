@@ -87,6 +87,7 @@ export const vehicleBlockSheetView: ViewConfig = {
                     children: [
                         {
                             render: "#DisplayCard",
+                            dependent: "note",
                             permissions: {read: "note"},
                             field: {
                                 name: "note",

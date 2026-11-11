@@ -71,6 +71,7 @@ export const rentalPromoCodeSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "category.name",
                             permissions: {read: "category"},
                             field: {
                                 name: "category.name",
@@ -87,6 +88,7 @@ export const rentalPromoCodeSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "bookableFrom",
                             permissions: {read: "bookableFrom"},
                             field: {
                                 name: "bookableFrom",
@@ -100,6 +102,7 @@ export const rentalPromoCodeSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "bookableUntil",
                             permissions: {read: "bookableUntil"},
                             field: {
                                 name: "bookableUntil",
@@ -113,6 +116,7 @@ export const rentalPromoCodeSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "tripFrom",
                             permissions: {read: "tripFrom"},
                             field: {
                                 name: "tripFrom",
@@ -126,6 +130,7 @@ export const rentalPromoCodeSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "tripUntil",
                             permissions: {read: "tripUntil"},
                             field: {
                                 name: "tripUntil",
@@ -139,6 +144,7 @@ export const rentalPromoCodeSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "minRentalDays",
                             permissions: {read: "minRentalDays"},
                             field: {
                                 name: "minRentalDays",
@@ -152,6 +158,7 @@ export const rentalPromoCodeSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "usageLimit",
                             permissions: {read: "usageLimit"},
                             field: {
                                 name: "usageLimit",
@@ -165,6 +172,7 @@ export const rentalPromoCodeSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "usageLimitPerEmail",
                             permissions: {read: "usageLimitPerEmail"},
                             field: {
                                 name: "usageLimitPerEmail",
@@ -210,6 +218,7 @@ export const rentalPromoCodeSheetView: ViewConfig = {
                     children: [
                         {
                             render: "#DisplayCard",
+                            dependent: "description",
                             permissions: {read: "description"},
                             field: {
                                 name: "description",

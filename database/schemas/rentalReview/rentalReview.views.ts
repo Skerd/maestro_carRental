@@ -86,6 +86,7 @@ export const rentalReviewSheetView: ViewConfig = {
                     children: [
                         {
                             render: "#DisplayCard",
+                            dependent: "comment",
                             permissions: {read: "comment"},
                             field: {
                                 name: "comment",
