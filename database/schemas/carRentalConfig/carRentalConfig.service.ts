@@ -22,9 +22,8 @@ export class CarRentalConfigService extends BaseCrudService<ICarRentalConfig, ty
         const existing = await this.findForCompany(companyId, options);
         if (existing) return existing;
 
-        const currency =
-            (await Currency.findOne({company: companyId}).sort({createdAt: 1}).select("_id").session(options.session ?? null))
-            ?? (await Currency.findOne({}).sort({createdAt: 1}).select("_id").session(options.session ?? null));
+        // The company's own first currency only: another company's would price this company's rentals in it.
+        const currency = await Currency.findOne({company: companyId}).sort({createdAt: 1}).select("_id").session(options.session ?? null);
         if (!currency) {
             throw apiValidationException("rental_currency_not_configured", "", null, options.languageCode ?? "en-US");
         }

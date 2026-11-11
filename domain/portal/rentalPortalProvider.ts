@@ -80,6 +80,9 @@ type AvailableCar = {company: ObjectId; category: IVehicleCategory; total: numbe
 async function availableInCompany(companyId: ObjectId, trip: RentalPortalTripType, params: PortalBrowseParams): Promise<AvailableCar[]> {
     const config = await carRentalConfigService.findOne({company: companyId, deletedAt: null}, {});
     if (!config) return [];
+    // A company that has not set its currency cannot price a trip; it is left out rather than failing the whole search.
+    const currency = await currencyOf(config, params.languageCode).catch(() => null);
+    if (!currency) return [];
     const where = params.city?.toLowerCase();
     const locations = (await rentalLocationService.findPortalLocations(companyId))
         .filter((location) => !where || (location.address?.city?.name ?? "").toLowerCase().includes(where));
@@ -91,10 +94,7 @@ async function availableInCompany(companyId: ObjectId, trip: RentalPortalTripTyp
         } catch {
             continue;
         }
-        const [categories, currency] = await Promise.all([
-            vehicleCategoryService.find({...categoryClause(params), company: companyId}, {}, undefined, undefined, {sortOrder: 1, name: 1}),
-            currencyOf(config, params.languageCode),
-        ]);
+        const categories = await vehicleCategoryService.find({...categoryClause(params), company: companyId}, {}, undefined, undefined, {sortOrder: 1, name: 1});
         const end = busyUntil(resolved.returnAt, config.turnaroundBufferMinutes);
         const now = new Date();
         const tripQuery = new URLSearchParams({pickupLocation: id, returnLocation: id, ...trip}).toString();
