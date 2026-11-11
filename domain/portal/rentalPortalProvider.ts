@@ -1,7 +1,7 @@
 import type {ObjectId} from "mongodb";
 import {registerPortalProvider} from "@coreModule/domain/portal/portalProviderRegistry";
 import type {PortalBrowseParams} from "@coreModule/domain/portal/portalProvider.types";
-import {catalogItems, configCurrencies, filterValue, priceRange} from "@coreModule/domain/portal/portalCatalog";
+import {catalogItems, configCurrencies, filterValue, priceRange, samePriceCurrencyCompanies} from "@coreModule/domain/portal/portalCatalog";
 import {addressCitiesByCompany, portalListedCompanyIds, type PortalScope} from "@coreModule/utilities/marketing/portalCompanies";
 import {escapeRegex} from "@coreModule/utilities/helpers";
 import {publicMediaUrl} from "@coreModule/utilities/media/publicMediaUrl";
@@ -47,13 +47,14 @@ function categoryClause({companyIds, query, filters}: PortalBrowseParams): Recor
 
 /** Without dates: the public car classes at their daily rate; each opens the company's rental site. */
 async function browseCategories(params: PortalBrowseParams) {
-    const clause = categoryClause(params);
+    const currencies = await configCurrencies(CarRentalConfig, params.companyIds);
+    // Daily rates are compared only between companies charging in one currency.
+    const clause = categoryClause({...params, companyIds: samePriceCurrencyCompanies(params.companyIds, currencies, params)});
     const price = priceRange(params.priceMin, params.priceMax);
     if (price) clause.dailyRate = price;
-    const [categories, total, currencies] = await Promise.all([
+    const [categories, total] = await Promise.all([
         vehicleCategoryService.findPortalCards(clause, CATEGORY_SORTS[params.sort ?? "newest"], params.skip, params.limit),
         vehicleCategoryService.count(clause),
-        configCurrencies(CarRentalConfig, params.companyIds),
     ]);
     const items = await catalogItems(categories, (category) => {
         const currency = currencies.get(category.company.toString());
@@ -112,8 +113,15 @@ async function availableInCompany(companyId: ObjectId, trip: RentalPortalTripTyp
 /** With dates: the cars free for the trip across companies, priced for it; each opens its booking page. */
 async function browseAvailable(params: PortalBrowseParams, trip: RentalPortalTripType) {
     const {priceMin, priceMax, sort} = params;
-    const found = (await Promise.all(params.companyIds.slice(0, TRIP_COMPANIES_MAX).map((companyId) => availableInCompany(companyId, trip, params))))
-        .flat()
+    const cars = (await Promise.all(params.companyIds.slice(0, TRIP_COMPANIES_MAX).map((companyId) => availableInCompany(companyId, trip, params)))).flat();
+    // Trip prices are compared only between companies charging in one currency.
+    const comparable = new Set(samePriceCurrencyCompanies(
+        cars.map((car) => car.company),
+        new Map(cars.map((car) => [car.company.toString(), car.currency])),
+        params,
+    ).map(String));
+    const found = cars
+        .filter((car) => comparable.has(car.company.toString()))
         .filter((car) => (priceMin == null || car.total >= priceMin) && (priceMax == null || car.total <= priceMax));
     if (sort === "priceAsc") found.sort((a, b) => a.total - b.total);
     if (sort === "priceDesc") found.sort((a, b) => b.total - a.total);
