@@ -1,3 +1,5 @@
+import * as path from "path";
+import {applyPlaceholders, loadEmailStrings} from "@coreModule/utilities/emails/emailLocale";
 import type {ObjectId} from "mongodb";
 import {registerPortalProvider} from "@coreModule/domain/portal/portalProviderRegistry";
 import type {PortalBrowseParams} from "@coreModule/domain/portal/portalProvider.types";
@@ -17,6 +19,14 @@ import {currencyOf} from "@carRentalModule/api/carRental/public/rentalStorefront
 
 import {vehicleCategoryService} from "@carRentalModule/database/schemas/vehicleCategory/vehicleCategory.service";
 import {carRentalConfigService} from "@carRentalModule/database/schemas/carRentalConfig/carRentalConfig.service";
+
+const PORTAL_LOCALES = path.join(__dirname, "..", "..", "utilities", "emails", "static", "locales");
+
+/** What sets one class apart in the catalog, in the visitor's language: "5 seats · Automatic". */
+function classSubtitle(category: {seats: number; transmission: "manual" | "automatic"}, languageCode: string): string {
+    const words = loadEmailStrings(["rentalPortal"], languageCode, PORTAL_LOCALES);
+    return [applyPlaceholders(words.seats, {count: String(category.seats)}), words[category.transmission]].join(" · ");
+}
 import {rentalLocationService} from "@carRentalModule/database/schemas/rentalLocation/rentalLocation.service";
 /** Rental companies taking public bookings (and on the apex, opted in to the portal). */
 export function rentalPortalCompanyIds(scope: PortalScope) {
@@ -62,10 +72,12 @@ async function browseCategories(params: PortalBrowseParams) {
             kind: "vehicleCategory",
             id: category._id.toString(),
             title: category.name,
+            subtitle: classSubtitle(category, params.languageCode),
             image: publicMediaUrl(category.images?.[0]),
             ...(currency ? {price: {amount: category.dailyRate, currency, per: "day" as const}} : {}),
             section: "carRental",
-            path: `/categories/${category._id.toString()}`,
+            // The class's web address, like the rental site's own links (the id still opens it).
+            path: `/categories/${category.slug || category._id.toString()}`,
         };
     });
     return {items, total};
@@ -129,11 +141,12 @@ async function browseAvailable(params: PortalBrowseParams, trip: RentalPortalTri
         kind: "vehicleCategory",
         id: car.category._id.toString(),
         title: car.category.name,
+        subtitle: classSubtitle(car.category, params.languageCode),
         image: publicMediaUrl(car.category.images?.[0]),
         price: {amount: car.total, currency: car.currency},
         city: car.city,
         section: "carRental",
-        path: `/categories/${car.category._id}?${car.tripQuery}`,
+        path: `/categories/${car.category.slug || car.category._id}?${car.tripQuery}`,
     }));
     return {items, total: found.length};
 }

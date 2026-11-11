@@ -11,10 +11,10 @@ export class VehicleCategoryService extends BaseCrudService<IVehicleCategory, ty
     /** One page of category cards for the portal. */
     findPortalCards(filter: FilterQuery<IVehicleCategory>, sort: Record<string, SortOrder>, skip: number, limit: number) {
         return this.model.find(filter)
-            .select("company name images dailyRate")
+            .select("company name slug seats transmission images dailyRate")
             .sort(sort)
             .skip(skip).limit(limit)
-            .lean<{_id: ObjectId; company: ObjectId; name: string; images?: ObjectId[]; dailyRate: number}[]>();
+            .lean<{_id: ObjectId; company: ObjectId; name: string; slug: string; seats: number; transmission: "manual" | "automatic"; images?: ObjectId[]; dailyRate: number}[]>();
     }
 }
 
