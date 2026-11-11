@@ -10,6 +10,8 @@ import {validateSingleForm} from "armonia/src/modules/core/utilities/zod/shared.
 import type {
     RentalReservation as RentalReservationDto,
     RentalDepositResponse,
+    RentalExtendWindow,
+    RentalFreeVehicle,
     RentalOpenDamage,
     RentalReturnChargesPreview,
 } from "armonia/src/modules/carRental/api/carRental/private/rentalReservation/rentalReservation.dto";
@@ -50,10 +52,13 @@ import RentalReservation, {type IRentalReservation} from "./rentalReservation";
 import {carRentalConfigService} from "../carRentalConfig/carRentalConfig.service";
 import {rentalReservationToDTO} from "@carRentalModule/utilities/mappers/rentalReservation/rentalReservationMapper.dto";
 import {
+    blockingReservationFilter,
     busyVehicleIds,
     lockVehicle,
     needsTransferFor,
 } from "@carRentalModule/utilities/services/rentalAvailability";
+import VehicleBlock from "../vehicleBlock/vehicleBlock";
+import {addLocalDays} from "@coreModule/utilities/time/timeWindows";
 import {
     assertStatus,
     cancelRentalReservation,
@@ -496,6 +501,93 @@ export class RentalReservationActions {
             ctxOf(params),
         );
         return toDto(reservation, params);
+    }
+
+    /**
+     * How far the booking can be extended on its car, for the extend dialog's calendar: the server's extend
+     * refuses anything past the next booking or block (turnaround kept) and returns when the branch is closed.
+     */
+    @action({
+        auth: "private",
+        transaction: true,
+        rateLimit: {windowMs: 60000, max: 60},
+        schema: validateSingleForm,
+    })
+    async extendWindow(
+        params: ActionParams<{_id: string}>,
+    ): Promise<{data: RentalExtendWindow}> {
+        const reservation = await loadReservation(params);
+        const companyId = params.company._id;
+        const [config, returnLocation, nextBooking, nextBlock] = await Promise.all([
+            carRentalConfigService.getOrCreateForCompany(companyId, ctxOf(params)),
+            RentalLocation.findOne({_id: reservation.returnLocation, company: companyId}).session(params.session),
+            RentalReservation.findOne({
+                company: companyId,
+                vehicle: reservation.vehicle,
+                _id: {$ne: reservation._id},
+                pickupAt: {$gte: reservation.returnAt},
+                ...blockingReservationFilter(new Date()),
+            }).sort({pickupAt: 1}).select("pickupAt").session(params.session),
+            VehicleBlock.findOne({
+                company: companyId,
+                vehicle: reservation.vehicle,
+                deletedAt: null,
+                startAt: {$gte: reservation.returnAt},
+            }).sort({startAt: 1}).select("startAt").session(params.session),
+        ]);
+        const timeZone = returnLocation?.timezone ?? reservation.snapshot.timezone;
+        const nextStart = [nextBooking?.pickupAt, nextBlock?.startAt]
+            .filter((at): at is Date => !!at)
+            .sort((a, b) => a.getTime() - b.getTime())[0];
+        const until = nextStart ? new Date(nextStart.getTime() - config.turnaroundBufferMinutes * MINUTE) : undefined;
+
+        // The days the return location is closed, from the current return to the limit (or 90 days on).
+        const closedDays: string[] = [];
+        const first = localDateOf(reservation.returnAt, timeZone);
+        const last = until ? localDateOf(until, timeZone) : addLocalDays(first, 90);
+        const weekdays = new Set((returnLocation?.openingHours ?? []).map((slot) => Number(slot.dayOfWeek)));
+        const closures = new Set((returnLocation?.closures ?? []).map((closure) => closure.date));
+        for (let day = first; day <= last; day = addLocalDays(day, 1)) {
+            const weekday = new Date(`${day}T12:00:00Z`).getUTCDay();
+            if (closures.has(day) || (weekdays.size > 0 && !weekdays.has(weekday))) closedDays.push(day);
+        }
+        return {data: {until: until?.toISOString(), closedDays, timeZone}};
+    }
+
+    /** The cars of the booking's class free for its whole window (turnaround kept), for "Change car". */
+    @action({
+        auth: "private",
+        transaction: true,
+        rateLimit: {windowMs: 60000, max: 60},
+        schema: validateSingleForm,
+    })
+    async freeVehicles(
+        params: ActionParams<{_id: string}>,
+    ): Promise<{data: RentalFreeVehicle[]}> {
+        const reservation = await loadReservation(params);
+        const companyId = params.company._id;
+        const [busy, cars] = await Promise.all([
+            busyVehicleIds({
+                companyId,
+                start: reservation.pickupAt,
+                end: reservation.blockedUntil,
+                now: new Date(),
+                excludeReservationId: reservation._id,
+                session: params.session,
+            }),
+            Vehicle.find({
+                company: companyId,
+                category: reservation.category,
+                status: "active",
+                deletedAt: null,
+                _id: {$ne: reservation.vehicle},
+            }).select("plate make model readiness").sort({plate: 1}).session(params.session),
+        ]);
+        return {
+            data: cars
+                .filter((car) => !busy.has(String(car._id)))
+                .map((car) => ({value: String(car._id), label: `${car.make} ${car.model} · ${car.plate}`, readiness: car.readiness})),
+        };
     }
 
     /** Moves the booking to another car of the same category that is free for its whole window. */
