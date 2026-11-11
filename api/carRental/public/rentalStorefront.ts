@@ -234,22 +234,9 @@ async function storefrontContext(
     return {company, config};
 }
 
-export async function currencyOf(
-    config: ICarRentalConfig,
-    languageCode: string,
-): Promise<CurrencySimple> {
-    const currency = mapSnippet<CurrencySimple>()(
-        await currencyService.findById(nestedEntityToRef(config.currency)!, {}, undefined, "name symbol abbreviation"),
-        CurrencySimpleSnippet,
-    );
-    if (!currency)
-        throw apiValidationException(
-            "rental_currency_not_configured",
-            "",
-            null,
-            languageCode,
-        );
-    return currency;
+/** The rental currency (kept here for the storefront's callers; the settings service owns it). */
+export function currencyOf(config: ICarRentalConfig, languageCode: string): Promise<CurrencySimple> {
+    return carRentalConfigService.currencyOf(config, languageCode);
 }
 
 function onlinePaymentAvailable(): boolean {

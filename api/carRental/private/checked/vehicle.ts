@@ -20,6 +20,7 @@ import {vehiclesToSelect} from "@carRentalModule/utilities/mappers/vehicle/vehic
 import {blockingReservationFilter, lockVehicle} from "@carRentalModule/utilities/services/rentalAvailability";
 
 import {rentalReservationService} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation.service";
+import {withRentalCurrency} from "@carRentalModule/utilities/services/rentalCurrency";
 const mediaUpload = mediaUploadMW({
     fields: {images: VEHICLE_IMAGES_MAX, videos: VEHICLE_VIDEOS_MAX},
     fieldMimeTypes: {
@@ -42,6 +43,10 @@ export const {router} = createCrudRouter({
     selectSchema: vehicleSelectFormSchema,
     toDTO: vehicleToDTO,
     toDTOArray: vehiclesToDTO,
+    // Every amount is in the rental currency (UX-07).
+    enrichList: (docs, params: any) => withRentalCurrency(vehiclesToDTO(docs), params.company._id, params.languageCode),
+    enrichSingle: async (doc, params: any) => (await withRentalCurrency([vehicleToDTO(doc)], params.company._id, params.languageCode))[0],
+    enrichUpdate: async (doc, params: any) => (await withRentalCurrency([vehicleToDTO(doc)], params.company._id, params.languageCode))[0],
     toSelect: vehiclesToSelect,
     selectSearchField: "plate",
     selectProjection: "_id plate make model",

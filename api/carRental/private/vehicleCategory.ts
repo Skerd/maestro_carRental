@@ -11,6 +11,7 @@ import {vehicleCategoryService} from "@carRentalModule/database/schemas/vehicleC
 import {vehicleCategoryToDTO, vehicleCategoriesToDTO} from "@carRentalModule/utilities/mappers/vehicleCategory/vehicleCategoryMapper.dto";
 import {vehicleCategoriesToSelect} from "@carRentalModule/utilities/mappers/vehicleCategory/vehicleCategoryMapper.select";
 import {VehicleCategoryActions} from "@carRentalModule/database/schemas/vehicleCategory/vehicleCategory.actions";
+import {withRentalCurrency} from "@carRentalModule/utilities/services/rentalCurrency";
 
 const mediaUpload = mediaUploadMW({
     fields: {images: 12, videos: 3},
@@ -38,6 +39,10 @@ export const {router} = createCrudRouter({
     editSchema: editVehicleCategoryFormSchema,
     toDTO: vehicleCategoryToDTO,
     toDTOArray: vehicleCategoriesToDTO,
+    // Every amount is in the rental currency (UX-07).
+    enrichList: (docs, params: any) => withRentalCurrency(vehicleCategoriesToDTO(docs), params.company._id, params.languageCode),
+    enrichSingle: async (doc, params: any) => (await withRentalCurrency([vehicleCategoryToDTO(doc)], params.company._id, params.languageCode))[0],
+    enrichUpdate: async (doc, params: any) => (await withRentalCurrency([vehicleCategoryToDTO(doc)], params.company._id, params.languageCode))[0],
     toSelect: vehicleCategoriesToSelect,
     defaultSort: {sortOrder: 1, name: 1},
     createMiddleware: [mediaUpload],

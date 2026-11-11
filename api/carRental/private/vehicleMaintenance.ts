@@ -11,6 +11,7 @@ import {vehicleMaintenanceToDTO, vehicleMaintenancesToDTO} from "@carRentalModul
 import {vehicleMaintenancesToSelect} from "@carRentalModule/utilities/mappers/vehicleMaintenance/vehicleMaintenanceMapper.select";
 import {VehicleMaintenanceActions} from "@carRentalModule/database/schemas/vehicleMaintenance/vehicleMaintenance.actions";
 import {assertCompanyVehicle, blockForService, recordAttachmentsUpload, releaseService, syncVehicleServiceDue} from "@carRentalModule/utilities/services/vehicleRecords";
+import {withRentalCurrency} from "@carRentalModule/utilities/services/rentalCurrency";
 
 export const basePath = "/api/carRental/vehicleMaintenance";
 
@@ -29,6 +30,10 @@ export const {router} = createCrudRouter({
     editSchema: editVehicleMaintenanceFormSchema,
     toDTO: vehicleMaintenanceToDTO,
     toDTOArray: vehicleMaintenancesToDTO,
+    // Every amount is in the rental currency (UX-07).
+    enrichList: (docs, params: any) => withRentalCurrency(vehicleMaintenancesToDTO(docs), params.company._id, params.languageCode),
+    enrichSingle: async (doc, params: any) => (await withRentalCurrency([vehicleMaintenanceToDTO(doc)], params.company._id, params.languageCode))[0],
+    enrichUpdate: async (doc, params: any) => (await withRentalCurrency([vehicleMaintenanceToDTO(doc)], params.company._id, params.languageCode))[0],
     toSelect: vehicleMaintenancesToSelect,
     selectSearchField: "provider",
     selectProjection: "_id type serviceDate provider",

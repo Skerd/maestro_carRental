@@ -7,6 +7,7 @@ import RentalSubscription from "@carRentalModule/database/schemas/rentalSubscrip
 import {rentalSubscriptionService} from "@carRentalModule/database/schemas/rentalSubscription/rentalSubscription.service";
 import {rentalSubscriptionToDTO, rentalSubscriptionsToDTO} from "@carRentalModule/utilities/mappers/rentalSubscription/rentalSubscriptionMapper.dto";
 import {rentalSubscriptionsToSelect} from "@carRentalModule/utilities/mappers/rentalSubscription/rentalSubscriptionMapper.select";
+import {withRentalCurrency} from "@carRentalModule/utilities/services/rentalCurrency";
 
 export const basePath = "/api/carRental/rentalSubscription";
 
@@ -21,6 +22,10 @@ export const {router} = createCrudRouter({
     editSchema: editRentalSubscriptionFormSchema,
     toDTO: rentalSubscriptionToDTO,
     toDTOArray: rentalSubscriptionsToDTO,
+    // Every amount is in the rental currency (UX-07).
+    enrichList: (docs, params: any) => withRentalCurrency(rentalSubscriptionsToDTO(docs), params.company._id, params.languageCode),
+    enrichSingle: async (doc, params: any) => (await withRentalCurrency([rentalSubscriptionToDTO(doc)], params.company._id, params.languageCode))[0],
+    enrichUpdate: async (doc, params: any) => (await withRentalCurrency([rentalSubscriptionToDTO(doc)], params.company._id, params.languageCode))[0],
     toSelect: rentalSubscriptionsToSelect,
     selectSearchField: "contactName",
     defaultSort: {nextRunAt: 1},

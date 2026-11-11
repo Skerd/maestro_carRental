@@ -13,6 +13,7 @@ import {vehicleInsuranceService} from "@carRentalModule/database/schemas/vehicle
 import {vehicleInsuranceToDTO, vehicleInsurancesToDTO} from "@carRentalModule/utilities/mappers/vehicleInsurance/vehicleInsuranceMapper.dto";
 import {vehicleInsurancesToSelect} from "@carRentalModule/utilities/mappers/vehicleInsurance/vehicleInsuranceMapper.select";
 import {assertCompanyVehicle, rearmExpiry, recordAttachmentsUpload, statusForExpiry} from "@carRentalModule/utilities/services/vehicleRecords";
+import {withRentalCurrency} from "@carRentalModule/utilities/services/rentalCurrency";
 
 export const basePath = "/api/carRental/vehicleInsurance";
 
@@ -38,6 +39,10 @@ export const {router} = createCrudRouter({
     editSchema: editVehicleInsuranceFormSchema,
     toDTO: vehicleInsuranceToDTO,
     toDTOArray: vehicleInsurancesToDTO,
+    // Every amount is in the rental currency (UX-07).
+    enrichList: (docs, params: any) => withRentalCurrency(vehicleInsurancesToDTO(docs), params.company._id, params.languageCode),
+    enrichSingle: async (doc, params: any) => (await withRentalCurrency([vehicleInsuranceToDTO(doc)], params.company._id, params.languageCode))[0],
+    enrichUpdate: async (doc, params: any) => (await withRentalCurrency([vehicleInsuranceToDTO(doc)], params.company._id, params.languageCode))[0],
     toSelect: vehicleInsurancesToSelect,
     selectSearchField: "policyNumber",
     selectProjection: "_id policyNumber insurer",

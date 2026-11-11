@@ -9,6 +9,7 @@ import {rentalExtraService} from "@carRentalModule/database/schemas/rentalExtra/
 import {rentalExtraToDTO, rentalExtrasToDTO} from "@carRentalModule/utilities/mappers/rentalExtra/rentalExtraMapper.dto";
 import {rentalExtrasToSelect} from "@carRentalModule/utilities/mappers/rentalExtra/rentalExtraMapper.select";
 import {RentalExtraActions} from "@carRentalModule/database/schemas/rentalExtra/rentalExtra.actions";
+import {withRentalCurrency} from "@carRentalModule/utilities/services/rentalCurrency";
 
 export const basePath = "/api/carRental/rentalExtra";
 
@@ -21,6 +22,10 @@ export const {router} = createCrudRouter({
     editSchema: editRentalExtraFormSchema,
     toDTO: rentalExtraToDTO,
     toDTOArray: rentalExtrasToDTO,
+    // Every amount is in the rental currency (UX-07).
+    enrichList: (docs, params: any) => withRentalCurrency(rentalExtrasToDTO(docs), params.company._id, params.languageCode),
+    enrichSingle: async (doc, params: any) => (await withRentalCurrency([rentalExtraToDTO(doc)], params.company._id, params.languageCode))[0],
+    enrichUpdate: async (doc, params: any) => (await withRentalCurrency([rentalExtraToDTO(doc)], params.company._id, params.languageCode))[0],
     toSelect: rentalExtrasToSelect,
     defaultSort: {sortOrder: 1, name: 1},
     extraSelectFilter: () => ({isActive: true}),

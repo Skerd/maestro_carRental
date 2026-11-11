@@ -10,6 +10,7 @@ import {vehicleFinesToSelect} from "@carRentalModule/utilities/mappers/vehicleFi
 import {VehicleFineActions} from "@carRentalModule/database/schemas/vehicleFine/vehicleFine.actions";
 import {assertCompanyVehicle, recordAttachmentsUpload} from "@carRentalModule/utilities/services/vehicleRecords";
 import {matchFine} from "@carRentalModule/utilities/services/rentalFines";
+import {withRentalCurrency} from "@carRentalModule/utilities/services/rentalCurrency";
 
 export const basePath = "/api/carRental/vehicleFine";
 
@@ -22,6 +23,10 @@ export const {router} = createCrudRouter({
     editSchema: editVehicleFineFormSchema,
     toDTO: vehicleFineToDTO,
     toDTOArray: vehicleFinesToDTO,
+    // Every amount is in the rental currency (UX-07).
+    enrichList: (docs, params: any) => withRentalCurrency(vehicleFinesToDTO(docs), params.company._id, params.languageCode),
+    enrichSingle: async (doc, params: any) => (await withRentalCurrency([vehicleFineToDTO(doc)], params.company._id, params.languageCode))[0],
+    enrichUpdate: async (doc, params: any) => (await withRentalCurrency([vehicleFineToDTO(doc)], params.company._id, params.languageCode))[0],
     toSelect: vehicleFinesToSelect,
     selectSearchField: "reference",
     defaultSort: {offenceAt: -1},

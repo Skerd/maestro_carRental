@@ -11,6 +11,7 @@ import {rentalLocationService} from "@carRentalModule/database/schemas/rentalLoc
 import {rentalLocationToDTO, rentalLocationsToDTO} from "@carRentalModule/utilities/mappers/rentalLocation/rentalLocationMapper.dto";
 import {rentalLocationsToSelect} from "@carRentalModule/utilities/mappers/rentalLocation/rentalLocationMapper.select";
 import {RentalLocationActions} from "@carRentalModule/database/schemas/rentalLocation/rentalLocation.actions";
+import {withRentalCurrency} from "@carRentalModule/utilities/services/rentalCurrency";
 
 /** The Zod contract can't compare fields, so the timezone name and each hours row are checked here. */
 function assertValidSchedule(data: {timezone?: string; openingHours?: {startTime: string; endTime: string}[]}, languageCode: string): void {
@@ -35,6 +36,10 @@ export const {router} = createCrudRouter({
     editSchema: editRentalLocationFormSchema,
     toDTO: rentalLocationToDTO,
     toDTOArray: rentalLocationsToDTO,
+    // Every amount is in the rental currency (UX-07).
+    enrichList: (docs, params: any) => withRentalCurrency(rentalLocationsToDTO(docs), params.company._id, params.languageCode),
+    enrichSingle: async (doc, params: any) => (await withRentalCurrency([rentalLocationToDTO(doc)], params.company._id, params.languageCode))[0],
+    enrichUpdate: async (doc, params: any) => (await withRentalCurrency([rentalLocationToDTO(doc)], params.company._id, params.languageCode))[0],
     toSelect: rentalLocationsToSelect,
     defaultSort: {name: 1},
     extraSelectFilter: () => ({isActive: true}),

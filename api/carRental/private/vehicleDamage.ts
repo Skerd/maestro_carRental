@@ -17,6 +17,7 @@ import {VEHICLE_DAMAGE_PHOTOS_MAX, VehicleDamageSchemaDef} from "armonia/src/mod
 import {rentalReservationService} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation.service";
 import {vehicleInsuranceService} from "@carRentalModule/database/schemas/vehicleInsurance/vehicleInsurance.service";
 import {vehicleMaintenanceService} from "@carRentalModule/database/schemas/vehicleMaintenance/vehicleMaintenance.service";
+import {withRentalCurrency} from "@carRentalModule/utilities/services/rentalCurrency";
 const photosUpload = mediaUploadMW({
     fields: {photos: VEHICLE_DAMAGE_PHOTOS_MAX},
     fieldMimeTypes: {photos: ["image/jpeg", "image/png", "image/webp"]},
@@ -67,6 +68,10 @@ export const {router} = createCrudRouter({
     editSchema: editVehicleDamageFormSchema,
     toDTO: vehicleDamageToDTO,
     toDTOArray: vehicleDamagesToDTO,
+    // Every amount is in the rental currency (UX-07).
+    enrichList: (docs, params: any) => withRentalCurrency(vehicleDamagesToDTO(docs), params.company._id, params.languageCode),
+    enrichSingle: async (doc, params: any) => (await withRentalCurrency([vehicleDamageToDTO(doc)], params.company._id, params.languageCode))[0],
+    enrichUpdate: async (doc, params: any) => (await withRentalCurrency([vehicleDamageToDTO(doc)], params.company._id, params.languageCode))[0],
     toSelect: vehicleDamagesToSelect,
     selectSearchField: "description",
     selectProjection: "_id area severity reportedAt",

@@ -2,11 +2,24 @@ import {ObjectId} from "mongodb";
 import {BaseCrudService, CrudOptions} from "@coreModule/database/services/baseCrudService";
 import Currency from "@coreModule/database/schemas/currency/currency";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
+import type {CurrencySimple} from "armonia/src/modules/core/dto/currency.dto";
+import {currencyService} from "@coreModule/database/schemas/currency/currency.service";
+import {CurrencySimpleSnippet} from "@coreModule/database/schemas/currency/currency.snippets";
+import {mapSnippet, nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import CarRentalConfig, {ICarRentalConfig} from "./carRentalConfig";
 
 export class CarRentalConfigService extends BaseCrudService<ICarRentalConfig, typeof CarRentalConfig> {
     constructor() {
         super(CarRentalConfig, "CarRentalConfig");
+    }
+
+    /** The currency every rental amount is in, with its own decimals (D90). */
+    async currencyOf(config: ICarRentalConfig, languageCode: string): Promise<CurrencySimple> {
+        const id = nestedEntityToRef(config.currency);
+        const found = id ? await currencyService.findById(id, {}, undefined, "name symbol abbreviation decimalPlaces") : null;
+        const currency = mapSnippet<CurrencySimple>()(found, CurrencySimpleSnippet);
+        if (!currency) throw apiValidationException("rental_currency_not_configured", "", null, languageCode);
+        return currency;
     }
 
     /** The company's rental settings, or null when the company never set up car rental. */
