@@ -5,9 +5,7 @@
  */
 
 import type {ObjectId} from "mongodb";
-import type {Model} from "mongoose";
-import {getModelCollectedData} from "@coreModule/database/collections";
-import SchemaGuard from "@coreModule/database/security/schemaGuard";
+import {readableListFetch} from "@coreModule/database/security/readableListFetch";
 import type {UserContext} from "@coreModule/utilities/types/types";
 import type {CurrencySimple} from "armonia/src/modules/core/dto/currency.dto";
 import type {Vehicle} from "armonia/src/modules/carRental/api/carRental/private/vehicle/vehicle.dto";
@@ -39,28 +37,15 @@ const HUB_LIMIT = 20;
 type HubCtx = {companyId: ObjectId; actionUserCtx: UserContext; languageCode: string; currency?: CurrencySimple};
 export type VehicleHub = Pick<Vehicle, "reservations" | "damages" | "maintenance" | "documents" | "insurances" | "fines" | "blocks">;
 
-/** The populate and projection the caller's role allows on a model, or null when it allows nothing (no access to that list). */
-function readableFetch(model: Model<any>, collectionName: string, ctx: HubCtx): ReturnType<typeof SchemaGuard.generatePopulate> | null {
-    const collected = getModelCollectedData(collectionName).readFields;
-    if (!collected) return null;
-    try {
-        const readFields = SchemaGuard.sanitizeFields(model, collected, "read", ctx.actionUserCtx, ctx.languageCode);
-        return Object.keys(readFields).length ? SchemaGuard.generatePopulate(readFields, model.schema) : null;
-    } catch {
-        // sanitizeFields refuses a role with no readable field: that list is simply not shown.
-        return null;
-    }
-}
-
 export async function vehicleHub(vehicleId: ObjectId, ctx: HubCtx): Promise<VehicleHub> {
     const filter = {company: ctx.companyId, deletedAt: null, vehicle: vehicleId};
-    const reservationsFetch = readableFetch(RentalReservation, "rentalreservations", ctx);
-    const damagesFetch = readableFetch(VehicleDamage, "vehicledamages", ctx);
-    const maintenanceFetch = readableFetch(VehicleMaintenance, "vehiclemaintenances", ctx);
-    const documentsFetch = readableFetch(VehicleDocument, "vehicledocuments", ctx);
-    const insurancesFetch = readableFetch(VehicleInsurance, "vehicleinsurances", ctx);
-    const finesFetch = readableFetch(VehicleFine, "vehiclefines", ctx);
-    const blocksFetch = readableFetch(VehicleBlock, "vehicleblocks", ctx);
+    const reservationsFetch = readableListFetch(RentalReservation, ctx);
+    const damagesFetch = readableListFetch(VehicleDamage, ctx);
+    const maintenanceFetch = readableListFetch(VehicleMaintenance, ctx);
+    const documentsFetch = readableListFetch(VehicleDocument, ctx);
+    const insurancesFetch = readableListFetch(VehicleInsurance, ctx);
+    const finesFetch = readableListFetch(VehicleFine, ctx);
+    const blocksFetch = readableListFetch(VehicleBlock, ctx);
 
     const [reservations, damages, maintenance, documents, insurances, fines, blocks] = await Promise.all([
         reservationsFetch ? rentalReservationService.find(filter, {}, reservationsFetch.populate, reservationsFetch.select, {pickupAt: -1}, HUB_LIMIT) : null,
