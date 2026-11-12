@@ -68,7 +68,7 @@ const VehicleMaintenanceSchema = new Schema<IVehicleMaintenance>(
         readyAt: {type: SchemaTypes.Date, dynamicTableConfiguration: {cellType: COLUMN_TYPE.DATE, hideColumn: true}},
         odometerKm: {type: SchemaTypes.Number, min: 0},
         provider: {type: SchemaTypes.String, trim: true, maxlength: VEHICLE_MAINTENANCE_PROVIDER_MAX},
-        cost: {type: SchemaTypes.Number, min: 0},
+        cost: {type: SchemaTypes.Number, min: 0, dynamicTableConfiguration: {currencyPath: "currency"}},
         description: {type: SchemaTypes.String, maxlength: VEHICLE_RECORD_NOTES_MAX, dynamicTableConfiguration: {hideColumn: true}},
         nextDueAt: {type: SchemaTypes.Date, dynamicTableConfiguration: {cellType: COLUMN_TYPE.DATE, hideColumn: true}},
         nextDueKm: {type: SchemaTypes.Number, min: 0, dynamicTableConfiguration: {hideColumn: true}},

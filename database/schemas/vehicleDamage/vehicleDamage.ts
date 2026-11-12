@@ -92,8 +92,8 @@ const VehicleDamageSchema = new Schema<IVehicleDamage>(
             permissions: DamageNoWritePermission,
             dynamicTableConfiguration: {enumTones: {open: "danger", in_repair: "warning", repaired: "success"}},
         },
-        estimatedCost: {type: SchemaTypes.Number, min: 0},
-        chargedAmount: {type: SchemaTypes.Number, min: 0, permissions: DamageNoWritePermission},
+        estimatedCost: {type: SchemaTypes.Number, min: 0, dynamicTableConfiguration: {currencyPath: "currency"}},
+        chargedAmount: {type: SchemaTypes.Number, min: 0, permissions: DamageNoWritePermission, dynamicTableConfiguration: {currencyPath: "currency"}},
         chargedAt: {type: SchemaTypes.Date, permissions: DamageNoWritePermission, dynamicTableConfiguration: {hideColumn: true, cellType: COLUMN_TYPE.DATE}},
         repair: {
             type: SchemaTypes.ObjectId,

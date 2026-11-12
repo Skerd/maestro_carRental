@@ -98,7 +98,7 @@ const RentalSubscriptionSchema = new Schema<IRentalSubscription>(
             required: true,
             default: "month",
         },
-        price: {type: SchemaTypes.Number, required: true, min: 0},
+        price: {type: SchemaTypes.Number, required: true, min: 0, dynamicTableConfiguration: {currencyPath: "currency"}},
         status: {
             type: SchemaTypes.String,
             enum: RENTAL_SUBSCRIPTION_STATUSS,

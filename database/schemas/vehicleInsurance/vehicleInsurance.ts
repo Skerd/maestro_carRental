@@ -104,7 +104,8 @@ const VehicleInsuranceSchema = new Schema<IVehicleInsurance>(
         },
         premium: {
             type: SchemaTypes.Number,
-            min: 0
+            min: 0,
+            dynamicTableConfiguration: {currencyPath: "currency"},
         },
         deductible: {
             type: SchemaTypes.Number,

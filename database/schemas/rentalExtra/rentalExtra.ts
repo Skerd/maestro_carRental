@@ -52,10 +52,10 @@ const RentalExtraSchema = new Schema<IRentalExtra>(
             default: "extra",
             dynamicTableConfiguration: {enumTones: {extra: "neutral", protection: "info"}},
         },
-        price: {type: SchemaTypes.Number, required: true, min: 0},
+        price: {type: SchemaTypes.Number, required: true, min: 0, dynamicTableConfiguration: {currencyPath: "currency"}},
         maxQuantity: {type: SchemaTypes.Number, required: true, default: 1, ...RENTAL_EXTRA_QUANTITY},
-        excessAmount: {type: SchemaTypes.Number, min: 0},
-        depositAmount: {type: SchemaTypes.Number, min: 0},
+        excessAmount: {type: SchemaTypes.Number, min: 0, dynamicTableConfiguration: {currencyPath: "currency"}},
+        depositAmount: {type: SchemaTypes.Number, min: 0, dynamicTableConfiguration: {currencyPath: "currency"}},
         isActive: {type: SchemaTypes.Boolean, default: true}, // activate / deactivate actions
         sortOrder: {type: SchemaTypes.Number, default: 0, dynamicTableConfiguration: {visible: false}},
     },

@@ -88,7 +88,7 @@ const RentalLocationSchema = new Schema<IRentalLocation>(
         },
         pickupAllowed: {type: SchemaTypes.Boolean, default: true},
         returnAllowed: {type: SchemaTypes.Boolean, default: true},
-        oneWayFee: {type: SchemaTypes.Number, min: 0},
+        oneWayFee: {type: SchemaTypes.Number, min: 0, dynamicTableConfiguration: {currencyPath: "currency"}},
         isActive: {type: SchemaTypes.Boolean, default: true}, // activate / deactivate actions
     },
     {accessMode: "loose"},

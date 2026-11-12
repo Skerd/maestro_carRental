@@ -590,7 +590,7 @@ const RentalReservationSchema = new Schema<IRentalReservation>(
             },
         },
         // Changed only by the payment actions (D14 action permissions).
-        amountPaid: {type: SchemaTypes.Decimal128, default: 0},
+        amountPaid: {type: SchemaTypes.Decimal128, default: 0, dynamicTableConfiguration: {currencyPath: "pricing.currency"}},
         stripePaymentIntentId: {
             type: SchemaTypes.String,
             permissions: NoWritePermission,
