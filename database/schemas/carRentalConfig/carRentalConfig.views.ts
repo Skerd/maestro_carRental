@@ -631,7 +631,6 @@ export const carRentalConfigEditFormView: ViewConfig = {
                         label: "form.notifyUsersLabel",
                         widgetProps: {
                             apiUrl: "/api/company/users/select",
-                            method: "POST",
                             placeholderKey: "form.selectUser",
                             removeTooltipKey: "form.removeUser",
                             selectPageSizeCreate: 50,
