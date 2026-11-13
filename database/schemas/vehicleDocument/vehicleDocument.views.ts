@@ -237,7 +237,6 @@ const vehicleDocumentCreateFormNodes: ViewConfig["nodes"] = [
                             required: true,
                             widgetProps: {
                                 apiUrl: "/api/carRental/vehicle/select",
-                                method: "POST",
                                 pageSize: 50,
                                 normalizeEmptyToUndefined: true,
                                 postBody: {includeInactive: true},
@@ -394,7 +393,6 @@ const vehicleDocumentEditFormNodes: ViewConfig["nodes"] = [
                             required: true,
                             widgetProps: {
                                 apiUrl: "/api/carRental/vehicle/select",
-                                method: "POST",
                                 pageSize: 50,
                                 normalizeEmptyToUndefined: true,
                                 postBody: {includeInactive: true},

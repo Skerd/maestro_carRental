@@ -253,7 +253,6 @@ const coverageOptions = VEHICLE_INSURANCE_COVERAGES.map((value) => ({
 
 const vehicleSelectProps = {
     apiUrl: "/api/carRental/vehicle/select",
-    method: "POST",
     pageSize: 50,
     normalizeEmptyToUndefined: true,
     postBody: {includeInactive: true},

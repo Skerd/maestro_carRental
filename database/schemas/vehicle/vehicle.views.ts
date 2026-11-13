@@ -692,7 +692,6 @@ const vehicleCreateFormNodes: ViewConfig["nodes"] = [
                             required: true,
                             widgetProps: {
                                 apiUrl: "/api/carRental/vehicleCategory/select",
-                                method: "POST",
                                 pageSize: 50,
                                 normalizeEmptyToUndefined: true,
                             },
@@ -810,7 +809,6 @@ const vehicleCreateFormNodes: ViewConfig["nodes"] = [
                             required: true,
                             widgetProps: {
                                 apiUrl: "/api/carRental/rentalLocation/select",
-                                method: "POST",
                                 pageSize: 50,
                                 normalizeEmptyToUndefined: true,
                             },
@@ -936,7 +934,6 @@ const vehicleEditFormNodes: ViewConfig["nodes"] = [
                             required: true,
                             widgetProps: {
                                 apiUrl: "/api/carRental/vehicleCategory/select",
-                                method: "POST",
                                 pageSize: 50,
                                 normalizeEmptyToUndefined: true,
                             },
@@ -1066,7 +1063,6 @@ const vehicleEditFormNodes: ViewConfig["nodes"] = [
                             required: true,
                             widgetProps: {
                                 apiUrl: "/api/carRental/rentalLocation/select",
-                                method: "POST",
                                 pageSize: 50,
                                 normalizeEmptyToUndefined: true,
                             },

@@ -606,8 +606,8 @@ async function playOutcome(
                 booking.contact % 2 === 0 ? "customer" : "staff";
             reservation.cancellationReason =
                 booking.contact % 2 === 0
-                    ? "Change of travel plans"
-                    : "Customer called to cancel";
+                    ? "Ndryshim i planeve të udhëtimit"
+                    : "Klienti telefonoi për ta anuluar";
             reservation.manageTokenVersion += 1;
             reservation.timeline.push({
                 event: "cancelled",
@@ -813,21 +813,21 @@ async function seedVehicleHistory(
 const DEMO_FINES = [
     {reference: "DEMO-FINE-1", type: "speeding", authority: "Policia Rrugore", amount: 50, place: "Tirana–Durrës", outcome: "driver_identified"},
     {reference: "DEMO-FINE-2", type: "parking", authority: "Bashkia Tiranë", amount: 20, place: "Blloku", outcome: "transferred"},
-    {reference: "DEMO-FINE-3", type: "toll", authority: "Autostrada", amount: 5, place: "Rinas toll", outcome: "paid_to_recharge"},
+    {reference: "DEMO-FINE-3", type: "toll", authority: "Autostrada", amount: 5, place: "Pika e pagesës Rinas", outcome: "paid_to_recharge"},
     {reference: "DEMO-FINE-4", type: "red_light", authority: "Policia Rrugore", amount: 40, place: "Rruga e Kavajës", outcome: "disputed"},
-    {reference: "DEMO-FINE-5", type: "parking", authority: "Bashkia Durrës", amount: 15, place: "Durrës promenade", outcome: "received"},
-    {reference: "DEMO-FINE-6", type: "speeding", authority: "Policia Rrugore", amount: 35, place: "Rinas road", outcome: "charged"},
-    {reference: "DEMO-FINE-7", type: "toll", authority: "Autostrada", amount: 5, place: "Milot toll", outcome: "paid_by_company"},
-    {reference: "DEMO-FINE-8", type: "parking", authority: "Bashkia Tiranë", amount: 20, place: "Skanderbeg Square", outcome: "cancelled"},
+    {reference: "DEMO-FINE-5", type: "parking", authority: "Bashkia Durrës", amount: 15, place: "Shëtitorja e Durrësit", outcome: "received"},
+    {reference: "DEMO-FINE-6", type: "speeding", authority: "Policia Rrugore", amount: 35, place: "Rruga e Rinasit", outcome: "charged"},
+    {reference: "DEMO-FINE-7", type: "toll", authority: "Autostrada", amount: 5, place: "Pika e pagesës Milot", outcome: "paid_by_company"},
+    {reference: "DEMO-FINE-8", type: "parking", authority: "Bashkia Tiranë", amount: 20, place: "Sheshi Skënderbej", outcome: "cancelled"},
 ] as const;
 
 /** One transfer in each state: two night moves ahead, one on the road now, one done yesterday, one called off. */
 const DEMO_TRANSFERS = [
-    {notes: "Demo night transfer 1", status: "planned", depart: {days: 70, time: "23:00"}, hours: 2},
-    {notes: "Demo night transfer 2", status: "planned", depart: {days: 70, time: "23:00"}, hours: 2},
-    {notes: "Demo transfer on the road", status: "in_transit", depart: {hoursFromNow: -1}, hours: 3},
-    {notes: "Demo transfer done yesterday", status: "done", depart: {days: -1, time: "20:00"}, hours: 2},
-    {notes: "Demo transfer called off", status: "cancelled", depart: {days: 21, time: "22:00"}, hours: 2},
+    {notes: "Transferim nate demo 1", status: "planned", depart: {days: 70, time: "23:00"}, hours: 2},
+    {notes: "Transferim nate demo 2", status: "planned", depart: {days: 70, time: "23:00"}, hours: 2},
+    {notes: "Transferim demo në rrugë", status: "in_transit", depart: {hoursFromNow: -1}, hours: 3},
+    {notes: "Transferim demo i kryer dje", status: "done", depart: {days: -1, time: "20:00"}, hours: 2},
+    {notes: "Transferim demo i anuluar", status: "cancelled", depart: {days: 21, time: "22:00"}, hours: 2},
 ] as const;
 
 /**
@@ -856,7 +856,7 @@ async function seedCounterRecords(input: {
             code: "SUMMER10",
             type: "percent" as const,
             value: 10,
-            description: "Ten percent off the rental base.",
+            description: "Dhjetë për qind zbritje nga çmimi bazë i qirasë.",
         },
         {
             code: "WEEKEND15",
@@ -907,7 +907,7 @@ async function seedCounterRecords(input: {
         {company: companyId, email: "blocked@rental.demo"},
         {
             ...owned,
-            reason: "Unpaid damage on a previous rental",
+            reason: "Dëm i papaguar nga një qira e mëparshme",
             isActive: true,
         },
     );
@@ -916,7 +916,7 @@ async function seedCounterRecords(input: {
         {company: companyId, licenseNumber: "AL-DENY-0001"},
         {
             ...owned,
-            reason: "Licence reported lost",
+            reason: "Patenta u deklarua e humbur",
             isActive: true,
         },
     );
@@ -1010,8 +1010,8 @@ async function seedCounterRecords(input: {
                     `${reservation.contact.firstName} ${reservation.contact.lastName}`.trim(),
                 comment:
                     index === 0
-                        ? "Clean car and the pickup was on time."
-                        : "The car was fine; the pickup took a while.",
+                        ? "Makinë e pastër dhe marrja ishte në kohë."
+                        : "Makina ishte në rregull; marrja zgjati pak.",
                 isPublished: index === 0,
             },
         );
@@ -1056,7 +1056,7 @@ async function seedCounterRecords(input: {
             received: {status: "received"},
             charged: {status: "driver_identified"},
             paid_by_company: {status: "paid_by_company", ...paid},
-            cancelled: {status: "cancelled", notes: "The authority withdrew the ticket: the car was parked legally."},
+            cancelled: {status: "cancelled", notes: "Autoriteti e anuloi gjobën: makina ishte parkuar rregullisht."},
         }[outcome];
         await runInTransaction(logger, async (session) => {
             const [created] = await VehicleFine.create(

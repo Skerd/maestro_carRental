@@ -115,7 +115,6 @@ export const carRentalConfigEditFormView: ViewConfig = {
                                 required: true,
                                 widgetProps: {
                                     apiUrl: "/api/finance/currency/select",
-                                    method: "POST",
                                     pageSize: 50,
                                 },
                             },

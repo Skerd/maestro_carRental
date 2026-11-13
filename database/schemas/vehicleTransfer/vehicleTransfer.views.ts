@@ -172,7 +172,6 @@ const vehicleTransferCreateFormNodes: ViewConfig["nodes"] = [
                             required: true,
                             widgetProps: {
                                 apiUrl: "/api/carRental/vehicle/select",
-                                method: "POST",
                                 pageSize: 50,
                                 normalizeEmptyToUndefined: true,
                                 postBody: {includeInactive: true},
@@ -191,7 +190,6 @@ const vehicleTransferCreateFormNodes: ViewConfig["nodes"] = [
                             required: true,
                             widgetProps: {
                                 apiUrl: "/api/carRental/rentalLocation/select",
-                                method: "POST",
                                 pageSize: 50,
                                 normalizeEmptyToUndefined: true,
                             },
@@ -207,7 +205,6 @@ const vehicleTransferCreateFormNodes: ViewConfig["nodes"] = [
                             required: true,
                             widgetProps: {
                                 apiUrl: "/api/carRental/rentalLocation/select",
-                                method: "POST",
                                 pageSize: 50,
                                 normalizeEmptyToUndefined: true,
                             },
@@ -256,7 +253,6 @@ const vehicleTransferCreateFormNodes: ViewConfig["nodes"] = [
                             placeholder: "form.driverPlaceholder",
                             widgetProps: {
                                 apiUrl: "/api/company/users/select",
-                                method: "POST",
                                 pageSize: 50,
                                 normalizeEmptyToUndefined: true,
                             },
@@ -328,7 +324,6 @@ const vehicleTransferEditFormNodes: ViewConfig["nodes"] = [
                             widgetProps: {
                                 disabled: true,
                                 apiUrl: "/api/carRental/vehicle/select",
-                                method: "POST",
                                 pageSize: 50,
                                 normalizeEmptyToUndefined: true,
                                 postBody: {includeInactive: true},
@@ -352,7 +347,6 @@ const vehicleTransferEditFormNodes: ViewConfig["nodes"] = [
                             widgetProps: {
                                 disabled: true,
                                 apiUrl: "/api/carRental/rentalLocation/select",
-                                method: "POST",
                                 pageSize: 50,
                                 normalizeEmptyToUndefined: true,
                             },
@@ -370,7 +364,6 @@ const vehicleTransferEditFormNodes: ViewConfig["nodes"] = [
                             widgetProps: {
                                 disabled: true,
                                 apiUrl: "/api/carRental/rentalLocation/select",
-                                method: "POST",
                                 pageSize: 50,
                                 normalizeEmptyToUndefined: true,
                             },
@@ -432,7 +425,6 @@ const vehicleTransferEditFormNodes: ViewConfig["nodes"] = [
                             placeholder: "form.driverPlaceholder",
                             widgetProps: {
                                 apiUrl: "/api/company/users/select",
-                                method: "POST",
                                 pageSize: 50,
                                 normalizeEmptyToUndefined: true,
                             },

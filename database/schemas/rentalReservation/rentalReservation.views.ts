@@ -822,7 +822,6 @@ export const rentalReservationCreateFormView: ViewConfig = {
                                 required: true,
                                 widgetProps: {
                                     apiUrl: "/api/carRental/vehicleCategory/select",
-                                    method: "POST",
                                     pageSize: 50,
                                     normalizeEmptyToUndefined: true,
                                     defaultOptionsFormExtraKey:
@@ -840,7 +839,6 @@ export const rentalReservationCreateFormView: ViewConfig = {
                                 placeholder: "form.vehiclePlaceholder",
                                 widgetProps: {
                                     apiUrl: "/api/carRental/vehicle/select",
-                                    method: "POST",
                                     pageSize: 50,
                                     normalizeEmptyToUndefined: true,
                                     postBodyFromFormFields: [
@@ -865,7 +863,6 @@ export const rentalReservationCreateFormView: ViewConfig = {
                                 required: true,
                                 widgetProps: {
                                     apiUrl: "/api/carRental/rentalLocation/select",
-                                    method: "POST",
                                     pageSize: 50,
                                     normalizeEmptyToUndefined: true,
                                 },
@@ -881,7 +878,6 @@ export const rentalReservationCreateFormView: ViewConfig = {
                                 required: true,
                                 widgetProps: {
                                     apiUrl: "/api/carRental/rentalLocation/select",
-                                    method: "POST",
                                     pageSize: 50,
                                     normalizeEmptyToUndefined: true,
                                 },
@@ -952,7 +948,6 @@ export const rentalReservationCreateFormView: ViewConfig = {
                         placeholder: "form.customerPlaceholder",
                         widgetProps: {
                             apiUrl: "/api/company/users/select",
-                            method: "POST",
                             pageSize: 50,
                             normalizeEmptyToUndefined: true,
                         },
@@ -1044,7 +1039,6 @@ export const rentalReservationCreateFormView: ViewConfig = {
                                         required: true,
                                         widgetProps: {
                                             apiUrl: "/api/carRental/rentalExtra/select",
-                                            method: "POST",
                                             pageSize: 50,
                                             normalizeEmptyToUndefined: true,
                                         },
@@ -1087,7 +1081,6 @@ export const rentalReservationCreateFormView: ViewConfig = {
                 placeholder: "form.businessAccountPlaceholder",
                 widgetProps: {
                     apiUrl: "/api/carRental/rentalBusinessAccount/select",
-                    method: "POST",
                     pageSize: 50,
                     normalizeEmptyToUndefined: true,
                 },

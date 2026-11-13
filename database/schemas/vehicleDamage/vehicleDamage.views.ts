@@ -379,7 +379,6 @@ const vehicleDamageCreateFormNodes: ViewConfig["nodes"] = [
                             required: true,
                             widgetProps: {
                                 apiUrl: "/api/carRental/vehicle/select",
-                                method: "POST",
                                 pageSize: 50,
                                 normalizeEmptyToUndefined: true,
                                 postBody: {includeInactive: true},
@@ -397,7 +396,6 @@ const vehicleDamageCreateFormNodes: ViewConfig["nodes"] = [
                             placeholder: "form.reservationPlaceholder",
                             widgetProps: {
                                 apiUrl: "/api/carRental/rentalReservation/select",
-                                method: "POST",
                                 pageSize: 50,
                                 normalizeEmptyToUndefined: true,
                                 postBodyFromFormFields: [
@@ -525,7 +523,6 @@ const vehicleDamageCreateFormNodes: ViewConfig["nodes"] = [
                             placeholder: "form.insurancePlaceholder",
                             widgetProps: {
                                 apiUrl: "/api/carRental/vehicleInsurance/select",
-                                method: "POST",
                                 pageSize: 50,
                                 normalizeEmptyToUndefined: true,
                                 postBodyFromFormFields: [
@@ -588,7 +585,6 @@ const vehicleDamageEditFormNodes: ViewConfig["nodes"] = [
                             required: true,
                             widgetProps: {
                                 apiUrl: "/api/carRental/vehicle/select",
-                                method: "POST",
                                 pageSize: 50,
                                 normalizeEmptyToUndefined: true,
                                 postBody: {includeInactive: true},
@@ -610,7 +606,6 @@ const vehicleDamageEditFormNodes: ViewConfig["nodes"] = [
                             placeholder: "form.reservationPlaceholder",
                             widgetProps: {
                                 apiUrl: "/api/carRental/rentalReservation/select",
-                                method: "POST",
                                 pageSize: 50,
                                 normalizeEmptyToUndefined: true,
                                 postBodyFromFormFields: [
@@ -760,7 +755,6 @@ const vehicleDamageEditFormNodes: ViewConfig["nodes"] = [
                             placeholder: "form.insurancePlaceholder",
                             widgetProps: {
                                 apiUrl: "/api/carRental/vehicleInsurance/select",
-                                method: "POST",
                                 pageSize: 50,
                                 normalizeEmptyToUndefined: true,
                                 postBodyFromFormFields: [

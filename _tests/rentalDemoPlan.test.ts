@@ -66,6 +66,35 @@ describe("demo fleet plan", () => {
         expect(histories.filter((h) => h.block)).toHaveLength(3);
     });
 
+    it("hands a car over only with papers valid from the pickup through the return, whatever the seed day", () => {
+        // The seed's handover runs assertVehiclePapersValid: one policy covering the pickup to the return, and the newest
+        // paper of each road document type still valid at the return. The seed stores paper days at local noon.
+        const roadTypes = new Set(["registration", "technical_inspection", "emissions_test", "road_tax"]);
+        const noon = (date: string) => `${date}T12:00`;
+        for (let offset = 0; offset < 120; offset += 1) {
+            const day = addLocalDays("2026-09-01", offset);
+            const fleet = demoVehicles(Number(day.slice(0, 4)));
+            const histories = new Map(fleet.map((vehicle) => [vehicle.index, planVehicleHistory(vehicle, day, vehicle.baseKm)]));
+            const refused = planDemoBookings(fleet, day)
+                .filter((booking) => booking.outcome === "completed" || booking.outcome === "in_progress")
+                .filter((booking) => {
+                    const history = histories.get(booking.vehicleIndex)!;
+                    const from = `${booking.pickupDate}T${booking.time}`;
+                    const until = `${booking.returnDate}T${booking.time}`;
+                    const insured = history.policies.some((policy) => noon(policy.validFrom) <= from && noon(policy.expiresAt) >= until);
+                    const newest = new Map<string, {issuedAt: string; expiresAt?: string}>();
+                    for (const document of history.documents.filter((entry) => roadTypes.has(entry.type))) {
+                        const current = newest.get(document.type);
+                        if (!current || document.issuedAt > current.issuedAt) newest.set(document.type, document);
+                    }
+                    const lapsed = [...newest.values()].some((document) => document.expiresAt !== undefined && noon(document.expiresAt) < until);
+                    return !insured || lapsed;
+                })
+                .map((booking) => `${day} ${booking.key}`);
+            expect(refused).toEqual([]);
+        }
+    });
+
     it("returns the same plan for the same day", () => {
         expect(planDemoBookings(demoVehicles(2026), today)).toEqual(bookings);
     });

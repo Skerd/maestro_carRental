@@ -122,7 +122,6 @@ const rentalReviewCreateFormNodes: ViewConfig["nodes"] = [
                     required: true,
                     widgetProps: {
                         apiUrl: "/api/carRental/rentalReservation/select",
-                        method: "POST",
                         pageSize: 50,
                         normalizeEmptyToUndefined: true,
                     },
@@ -187,7 +186,6 @@ const rentalReviewEditFormNodes: ViewConfig["nodes"] = [
                     required: true,
                     widgetProps: {
                         apiUrl: "/api/carRental/rentalReservation/select",
-                        method: "POST",
                         pageSize: 50,
                         normalizeEmptyToUndefined: true,
                     },

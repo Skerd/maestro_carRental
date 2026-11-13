@@ -198,7 +198,6 @@ const rentalSubscriptionCreateFormNodes: ViewConfig["nodes"] = [
                     placeholder: "form.businessAccountPlaceholder",
                     widgetProps: {
                         apiUrl: "/api/carRental/rentalBusinessAccount/select",
-                        method: "POST",
                         pageSize: 50,
                         normalizeEmptyToUndefined: true,
                     },
@@ -265,7 +264,6 @@ const rentalSubscriptionCreateFormNodes: ViewConfig["nodes"] = [
                             required: true,
                             widgetProps: {
                                 apiUrl: "/api/carRental/vehicleCategory/select",
-                                method: "POST",
                                 pageSize: 50,
                                 normalizeEmptyToUndefined: true,
                             },
@@ -281,7 +279,6 @@ const rentalSubscriptionCreateFormNodes: ViewConfig["nodes"] = [
                             required: true,
                             widgetProps: {
                                 apiUrl: "/api/carRental/rentalLocation/select",
-                                method: "POST",
                                 pageSize: 50,
                                 normalizeEmptyToUndefined: true,
                             },
@@ -381,7 +378,6 @@ const rentalSubscriptionEditFormNodes: ViewConfig["nodes"] = [
                     placeholder: "form.businessAccountPlaceholder",
                     widgetProps: {
                         apiUrl: "/api/carRental/rentalBusinessAccount/select",
-                        method: "POST",
                         pageSize: 50,
                         normalizeEmptyToUndefined: true,
                     },
@@ -453,7 +449,6 @@ const rentalSubscriptionEditFormNodes: ViewConfig["nodes"] = [
                             required: true,
                             widgetProps: {
                                 apiUrl: "/api/carRental/vehicleCategory/select",
-                                method: "POST",
                                 pageSize: 50,
                                 normalizeEmptyToUndefined: true,
                             },
@@ -470,7 +465,6 @@ const rentalSubscriptionEditFormNodes: ViewConfig["nodes"] = [
                             required: true,
                             widgetProps: {
                                 apiUrl: "/api/carRental/rentalLocation/select",
-                                method: "POST",
                                 pageSize: 50,
                                 normalizeEmptyToUndefined: true,
                             },

@@ -295,7 +295,6 @@ const rentalPromoCodeCreateFormNodes: ViewConfig["nodes"] = [
                     placeholder: "form.categoryPlaceholder",
                     widgetProps: {
                         apiUrl: "/api/carRental/vehicleCategory/select",
-                        method: "POST",
                         pageSize: 50,
                         normalizeEmptyToUndefined: true,
                     },
@@ -493,7 +492,6 @@ const rentalPromoCodeEditFormNodes: ViewConfig["nodes"] = [
                     placeholder: "form.categoryPlaceholder",
                     widgetProps: {
                         apiUrl: "/api/carRental/vehicleCategory/select",
-                        method: "POST",
                         pageSize: 50,
                         normalizeEmptyToUndefined: true,
                     },

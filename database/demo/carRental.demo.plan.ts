@@ -78,11 +78,11 @@ function outcomeOf(slot: Slot, k: number): DemoOutcome {
 
 function extrasOf(k: number): DemoExtraName[] {
     const extras: DemoExtraName[] = [];
-    if (k % 5 === 0) extras.push("Child seat");
-    if (k % 4 === 1) extras.push("Additional driver");
-    if (k % 6 === 2) extras.push("Full insurance");
-    if (k % 7 === 4) extras.push("GPS navigation");
-    if (k % 11 === 3) extras.push("Cross-border card (Montenegro, Kosovo, North Macedonia)");
+    if (k % 5 === 0) extras.push("Karrige për fëmijë");
+    if (k % 4 === 1) extras.push("Shofer shtesë");
+    if (k % 6 === 2) extras.push("Sigurim i plotë");
+    if (k % 7 === 4) extras.push("Navigim GPS");
+    if (k % 11 === 3) extras.push("Kartë për kalim kufiri (Mal i Zi, Kosovë, Maqedoni e Veriut)");
     return extras;
 }
 
@@ -234,12 +234,12 @@ export type DemoHistory = {
 const SERVICE_COSTS: Record<DemoService["type"], number> = {scheduled_service: 220, oil_change: 75, tires: 380, brakes: 190, battery: 140, repair: 0};
 const OLDER_SERVICES: DemoService["type"][] = ["oil_change", "tires", "brakes", "battery"];
 const SERVICE_NOTES: Record<DemoService["type"], string> = {
-    scheduled_service: "Yearly service: oil and filters, brake fluid, full check.",
-    oil_change: "Engine oil and oil filter changed.",
-    tires: "Four new tyres, wheels balanced and aligned.",
-    brakes: "Front pads and discs replaced.",
-    battery: "12 V battery replaced.",
-    repair: "Repair.",
+    scheduled_service: "Servisi vjetor: vaj dhe filtra, lëng frenash, kontroll i plotë.",
+    oil_change: "U ndërruan vaji i motorit dhe filtri i vajit.",
+    tires: "Katër goma të reja, rrotat u balancuan dhe u drejtuan.",
+    brakes: "U ndërruan ferrotat dhe disqet e përparme.",
+    battery: "U ndërrua bateria 12 V.",
+    repair: "Riparim.",
 };
 
 /**
@@ -256,7 +256,13 @@ export function planVehicleHistory(vehicle: DemoVehicle, today: string, finalKm:
 
     // Current policy: most run for months yet; a few expire within weeks; two have lapsed.
     const lapsed = i === 7 || i === 40;
-    const expiresIn = lapsed ? -2 : i % 16 === 3 ? 3 + (i % 23) : 55 + ((i * 17) % 300);
+    let expiresIn = lapsed ? -2 : i % 16 === 3 ? 3 + (i % 23) : 55 + ((i * 17) % 300);
+    // A handover needs one policy from the pickup to the return, so the renewal never falls in a booking or on the day
+    // after it (paper days are stored at noon).
+    for (const slot of slotsOf(vehicle)) {
+        const renewal = expiresIn - 365;
+        if (slot.start <= renewal && renewal <= slot.start + slot.days + 1) expiresIn = slot.start + slot.days + 2 + 365;
+    }
     const validFromOffset = expiresIn - 365;
     const fullCover = ["premium", "suv-4x4", "minivan"].includes(vehicle.category);
     const coverage: DemoPolicy["coverage"] = fullCover ? "full_casco" : i % 3 === 0 ? "partial_casco" : "third_party";
@@ -295,6 +301,10 @@ export function planVehicleHistory(vehicle: DemoVehicle, today: string, finalKm:
         },
         {type: "road_tax", documentNumber: `TQ-${year}-${3_000 + i}`, issuer: "Bashkia", issuedAt: `${year}-01-05`, expiresAt: `${year}-12-31`, status: "active"},
     ];
+    if (today >= `${year}-12-01`) {
+        // Next year's tax is paid in December, so a rental over New Year still has a valid one.
+        documents.push({type: "road_tax", documentNumber: `TQ-${year + 1}-${3_000 + i}`, issuer: "Bashkia", issuedAt: `${year}-12-01`, expiresAt: `${year + 1}-12-31`, status: "active"});
+    }
     if (i % 3 === 0) {
         documents.push({
             type: "technical_inspection", documentNumber: `KT-${200_000 + i * 389 - 1}`, issuer: "Qendra e Kontrollit Teknik",
@@ -337,15 +347,15 @@ export function planVehicleHistory(vehicle: DemoVehicle, today: string, finalKm:
     if (vehicle.status === "maintenance") {
         services.push({
             type: "repair", status: "scheduled", serviceDate: addLocalDays(today, 3), provider: DEMO_WORKSHOPS[(i + 2) % DEMO_WORKSHOPS.length],
-            description: "Gearbox noise when shifting into third: diagnosis and repair.",
+            description: "Zhurmë te kutia e marsheve kur futet e treta: diagnostikim dhe riparim.",
         });
-        history.block = {startDate: addLocalDays(today, 0), endDate: addLocalDays(today, 4), note: "Demo: in the workshop"};
+        history.block = {startDate: addLocalDays(today, 0), endDate: addLocalDays(today, 4), note: "Demo: në autoservis"};
     }
     if (i === 5) {
-        history.inspectionDamage = {area: "windshield", severity: "minor", status: "open", reportedAt: addLocalDays(today, -3), description: "Stone chip on the windshield found at the weekly check.", estimatedCost: 90};
+        history.inspectionDamage = {area: "windshield", severity: "minor", status: "open", reportedAt: addLocalDays(today, -3), description: "Krisje nga një gur në xhamin e përparmë, gjetur në kontrollin javor.", estimatedCost: 90};
     }
     if (i === 40) {
-        history.inspectionDamage = {area: "wheels", severity: "moderate", status: "in_repair", reportedAt: addLocalDays(today, -6), description: "Front left rim bent and tyre sidewall cut.", estimatedCost: 260};
+        history.inspectionDamage = {area: "wheels", severity: "moderate", status: "in_repair", reportedAt: addLocalDays(today, -6), description: "Disku i rrotës së përparme majtas i shtrembëruar dhe goma e prerë anash.", estimatedCost: 260};
     }
     return history;
 }

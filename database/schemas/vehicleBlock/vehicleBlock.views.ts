@@ -138,7 +138,6 @@ export const vehicleBlockCreateFormView: ViewConfig = {
                         required: true,
                         widgetProps: {
                             apiUrl: "/api/carRental/vehicle/select",
-                            method: "POST",
                             pageSize: 50,
                             normalizeEmptyToUndefined: true,
                             defaultOptionsFormExtraKey: "vehicleDefaultOptions",

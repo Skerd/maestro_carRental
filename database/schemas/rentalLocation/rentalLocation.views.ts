@@ -349,7 +349,6 @@ const rentalLocationCreateFormNodes: ViewConfig["nodes"] = [
                             placeholder: "form.countryPlaceholder",
                             widgetProps: {
                                 apiUrl: "/api/auxiliary/country/select",
-                                method: "POST",
                                 pageSize: 50,
                                 cascadeClearFormFields: ["address.city"],
                             },
@@ -364,7 +363,6 @@ const rentalLocationCreateFormNodes: ViewConfig["nodes"] = [
                             placeholder: "form.cityPlaceholder",
                             widgetProps: {
                                 apiUrl: "/api/auxiliary/city/select",
-                                method: "POST",
                                 pageSize: 50,
                                 postBodyFromFormFields: [
                                     {
@@ -689,7 +687,6 @@ const rentalLocationEditFormNodes: ViewConfig["nodes"] = [
                             placeholder: "form.countryPlaceholder",
                             widgetProps: {
                                 apiUrl: "/api/auxiliary/country/select",
-                                method: "POST",
                                 pageSize: 50,
                                 cascadeClearFormFields: ["address.city"],
                             },
@@ -704,7 +701,6 @@ const rentalLocationEditFormNodes: ViewConfig["nodes"] = [
                             placeholder: "form.cityPlaceholder",
                             widgetProps: {
                                 apiUrl: "/api/auxiliary/city/select",
-                                method: "POST",
                                 pageSize: 50,
                                 postBodyFromFormFields: [
                                     {

@@ -106,7 +106,7 @@ export const DEMO_CATEGORIES = [
         luggage: 1,
         transmission: "manual",
         fuelType: "petrol",
-        features: ["Air conditioning", "Bluetooth"],
+        features: ["Kondicioner", "Bluetooth"],
         dailyRate: 22,
         weekendDailyRate: 26,
         weeklyRate: 135,
@@ -115,7 +115,7 @@ export const DEMO_CATEGORIES = [
         mileagePolicy: "unlimited",
         minDriverAge: 21,
         sortOrder: 1,
-        description: "Easy to park in Tirana's old streets and light on fuel.",
+        description: "Parkohet lehtë në rrugët e ngushta të Tiranës dhe harxhon pak karburant.",
     },
     {
         name: "Economy",
@@ -125,7 +125,7 @@ export const DEMO_CATEGORIES = [
         luggage: 2,
         transmission: "manual",
         fuelType: "petrol",
-        features: ["Air conditioning", "Bluetooth"],
+        features: ["Kondicioner", "Bluetooth"],
         dailyRate: 29,
         weekendDailyRate: 35,
         weeklyRate: 175,
@@ -134,7 +134,7 @@ export const DEMO_CATEGORIES = [
         mileagePolicy: "unlimited",
         minDriverAge: 21,
         sortOrder: 2,
-        description: "Small and thrifty, ideal for the city.",
+        description: "E vogël dhe ekonomike, ideale për qytetin.",
     },
     {
         name: "Compact",
@@ -144,7 +144,7 @@ export const DEMO_CATEGORIES = [
         luggage: 3,
         transmission: "manual",
         fuelType: "diesel",
-        features: ["Air conditioning", "Apple CarPlay", "Cruise control"],
+        features: ["Kondicioner", "Apple CarPlay", "Kontroll i shpejtësisë"],
         dailyRate: 36,
         weekendDailyRate: 42,
         weeklyRate: 220,
@@ -154,7 +154,7 @@ export const DEMO_CATEGORIES = [
         minDriverAge: 21,
         sortOrder: 3,
         description:
-            "A roomier hatchback for the coast road and longer days out.",
+            "Hatchback më i gjerë për rrugën bregdetare dhe ditë të gjata udhëtimi.",
     },
     {
         name: "Sedan",
@@ -165,10 +165,10 @@ export const DEMO_CATEGORIES = [
         transmission: "automatic",
         fuelType: "diesel",
         features: [
-            "Air conditioning",
+            "Kondicioner",
             "Apple CarPlay",
-            "Cruise control",
-            "Parking sensors",
+            "Kontroll i shpejtësisë",
+            "Sensorë parkimi",
         ],
         dailyRate: 45,
         weeklyRate: 280,
@@ -178,7 +178,7 @@ export const DEMO_CATEGORIES = [
         minDriverAge: 23,
         sortOrder: 4,
         description:
-            "Comfortable on the highway with a big boot for suitcases.",
+            "E rehatshme në autostradë, me bagazh të madh për valixhet.",
     },
     {
         name: "Estate",
@@ -189,10 +189,10 @@ export const DEMO_CATEGORIES = [
         transmission: "automatic",
         fuelType: "diesel",
         features: [
-            "Air conditioning",
-            "Roof rails",
-            "Cruise control",
-            "Parking sensors",
+            "Kondicioner",
+            "Shina mbi çati",
+            "Kontroll i shpejtësisë",
+            "Sensorë parkimi",
         ],
         dailyRate: 52,
         weeklyRate: 320,
@@ -201,7 +201,7 @@ export const DEMO_CATEGORIES = [
         mileagePolicy: "unlimited",
         minDriverAge: 23,
         sortOrder: 5,
-        description: "Space for the whole family's luggage, bikes on the roof.",
+        description: "Vend për bagazhet e gjithë familjes, biçikletat mbi çati.",
     },
     {
         name: "Compact SUV",
@@ -211,7 +211,7 @@ export const DEMO_CATEGORIES = [
         luggage: 3,
         transmission: "automatic",
         fuelType: "hybrid",
-        features: ["Air conditioning", "Apple CarPlay", "Rear camera"],
+        features: ["Kondicioner", "Apple CarPlay", "Kamerë e pasme"],
         dailyRate: 49,
         weekendDailyRate: 55,
         weeklyRate: 300,
@@ -222,7 +222,7 @@ export const DEMO_CATEGORIES = [
         extraKmPrice: 0.25,
         minDriverAge: 23,
         sortOrder: 6,
-        description: "Room for the family and the mountain roads.",
+        description: "Vend për familjen dhe për rrugët malore.",
     },
     {
         name: "SUV 4x4",
@@ -233,10 +233,10 @@ export const DEMO_CATEGORIES = [
         transmission: "automatic",
         fuelType: "diesel",
         features: [
-            "Four-wheel drive",
-            "Hill descent control",
-            "Air conditioning",
-            "Navigation",
+            "Tërheqje 4x4",
+            "Ndihmë në zbritje",
+            "Kondicioner",
+            "Navigim",
         ],
         dailyRate: 85,
         weeklyRate: 530,
@@ -247,7 +247,7 @@ export const DEMO_CATEGORIES = [
         extraKmPrice: 0.35,
         minDriverAge: 25,
         sortOrder: 7,
-        description: "For Theth, Valbona and the gravel roads in between.",
+        description: "Për Thethin, Valbonën dhe rrugët me zhavorr mes tyre.",
     },
     {
         name: "Premium",
@@ -258,10 +258,10 @@ export const DEMO_CATEGORIES = [
         transmission: "automatic",
         fuelType: "diesel",
         features: [
-            "Leather seats",
-            "Adaptive cruise control",
-            "Navigation",
-            "Heated seats",
+            "Ndenjëse lëkure",
+            "Kontroll adaptiv i shpejtësisë",
+            "Navigim",
+            "Ndenjëse me ngrohje",
         ],
         dailyRate: 110,
         weeklyRate: 690,
@@ -272,7 +272,7 @@ export const DEMO_CATEGORIES = [
         extraKmPrice: 0.45,
         minDriverAge: 27,
         sortOrder: 8,
-        description: "Business trips and weddings, arriving in style.",
+        description: "Udhëtime pune dhe dasma, me stil.",
     },
     {
         name: "Electric",
@@ -282,7 +282,7 @@ export const DEMO_CATEGORIES = [
         luggage: 2,
         transmission: "automatic",
         fuelType: "electric",
-        features: ["Fast charging", "Heat pump", "Navigation"],
+        features: ["Karikim i shpejtë", "Pompë nxehtësie", "Navigim"],
         dailyRate: 59,
         weeklyRate: 360,
         summerDailyRate: 75,
@@ -290,7 +290,7 @@ export const DEMO_CATEGORIES = [
         mileagePolicy: "unlimited",
         minDriverAge: 25,
         sortOrder: 9,
-        description: "Quiet, quick and free to charge at our locations.",
+        description: "E qetë, e shpejtë dhe me karikim falas në pikat tona.",
     },
     {
         name: "Minivan",
@@ -301,10 +301,10 @@ export const DEMO_CATEGORIES = [
         transmission: "automatic",
         fuelType: "diesel",
         features: [
-            "Sliding doors",
-            "Three-zone climate",
-            "Rear camera",
-            "Cruise control",
+            "Dyer rrëshqitëse",
+            "Klimë me tri zona",
+            "Kamerë e pasme",
+            "Kontroll i shpejtësisë",
         ],
         dailyRate: 95,
         weeklyRate: 590,
@@ -313,7 +313,7 @@ export const DEMO_CATEGORIES = [
         mileagePolicy: "unlimited",
         minDriverAge: 25,
         sortOrder: 10,
-        description: "Eight seats for families and groups heading south.",
+        description: "Tetë vende për familje dhe grupe që shkojnë në jug.",
     },
 ] as const;
 
@@ -395,14 +395,14 @@ const PLATE_SERIES: Record<DemoCategorySlug, string> = {
 };
 
 const COLORS = [
-    "White",
-    "Silver",
-    "Black",
-    "Grey",
-    "Blue",
-    "Red",
-    "Dark green",
-    "Beige",
+    "E bardhë",
+    "Argjendi",
+    "E zezë",
+    "Gri",
+    "Blu",
+    "E kuqe",
+    "Jeshile e errët",
+    "Bezhë",
 ];
 
 export type DemoVehicle = {
@@ -473,7 +473,7 @@ export function demoVehicles(currentYear: number): DemoVehicle[] {
 
 export const DEMO_EXTRAS = [
     {
-        name: "Child seat",
+        name: "Karrige për fëmijë",
         kind: "extra",
         pricing: "per_day",
         price: 5,
@@ -481,7 +481,7 @@ export const DEMO_EXTRAS = [
         sortOrder: 1,
     },
     {
-        name: "Additional driver",
+        name: "Shofer shtesë",
         kind: "extra",
         pricing: "per_rental",
         price: 20,
@@ -489,7 +489,7 @@ export const DEMO_EXTRAS = [
         sortOrder: 2,
     },
     {
-        name: "GPS navigation",
+        name: "Navigim GPS",
         kind: "extra",
         pricing: "per_day",
         price: 4,
@@ -497,7 +497,7 @@ export const DEMO_EXTRAS = [
         sortOrder: 3,
     },
     {
-        name: "Full insurance",
+        name: "Sigurim i plotë",
         kind: "extra",
         pricing: "per_day",
         price: 12,
@@ -505,7 +505,7 @@ export const DEMO_EXTRAS = [
         sortOrder: 4,
     },
     {
-        name: "Cross-border card (Montenegro, Kosovo, North Macedonia)",
+        name: "Kartë për kalim kufiri (Mal i Zi, Kosovë, Maqedoni e Veriut)",
         kind: "extra",
         pricing: "per_rental",
         price: 40,
@@ -513,7 +513,7 @@ export const DEMO_EXTRAS = [
         sortOrder: 5,
     },
     {
-        name: "Roof box",
+        name: "Kuti bagazhi mbi çati",
         kind: "extra",
         pricing: "per_day",
         price: 8,
@@ -521,7 +521,7 @@ export const DEMO_EXTRAS = [
         sortOrder: 6,
     },
     {
-        name: "Snow chains",
+        name: "Zinxhirë bore",
         kind: "extra",
         pricing: "per_rental",
         price: 15,
@@ -529,7 +529,7 @@ export const DEMO_EXTRAS = [
         sortOrder: 7,
     },
     {
-        name: "Basic protection",
+        name: "Mbrojtje bazë",
         kind: "protection",
         pricing: "per_day",
         price: 8,
@@ -539,7 +539,7 @@ export const DEMO_EXTRAS = [
         depositAmount: 200,
     },
     {
-        name: "Zero excess",
+        name: "Pa franshizë",
         kind: "protection",
         pricing: "per_day",
         price: 18,
