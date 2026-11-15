@@ -108,9 +108,9 @@ import City from "@coreModule/database/schemas/city/city";
 
 const LANGUAGE = "en-US";
 
-/** The company's own City record by name; cities are seeded per company. */
-async function demoCityId(companyId: unknown, name: string) {
-    return (await City.findOne({company: companyId, name}).select("_id"))?._id;
+/** The City row with this name, from the platform list (D160). */
+async function demoCityId(name: string) {
+    return (await City.findOne({name}).select("_id"))?._id;
 }
 const DAY_MS = 24 * 3600 * 1000;
 const MINUTE_MS = 60 * 1000;
@@ -198,7 +198,7 @@ export async function seedCarRentalDemoData(
                         ...location,
                         address: {
                             ...location.address,
-                            city: await demoCityId(company._id, cityName),
+                            city: await demoCityId(cityName),
                         },
                         timezone: DEMO_TIMEZONE,
                         closures: [],

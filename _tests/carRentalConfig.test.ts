@@ -26,14 +26,14 @@ beforeEach(() => acrossCompanies(async () => {
 }));
 
 describe("the rental settings' currency (P9.1)", () => {
-    it("starts with the company's own currency and never borrows another company's", () => acrossCompanies(async () => {
-        const euro = await Currency.create({name: "Euro", symbol: "€", abbreviation: "EUR", decimalPlaces: 2, company: withCurrency});
-
-        const config = await carRentalConfigService.getOrCreateForCompany(withCurrency, {languageCode: "en-US"});
-        expect(String(config.currency)).toBe(euro._id.toString());
-
+    it("starts with the platform's first currency, and cannot start while the platform list has none (D160)", () => acrossCompanies(async () => {
         await expect(carRentalConfigService.getOrCreateForCompany(withoutCurrency, {languageCode: "en-US"}))
             .rejects.toMatchObject({error_code: "rental_currency_not_configured"});
+
+        // Owned by another company (the platform's row): every company starts with it.
+        const euro = await Currency.create({name: "Euro", symbol: "€", abbreviation: "EUR", decimalPlaces: 2, company: withCurrency});
+        const config = await carRentalConfigService.getOrCreateForCompany(withoutCurrency, {languageCode: "en-US"});
+        expect(String(config.currency)).toBe(euro._id.toString());
     }));
 });
 

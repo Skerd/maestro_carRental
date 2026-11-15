@@ -29,14 +29,14 @@ export class CarRentalConfigService extends BaseCrudService<ICarRentalConfig, ty
 
     /**
      * The company's rental settings, created with defaults (public booking off, the
-     * company's first currency) the first time staff open them.
+     * platform's first currency, D160) the first time staff open them.
      */
     async getOrCreateForCompany(companyId: ObjectId, options: CrudOptions = {}): Promise<ICarRentalConfig> {
         const existing = await this.findForCompany(companyId, options);
         if (existing) return existing;
 
-        // The company's own first currency only: another company's would price this company's rentals in it.
-        const currency = await Currency.findOne({company: companyId}).sort({createdAt: 1}).select("_id").session(options.session ?? null);
+        // The first row of the platform's currency list (D160).
+        const currency = await Currency.findOne({}).sort({createdAt: 1}).select("_id").session(options.session ?? null);
         if (!currency) {
             throw apiValidationException("rental_currency_not_configured", "", null, options.languageCode ?? "en-US");
         }
