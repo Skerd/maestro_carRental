@@ -10,6 +10,7 @@ const API_URL = "/api/carRental/rentalExtra";
 export const rentalExtraSheetView: ViewConfig = {
     model: "rentalextras",
     viewType: "sheet",
+    sheetWidget: "#RentalExtraSheetView",
     accessModel: "rentalextras",
     apiUrl: API_URL,
     header: {

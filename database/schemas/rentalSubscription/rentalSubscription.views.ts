@@ -22,6 +22,7 @@ const statusOptions = RENTAL_SUBSCRIPTION_STATUSS.map((value) => ({
 export const rentalSubscriptionSheetView: ViewConfig = {
     model: "rentalsubscriptions",
     viewType: "sheet",
+    sheetWidget: "#RentalSubscriptionSheetView",
     accessModel: "rentalsubscriptions",
     apiUrl: API_URL,
     header: {

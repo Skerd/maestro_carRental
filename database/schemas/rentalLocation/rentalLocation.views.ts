@@ -24,6 +24,7 @@ const weekdayOptions = [
 export const rentalLocationSheetView: ViewConfig = {
     model: "rentallocations",
     viewType: "sheet",
+    sheetWidget: "#RentalLocationSheetView",
     accessModel: "rentallocations",
     apiUrl: API_URL,
     header: {

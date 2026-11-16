@@ -14,6 +14,7 @@ import {
 export const vehicleSheetView: ViewConfig = {
     model: "vehicles",
     viewType: "sheet",
+    sheetWidget: "#VehicleSheetView",
     accessModel: "vehicles",
     apiUrl: "/api/carRental/vehicle",
     header: {

@@ -13,6 +13,7 @@ const API_URL = "/api/carRental/rentalBusinessAccount";
 export const rentalBusinessAccountSheetView: ViewConfig = {
     model: "rentalbusinessaccounts",
     viewType: "sheet",
+    sheetWidget: "#RentalBusinessAccountSheetView",
     accessModel: "rentalbusinessaccounts",
     apiUrl: API_URL,
     header: {

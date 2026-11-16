@@ -7,6 +7,7 @@ const API_URL = "/api/carRental/vehicleBlock";
 export const vehicleBlockSheetView: ViewConfig = {
     model: "vehicleblocks",
     viewType: "sheet",
+    sheetWidget: "#VehicleBlockSheetView",
     accessModel: "vehicleblocks",
     apiUrl: API_URL,
     header: {

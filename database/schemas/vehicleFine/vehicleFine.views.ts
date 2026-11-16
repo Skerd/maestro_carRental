@@ -19,6 +19,7 @@ const typeOptions = VEHICLE_FINE_TYPES.map((value) => ({
 export const vehicleFineSheetView: ViewConfig = {
     model: "vehiclefines",
     viewType: "sheet",
+    sheetWidget: "#VehicleFineSheetView",
     accessModel: "vehiclefines",
     apiUrl: API_URL,
     header: {

@@ -16,6 +16,7 @@ const API_URL = "/api/carRental/vehicleDocument";
 export const vehicleDocumentSheetView: ViewConfig = {
     model: "vehicledocuments",
     viewType: "sheet",
+    sheetWidget: "#VehicleDocumentSheetView",
     accessModel: "vehicledocuments",
     apiUrl: API_URL,
     header: {

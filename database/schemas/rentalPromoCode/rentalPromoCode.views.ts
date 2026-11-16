@@ -16,6 +16,7 @@ const typeOptions = RENTAL_PROMO_CODE_TYPES.map((value) => ({
 export const rentalPromoCodeSheetView: ViewConfig = {
     model: "rentalpromocodes",
     viewType: "sheet",
+    sheetWidget: "#RentalPromoCodeSheetView",
     accessModel: "rentalpromocodes",
     apiUrl: API_URL,
     header: {

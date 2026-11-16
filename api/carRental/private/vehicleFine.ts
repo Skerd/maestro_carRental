@@ -29,6 +29,8 @@ export const {router} = createCrudRouter({
     enrichUpdate: async (doc, params: any) => (await withRentalCurrency([vehicleFineToDTO(doc)], params.company._id, params.languageCode))[0],
     toSelect: vehicleFinesToSelect,
     selectSearchField: "reference",
+    // The label reads the reference and the authority (TD-B234).
+    selectProjection: "_id reference authority",
     defaultSort: {offenceAt: -1},
     actions: VehicleFineActions,
     createMiddleware: [recordAttachmentsUpload],

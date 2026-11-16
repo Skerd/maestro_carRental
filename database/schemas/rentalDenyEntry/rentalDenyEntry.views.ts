@@ -11,6 +11,7 @@ const API_URL = "/api/carRental/rentalDenyEntry";
 export const rentalDenyEntrySheetView: ViewConfig = {
     model: "rentaldenyentries",
     viewType: "sheet",
+    sheetWidget: "#RentalDenyEntrySheetView",
     accessModel: "rentaldenyentries",
     apiUrl: API_URL,
     header: {

@@ -15,6 +15,7 @@ const API_URL = "/api/carRental/vehicleMaintenance";
 export const vehicleMaintenanceSheetView: ViewConfig = {
     model: "vehiclemaintenances",
     viewType: "sheet",
+    sheetWidget: "#VehicleMaintenanceSheetView",
     accessModel: "vehiclemaintenances",
     apiUrl: API_URL,
     header: {
