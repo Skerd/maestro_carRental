@@ -31,6 +31,9 @@ import PaymentTransaction from "@financeModule/database/schemas/paymentTransacti
 import {seedCarRentalDemoData} from "@carRentalModule/database/demo/carRentalCompanyDemo";
 import {withTenant} from "@coreModule/utilities/endpoints/tenantScope";
 
+/** The whole 80-car demo takes about 80 s alone; a busy machine has stretched it past 300 s (TD-T17). */
+const DEMO_SEED_TIMEOUT_MS = 600_000;
+
 const company = {
     _id: new ObjectId(),
     name: "Demo Rent",
@@ -205,11 +208,11 @@ describe("car rental demo seed", () => {
         const car = await Vehicle.findOne({plate: "AA101DM"});
         expect(car!.images.length).toBe(3);
         expect(car!.odometerKm).toBeGreaterThan(0);
-    }), 300000);
+    }), DEMO_SEED_TIMEOUT_MS);
 
     it("changes nothing when it runs again", () => asCompany(async () => {
         const before = await counts();
         await seedCarRentalDemoData(undefined, company);
         expect(await counts()).toEqual(before);
-    }), 300000);
+    }), DEMO_SEED_TIMEOUT_MS);
 });
