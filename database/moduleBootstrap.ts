@@ -22,6 +22,8 @@ import {registerDefaultRoles} from "@coreModule/database/schemas/role/role.defau
 import {registerPublicMediaBackfillSource} from "@coreModule/utilities/media/publicMediaBackfillRegistry";
 import {carRentalDefaultRoles} from "@carRentalModule/database/schemas/role/carRental.role.defaults";
 import {VehicleCategorySchemaDef} from "armonia/src/modules/carRental/api/carRental/private/vehicleCategory/vehicleCategory.schema-def";
+import {carRentalConfigService} from "@carRentalModule/database/schemas/carRentalConfig/carRentalConfig.service";
+import type {SelfServeBusinessType} from "@coreModule/domain/company/selfServeBusinessTypes";
 
 export const carRentalModels: Model<any>[] = [
     CarRentalConfig,
@@ -65,8 +67,19 @@ registerPublicMediaBackfillSource({
         ),
 });
 
+/** A car rental company may sign itself up on the portal; it is listed there once the platform approves it (D178). */
+const selfServeBusinessTypes: SelfServeBusinessType[] = [{
+    key: "carRental",
+    modules: ["carRental"],
+    onCreated: async ({company, session, logger, languageCode}) => {
+        const config = await carRentalConfigService.getOrCreateForCompany(company._id, {session, logger, languageCode});
+        await carRentalConfigService.updateOne({_id: config._id}, {$set: {listedOnPortal: true}}, {session, logger});
+    },
+}];
+
 export const moduleBootstrap = {
     models: carRentalModels,
     dropModuleCollections: dropCarRentalCollections,
     defaultRoles: carRentalDefaultRoles,
+    selfServeBusinessTypes,
 };
