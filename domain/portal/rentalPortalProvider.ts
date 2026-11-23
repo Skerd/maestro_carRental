@@ -2,8 +2,8 @@ import * as path from "path";
 import {applyPlaceholders, loadEmailStrings} from "@coreModule/utilities/emails/emailLocale";
 import type {ObjectId} from "mongodb";
 import {registerPortalProvider} from "@coreModule/domain/portal/portalProviderRegistry";
-import type {PortalBrowseParams} from "@coreModule/domain/portal/portalProvider.types";
-import {catalogItems, catalogRating, configCurrencies, filterValue, priceRange, samePriceCurrencyCompanies} from "@coreModule/domain/portal/portalCatalog";
+import type {PortalBrowseParams, PortalNewSinceContext} from "@coreModule/domain/portal/portalProvider.types";
+import {catalogItems, catalogRating, configCurrencies, filterValue, newSinceClause, priceRange, samePriceCurrencyCompanies} from "@coreModule/domain/portal/portalCatalog";
 import {rentalReviewService} from "@carRentalModule/database/schemas/rentalReview/rentalReview.service";
 import {addressCitiesByCompany, portalListedCompanyIds, type PortalScope} from "@coreModule/utilities/marketing/portalCompanies";
 import {escapeRegex} from "@coreModule/utilities/helpers";
@@ -56,11 +56,14 @@ function categoryClause({companyIds, query, filters}: PortalBrowseParams): Recor
     return clause;
 }
 
-/** Without dates: the public car classes at their daily rate; each opens the company's rental site. */
-async function browseCategories(params: PortalBrowseParams) {
+/**
+ * Without dates: the public car classes at their daily rate; each opens the company's rental site. `narrowing` keeps only
+ * the classes a "new since" ask is about.
+ */
+async function browseCategories(params: PortalBrowseParams, narrowing: Record<string, unknown> = {}) {
     const currencies = await configCurrencies(CarRentalConfig, params.companyIds);
     // Daily rates are compared only between companies charging in one currency.
-    const clause = categoryClause({...params, companyIds: samePriceCurrencyCompanies(params.companyIds, currencies, params)});
+    const clause = {...categoryClause({...params, companyIds: samePriceCurrencyCompanies(params.companyIds, currencies, params)}), ...narrowing};
     const price = priceRange(params.priceMin, params.priceMax);
     if (price) clause.dailyRate = price;
     const [categories, total] = await Promise.all([
@@ -182,5 +185,7 @@ export function registerRentalPortalProvider(): void {
             const trip = tripOf(params);
             return trip ? browseAvailable(params, trip) : browseCategories(params);
         },
+        // Car classes added after the date (D178), whatever the trip: a saved trip's dates pass, its car filters stay.
+        newSince: (context: PortalNewSinceContext) => browseCategories({...context, sort: "newest", skip: 0}, newSinceClause(context)),
     });
 }
