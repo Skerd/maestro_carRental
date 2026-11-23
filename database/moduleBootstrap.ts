@@ -24,6 +24,9 @@ import {carRentalDefaultRoles} from "@carRentalModule/database/schemas/role/carR
 import {VehicleCategorySchemaDef} from "armonia/src/modules/carRental/api/carRental/private/vehicleCategory/vehicleCategory.schema-def";
 import {carRentalConfigService} from "@carRentalModule/database/schemas/carRentalConfig/carRentalConfig.service";
 import type {SelfServeBusinessType} from "@coreModule/domain/company/selfServeBusinessTypes";
+import type {AccountVerifiedHook} from "@coreModule/utilities/modules/moduleCompanyDefaults";
+import {asCrossTenant} from "@coreModule/utilities/endpoints/tenantScope";
+import {rentalReservationService} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation.service";
 
 export const carRentalModels: Model<any>[] = [
     CarRentalConfig,
@@ -73,13 +76,27 @@ const selfServeBusinessTypes: SelfServeBusinessType[] = [{
     modules: ["carRental"],
     onCreated: async ({company, session, logger, languageCode}) => {
         const config = await carRentalConfigService.getOrCreateForCompany(company._id, {session, logger, languageCode});
-        await carRentalConfigService.updateOne({_id: config._id}, {$set: {listedOnPortal: true}}, {session, logger});
+        // Booking online on, too: the portal and the company's own site show only a business that takes bookings, so
+        // without it a self-serve business never appeared anywhere (P23.12). With nothing set up yet there is nothing
+        // to book; the owner can turn it off in the settings.
+        await carRentalConfigService.updateOne({_id: config._id}, {$set: {listedOnPortal: true, publicBookingEnabled: true}}, {session, logger});
     },
 }];
+
+/**
+ * A guest's bookings become theirs once they hold an account with the booking's email, verified (P23.9): the portal's
+ * "My bookings" lists them from then on, at whichever rental company they were made.
+ */
+const onAccountVerified: AccountVerifiedHook = async ({userId, email, session, logger}) => {
+    const {modifiedCount} = await asCrossTenant("an account claims its guest bookings at every rental company", () =>
+        rentalReservationService.claimGuestBookings(email, userId, session));
+    if (modifiedCount) logger.info(`Account ${userId} claimed ${modifiedCount} guest rental booking(s)`);
+};
 
 export const moduleBootstrap = {
     models: carRentalModels,
     dropModuleCollections: dropCarRentalCollections,
     defaultRoles: carRentalDefaultRoles,
     selfServeBusinessTypes,
+    onAccountVerified,
 };

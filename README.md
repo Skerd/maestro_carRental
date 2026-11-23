@@ -18,7 +18,7 @@ Enable via `ENABLED_MODULES=carRental` (with `core` and `finance`).
 carRental/
 ├── api/carRental/private/         # CRUD routes and @actions
 ├── api/carRental/public/          # rentalStorefront (search, quote, book, manage)
-├── database/moduleBootstrap.ts    # models, default roles
+├── database/moduleBootstrap.ts    # models, default roles, onAccountVerified (a verified account claims its guest bookings, P23.9)
 ├── database/schemas/<resource>/   # models, indexes, services, snippets, views
 ├── domain/notifications/          # staff alerts
 └── utilities/                     # services, mappers, emails, cron jobs
