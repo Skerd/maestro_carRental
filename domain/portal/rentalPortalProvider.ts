@@ -179,13 +179,13 @@ export function registerRentalPortalProvider(): void {
         key: "carRental",
         order: 20,
         sitePath: "car-rental",
-        // As the portal's section tabs name it (sinfonia `portalSectionName`).
+        // As the portal names it: the section (sinfonia `portalSectionName`) and its kinds' tabs (`portalKindName`).
         names: {
-            "en-US": {title: "Car rental", description: "Compare rental companies and book a car for your dates."},
-            "sq-AL": {title: "Qiraja e makinave", description: "Krahasoni kompanitë e qirasë dhe rezervoni një makinë për datat tuaja."},
-            "it-IT": {title: "Noleggio auto", description: "Confronta i noleggiatori e prenota un'auto per le tue date."},
-            "fr-FR": {title: "Location de voitures", description: "Comparez les loueurs et réservez une voiture pour vos dates."},
-            "de-CH": {title: "Autovermietung", description: "Vergleichen Sie Vermieter und buchen Sie ein Auto für Ihre Daten."},
+            "en-US": {title: "Car rental", description: "Compare rental companies and book a car for your dates.", kinds: {vehicleCategory: "Cars"}},
+            "sq-AL": {title: "Qiraja e makinave", description: "Krahasoni kompanitë e qirasë dhe rezervoni një makinë për datat tuaja.", kinds: {vehicleCategory: "Makina"}},
+            "it-IT": {title: "Noleggio auto", description: "Confronta i noleggiatori e prenota un'auto per le tue date.", kinds: {vehicleCategory: "Auto"}},
+            "fr-FR": {title: "Location de voitures", description: "Comparez les loueurs et réservez une voiture pour vos dates.", kinds: {vehicleCategory: "Voitures"}},
+            "de-CH": {title: "Autovermietung", description: "Vergleichen Sie Vermieter und buchen Sie ein Auto für Ihre Daten.", kinds: {vehicleCategory: "Autos"}},
         },
         kinds: ["vehicleCategory"],
         companyIds: rentalPortalCompanyIds,
