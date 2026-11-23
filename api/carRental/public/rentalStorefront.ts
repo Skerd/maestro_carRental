@@ -39,6 +39,8 @@ import {PAYMENTS} from "@financeModule/environment";
 import {getPaymentAdapter} from "@financeModule/utilities/services/payment/paymentService";
 import {
     bookRentalFormSchema,
+    categoryReviewsFormSchema,
+    type CategoryReviewsFormType,
     manageDriverFormSchema,
     manageExtendFormSchema,
     manageExtrasFormSchema,
@@ -48,6 +50,7 @@ import {
     quoteRentalFormSchema,
     searchRentalFormSchema,
 } from "armonia/src/modules/carRental/api/carRental/public/rentalStorefront/rentalStorefront.form.validators";
+import type {RentalCategoryReviewsResponse} from "armonia/src/modules/carRental/api/carRental/public/rentalStorefront/rentalStorefront.response.types";
 import type {
     BookRentalFormType,
     ManageDriverFormType,
@@ -438,6 +441,37 @@ router.post(
 );
 
 /** Every public category with whether a car is free for the trip, and its price. Advisory: booking re-checks. */
+/**
+ * POST /api/carRental/rentalStorefront/reviews
+ *
+ * A car class's published reviews on the rental site (D178): the average, how many, and the latest ones. Reviews are
+ * written from the emailed manage link after a completed rental and shown once staff publish them.
+ */
+router.post(
+    "/reviews",
+    authMW("public"),
+    rateLimiter({windowMs: 60000, max: 60}),
+    validateFormZod(categoryReviewsFormSchema),
+    asyncHandler(
+        async ({origin, languageCode, category, limit}: NotAuthenticatedMWType & CategoryReviewsFormType): Promise<RentalCategoryReviewsResponse> => {
+            const {company} = await storefrontContext(origin, languageCode);
+            const found = await rentalReviewService.publishedForCategory(company._id, new ObjectId(category), limit ?? 10);
+            return {
+                data: {
+                    average: found.average,
+                    count: found.count,
+                    reviews: found.reviews.map((review) => ({
+                        rating: review.rating,
+                        ...(review.comment ? {comment: review.comment} : {}),
+                        ...(review.authorName ? {authorName: review.authorName} : {}),
+                        createdAt: review.createdAt.toISOString(),
+                    })),
+                },
+            };
+        },
+    ),
+);
+
 router.post(
     "/search",
     authMW("public"),

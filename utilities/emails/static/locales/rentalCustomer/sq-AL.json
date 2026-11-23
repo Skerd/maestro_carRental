@@ -7,6 +7,8 @@
   "labelReturn": "Kthimi",
   "labelTotal": "Totali",
   "manageLinkText": "Shikoni ose menaxhoni rezervimin",
+  "accountNote": "Të gjitha rezervimet tuaja në një vend:",
+  "accountLinkText": "llogaria juaj në {pageName}",
   "headingConfirmed": "Makina juaj është rezervuar",
   "subjectConfirmed": "Rezervimi {number} u konfirmua — {companyName}",
   "introConfirmed": "Qiraja juaj është konfirmuar. Ja detajet.",

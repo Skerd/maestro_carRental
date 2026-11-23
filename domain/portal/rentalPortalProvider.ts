@@ -3,7 +3,8 @@ import {applyPlaceholders, loadEmailStrings} from "@coreModule/utilities/emails/
 import type {ObjectId} from "mongodb";
 import {registerPortalProvider} from "@coreModule/domain/portal/portalProviderRegistry";
 import type {PortalBrowseParams} from "@coreModule/domain/portal/portalProvider.types";
-import {catalogItems, configCurrencies, filterValue, priceRange, samePriceCurrencyCompanies} from "@coreModule/domain/portal/portalCatalog";
+import {catalogItems, catalogRating, configCurrencies, filterValue, priceRange, samePriceCurrencyCompanies} from "@coreModule/domain/portal/portalCatalog";
+import {rentalReviewService} from "@carRentalModule/database/schemas/rentalReview/rentalReview.service";
 import {addressCitiesByCompany, portalListedCompanyIds, type PortalScope} from "@coreModule/utilities/marketing/portalCompanies";
 import {escapeRegex} from "@coreModule/utilities/helpers";
 import {publicMediaUrl} from "@coreModule/utilities/media/publicMediaUrl";
@@ -66,8 +67,10 @@ async function browseCategories(params: PortalBrowseParams) {
         vehicleCategoryService.findPortalCards(clause, CATEGORY_SORTS[params.sort ?? "newest"], params.skip, params.limit),
         vehicleCategoryService.count(clause),
     ]);
+    const ratings = await rentalReviewService.publishedRatingsByCategory(params.companyIds);
     const items = await catalogItems(categories, (category) => {
         const currency = currencies.get(category.company.toString());
+        const rating = ratings.get(category._id.toString());
         return {
             kind: "vehicleCategory",
             id: category._id.toString(),
@@ -75,6 +78,7 @@ async function browseCategories(params: PortalBrowseParams) {
             subtitle: classSubtitle(category, params.languageCode),
             image: publicMediaUrl(category.images?.[0]),
             ...(currency ? {price: {amount: category.dailyRate, currency, per: "day" as const}} : {}),
+            ...catalogRating(rating?.average, rating?.count),
             section: "carRental",
             // The class's web address, like the rental site's own links (the id still opens it).
             path: `/categories/${category.slug || category._id.toString()}`,
@@ -137,6 +141,7 @@ async function browseAvailable(params: PortalBrowseParams, trip: RentalPortalTri
         .filter((car) => (priceMin == null || car.total >= priceMin) && (priceMax == null || car.total <= priceMax));
     if (sort === "priceAsc") found.sort((a, b) => a.total - b.total);
     if (sort === "priceDesc") found.sort((a, b) => b.total - a.total);
+    const ratings = await rentalReviewService.publishedRatingsByCategory(params.companyIds);
     const items = await catalogItems(found.slice(params.skip, params.skip + params.limit), (car) => ({
         kind: "vehicleCategory",
         id: car.category._id.toString(),
@@ -145,6 +150,7 @@ async function browseAvailable(params: PortalBrowseParams, trip: RentalPortalTri
         image: publicMediaUrl(car.category.images?.[0]),
         price: {amount: car.total, currency: car.currency},
         city: car.city,
+        ...catalogRating(ratings.get(car.category._id.toString())?.average, ratings.get(car.category._id.toString())?.count),
         section: "carRental",
         path: `/categories/${car.category.slug || car.category._id}?${car.tripQuery}`,
     }));

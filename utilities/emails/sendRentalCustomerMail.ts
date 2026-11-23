@@ -47,6 +47,8 @@ export type RentalCustomerEmail = {
     manageToken: string;
     /** The manage page on the company's own site; the token is appended. */
     manageUrl: string;
+    /** The customer's account on the portal apex, for a booking made signed in (their account lists it, D178). */
+    accountUrl?: string;
     /** Fills `{note}` in the intro, e.g. what a later charge is for. */
     note?: string;
     /** Built only when the email is really sent. */
@@ -82,6 +84,13 @@ export async function sendRentalCustomerMail(data: RentalCustomerEmail): Promise
         detailsSummary: summaryCardHtml(loc.summaryTitle ?? "", rows),
         cta: ctaButtonHtml(loc.manageLinkText ?? "", manageUrl, loc.fallbackLabel ?? ""),
         closing: loc[`closing${suffix}`] ?? "",
+        account: data.accountUrl
+            ? applyPlaceholders(readTemplate("account.html"), {
+                accountNote: loc.accountNote ?? "",
+                accountUrl: escapeHtml(data.accountUrl),
+                accountLinkText: localized(strings, "accountLinkText", {pageName}),
+            })
+            : "",
     });
 
     let html = applyPlaceholders(readTemplate("rentalCustomer.html"), layoutStrings(strings, `heading${suffix}`, `preheader${suffix}`));

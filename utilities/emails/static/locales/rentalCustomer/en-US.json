@@ -7,6 +7,8 @@
   "labelReturn": "Return",
   "labelTotal": "Total",
   "manageLinkText": "View or manage your booking",
+  "accountNote": "All your bookings in one place:",
+  "accountLinkText": "your {pageName} account",
   "headingConfirmed": "Your car is booked",
   "subjectConfirmed": "Booking {number} confirmed — {companyName}",
   "introConfirmed": "Your rental is confirmed. Here are the details.",

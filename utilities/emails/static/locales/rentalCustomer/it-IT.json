@@ -7,6 +7,8 @@
   "labelReturn": "Riconsegna",
   "labelTotal": "Totale",
   "manageLinkText": "Visualizza o gestisci la tua prenotazione",
+  "accountNote": "Tutte le tue prenotazioni in un unico posto:",
+  "accountLinkText": "il tuo account {pageName}",
   "headingConfirmed": "La tua auto è prenotata",
   "subjectConfirmed": "Prenotazione {number} confermata — {companyName}",
   "introConfirmed": "Il tuo noleggio è confermato. Ecco i dettagli.",

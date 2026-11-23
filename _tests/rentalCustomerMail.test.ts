@@ -14,7 +14,7 @@ vi.mock("@coreModule/environment", async (importOriginal) => {
 
 import {sendRentalCustomerMail, type RentalCustomerEmailKind} from "@carRentalModule/utilities/emails/sendRentalCustomerMail";
 
-const mail = (kind: RentalCustomerEmailKind, languageCode = "en-US") => sendRentalCustomerMail({
+const mail = (kind: RentalCustomerEmailKind, languageCode = "en-US", accountUrl?: string) => sendRentalCustomerMail({
     kind,
     companyId: "6ad653ec4b21ee6f13d1083a",
     companyName: "Rent & Go",
@@ -30,6 +30,7 @@ const mail = (kind: RentalCustomerEmailKind, languageCode = "en-US") => sendRent
     total: "CHF 120.00",
     manageToken: "tok.en/value",
     manageUrl: "https://drive.arpeggio.al/car-rental/manage",
+    accountUrl,
 });
 
 beforeEach(() => {
@@ -52,14 +53,26 @@ describe("rental customer email", () => {
         if (process.env.EMAIL_PREVIEW_DIR) fs.writeFileSync(`${process.env.EMAIL_PREVIEW_DIR}/rental-confirmed.html`, html);
     });
 
+    it("links a signed-in customer's booking to their account on the portal (D178), and a guest's not", async () => {
+        await mail("confirmed", "en-US", "https://arpeggio.al/account");
+        expect(sent[0].html).toContain("All your bookings in one place:");
+        expect(sent[0].html).toContain('href="https://arpeggio.al/account"');
+        expect(sent[0].html).toContain("your Arpeggio account");
+
+        await mail("confirmed");
+        expect(sent[1].html).not.toContain("All your bookings in one place");
+        expect(sent[1].html).not.toContain("/account");
+    });
+
     it("renders every kind in every language without leftovers", async () => {
         for (const languageCode of ["en-US", "de-CH", "fr-FR", "it-IT", "sq-AL"]) {
-            for (const kind of ["confirmed", "cancelled", "reminder"] as const) await mail(kind, languageCode);
+            for (const kind of ["confirmed", "cancelled", "reminder"] as const) await mail(kind, languageCode, "https://arpeggio.al/account");
         }
         expect(sent).toHaveLength(15);
         for (const {subject, html} of sent) {
             expect(subject).not.toBe("");
             expect(html).not.toMatch(/\{[a-zA-Z]+\}/);
+            expect(html).toContain('href="https://arpeggio.al/account"');
         }
     });
 });

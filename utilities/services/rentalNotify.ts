@@ -9,7 +9,7 @@ import type {IRentalReservation} from "@carRentalModule/database/schemas/rentalR
 import {carRentalConfigService} from "@carRentalModule/database/schemas/carRentalConfig/carRentalConfig.service";
 import {NotificationEventCodes} from "@carRentalModule/domain/notifications/notificationEventCodes";
 import {sendRentalCustomerMail, type RentalCustomerEmailKind} from "@carRentalModule/utilities/emails/sendRentalCustomerMail";
-import {companySiteUrl} from "@coreModule/utilities/marketing/portalCompanies";
+import {companySiteUrl, portalAccountUrl} from "@coreModule/utilities/marketing/portalCompanies";
 
 import {currencyService} from "@coreModule/database/schemas/currency/currency.service";
 import {companyService} from "@coreModule/database/schemas/company/company.service";
@@ -65,6 +65,8 @@ export async function notifyRentalCustomer(
                 version: reservation.manageTokenVersion,
             }),
             manageUrl: companySiteUrl({_id: company._id, siteSlug: company.siteSlug}, "/car-rental/manage"),
+            // A guest booking is in no account (yet): the link would open an account without it.
+            accountUrl: reservation.customer ? portalAccountUrl() : undefined,
             note: options.note,
             attachments: options.attachments,
         });

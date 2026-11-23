@@ -7,6 +7,8 @@
   "labelReturn": "Rückgabe",
   "labelTotal": "Total",
   "manageLinkText": "Buchung ansehen oder verwalten",
+  "accountNote": "Alle Ihre Buchungen an einem Ort:",
+  "accountLinkText": "Ihr {pageName}-Konto",
   "headingConfirmed": "Ihr Auto ist gebucht",
   "subjectConfirmed": "Buchung {number} bestätigt — {companyName}",
   "introConfirmed": "Ihre Miete ist bestätigt. Hier sind die Details.",
