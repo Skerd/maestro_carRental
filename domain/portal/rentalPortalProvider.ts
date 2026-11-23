@@ -3,7 +3,7 @@ import {applyPlaceholders, loadEmailStrings} from "@coreModule/utilities/emails/
 import type {ObjectId} from "mongodb";
 import {registerPortalProvider} from "@coreModule/domain/portal/portalProviderRegistry";
 import type {PortalBrowseParams, PortalNewSinceContext} from "@coreModule/domain/portal/portalProvider.types";
-import {catalogItems, catalogRating, configCurrencies, filterValue, newSinceClause, priceRange, samePriceCurrencyCompanies} from "@coreModule/domain/portal/portalCatalog";
+import {catalogItems, catalogRating, configCurrencies, filterValue, itemPagePath, newSinceClause, priceRange, samePriceCurrencyCompanies, slugOrIdClause} from "@coreModule/domain/portal/portalCatalog";
 import {rentalReviewService} from "@carRentalModule/database/schemas/rentalReview/rentalReview.service";
 import {addressCitiesByCompany, portalListedCompanyIds, type PortalScope} from "@coreModule/utilities/marketing/portalCompanies";
 import {escapeRegex} from "@coreModule/utilities/helpers";
@@ -178,6 +178,15 @@ export function registerRentalPortalProvider(): void {
     registerPortalProvider({
         key: "carRental",
         order: 20,
+        sitePath: "car-rental",
+        // As the portal's section tabs name it (sinfonia `portalSectionName`).
+        names: {
+            "en-US": {title: "Car rental", description: "Compare rental companies and book a car for your dates."},
+            "sq-AL": {title: "Qiraja e makinave", description: "Krahasoni kompanitë e qirasë dhe rezervoni një makinë për datat tuaja."},
+            "it-IT": {title: "Noleggio auto", description: "Confronta i noleggiatori e prenota un'auto per le tue date."},
+            "fr-FR": {title: "Location de voitures", description: "Comparez les loueurs et réservez une voiture pour vos dates."},
+            "de-CH": {title: "Autovermietung", description: "Vergleichen Sie Vermieter und buchen Sie ein Auto für Ihre Daten."},
+        },
         kinds: ["vehicleCategory"],
         companyIds: rentalPortalCompanyIds,
         citiesByCompany: (companyIds) => addressCitiesByCompany(RentalLocation, companyIds, {isActive: true}),
@@ -187,5 +196,12 @@ export function registerRentalPortalProvider(): void {
         },
         // Car classes added after the date (D178), whatever the trip: a saved trip's dates pass, its car filters stay.
         newSince: (context: PortalNewSinceContext) => browseCategories({...context, sort: "newest", skip: 0}, newSinceClause(context)),
+        // A car class's page (D181): `/categories/{slug or id}`, with or without a trip's dates.
+        itemAt: async ({scope, companyId, path, languageCode}) => {
+            const [page, ref] = itemPagePath(path).segments;
+            if (page !== "categories" || !ref) return undefined;
+            const {items} = await browseCategories({kind: "vehicleCategory", scope, companyIds: [companyId], filters: {}, skip: 0, limit: 1, languageCode}, slugOrIdClause(ref));
+            return items[0] ? {item: items[0], schemaType: "Product"} : undefined;
+        },
     });
 }

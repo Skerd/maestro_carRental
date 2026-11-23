@@ -321,7 +321,7 @@ async function reservationFromLink(
     );
     if (payload.companyId !== company._id.toString()) {
         throw apiValidationException(
-            "token_verification_failed",
+            "link_no_longer_valid",
             "",
             null,
             languageCode,
@@ -334,7 +334,7 @@ async function reservationFromLink(
     }, {session: session ?? undefined});
     if (!reservation || reservation.manageTokenVersion !== payload.version) {
         throw apiValidationException(
-            "token_verification_failed",
+            "link_no_longer_valid",
             "",
             null,
             languageCode,

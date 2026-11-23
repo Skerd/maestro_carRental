@@ -71,3 +71,17 @@ describe("car classes new since a date (P23.7)", () => {
         expect(kept.items.map((item) => item.title)).toEqual(["Classic"]);
     });
 });
+
+describe("a car class's page (D181)", () => {
+    it("finds the class its page names, by slug or id, with or without a trip, and nothing for a hidden class or another page", async () => {
+        const provider = getPortalProvider("carRental");
+        if (!provider?.itemAt) throw new Error("the car rental section must answer itemAt");
+        const itemAt = provider.itemAt;
+        const at = (path: string) => withTenant(rental, () => itemAt({scope: {companyId: rental}, companyId: rental, path, languageCode: "en-US"}));
+        expect(provider.sitePath).toBe("car-rental");
+        expect(await at("/categories/suv")).toMatchObject({schemaType: "Product", item: {title: "SUV", path: "/categories/suv"}});
+        expect((await at(`/categories/${classes.compact.toString()}?pickupDate=2026-12-01`))?.item.title).toBe("Compact");
+        expect(await at("/categories/staff%20only")).toBeUndefined();
+        expect(await at("/search")).toBeUndefined();
+    });
+});
