@@ -7,6 +7,7 @@ import RentalReservation from "@carRentalModule/database/schemas/rentalReservati
 import {vehicleService} from "@carRentalModule/database/schemas/vehicle/vehicle.service";
 import {rentalReservationService} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation.service";
 import {vehicleBlockService} from "@carRentalModule/database/schemas/vehicleBlock/vehicleBlock.service";
+import {vehiclesWithLapsingPapers} from "./vehiclePapers";
 const MINUTE = 60 * 1000;
 
 /**
@@ -97,14 +98,20 @@ export async function projectedLocations(vehicles: LocatedVehicle[], at: Date, c
 /**
  * Active vehicles of a category free for [start, end), best first: those that will
  * be at the pickup location at the start (see `projectedLocations`), then by plate.
+ * A car whose insurance or road papers are known to run out before `end` is left out
+ * (TD-B264): the handover would refuse it, so it is never booked.
  */
 export async function freeVehiclesInCategory(
     query: WindowQuery & {categoryId: ObjectId; preferLocationId?: ObjectId},
 ): Promise<ObjectId[]> {
     const {companyId, categoryId, preferLocationId, session} = query;
     const vehicles = await vehicleService.find({company: companyId, category: categoryId, status: "active", deletedAt: null}, {session: session ?? undefined}, undefined, "_id homeLocation currentLocation plate", {plate: 1});
-    const busy = await busyVehicleIds({...query, vehicleIds: vehicles.map((vehicle) => vehicle._id)});
-    const free = vehicles.filter((vehicle) => !busy.has(String(vehicle._id)));
+    const ids = vehicles.map((vehicle) => vehicle._id);
+    const [busy, lapsing] = await Promise.all([
+        busyVehicleIds({...query, vehicleIds: ids}),
+        vehiclesWithLapsingPapers(ids, {from: query.start, until: query.end}, {companyId, session}),
+    ]);
+    const free = vehicles.filter((vehicle) => !busy.has(String(vehicle._id)) && !lapsing.has(String(vehicle._id)));
     if (!preferLocationId) return free.map((vehicle) => vehicle._id);
     const located = await projectedLocations(free, query.start, companyId, session);
     const there = (vehicle: (typeof free)[number]) => (located.get(String(vehicle._id)) === String(preferLocationId) ? 0 : 1);

@@ -14,12 +14,12 @@ import type {IVehicleMaintenance} from "@carRentalModule/database/schemas/vehicl
 import {type IVehicleDamage} from "@carRentalModule/database/schemas/vehicleDamage/vehicleDamage";
 import {NotificationEventCodes} from "@carRentalModule/domain/notifications/notificationEventCodes";
 import {assertNoBookingClash} from "./rentalAvailability";
+import {vehiclePapersCoverTrip} from "./vehiclePapers";
 import {notifyFleetStaff} from "./rentalNotify";
 
 import {vehicleService} from "@carRentalModule/database/schemas/vehicle/vehicle.service";
 import {vehicleDamageService} from "@carRentalModule/database/schemas/vehicleDamage/vehicleDamage.service";
 import {vehicleInsuranceService} from "@carRentalModule/database/schemas/vehicleInsurance/vehicleInsurance.service";
-import {vehicleDocumentService} from "@carRentalModule/database/schemas/vehicleDocument/vehicleDocument.service";
 import {vehicleBlockService} from "@carRentalModule/database/schemas/vehicleBlock/vehicleBlock.service";
 import {vehicleMaintenanceService} from "@carRentalModule/database/schemas/vehicleMaintenance/vehicleMaintenance.service";
 type RecordCtx = {companyId: ObjectId; session: ClientSession; languageCode: string};
@@ -148,9 +148,6 @@ export async function damageReported(damage: IVehicleDamage, ctx: RecordCtx): Pr
     );
 }
 
-/** Document types a car needs on the road. A green card only matters abroad; `other` is free-form. */
-const ROAD_DOCUMENT_TYPES = ["registration", "technical_inspection", "emissions_test", "road_tax"];
-
 /**
  * Before a handover: the car has a policy, not cancelled, that covers it from the handover
  * to the return, and the current paper of each road document type it has (the newest, not
@@ -161,19 +158,7 @@ export async function assertVehiclePapersValid(
     trip: {from: Date; until: Date},
     ctx: RecordCtx,
 ): Promise<void> {
-    const {until} = trip;
-    const base = {company: ctx.companyId, vehicle: vehicle._id, deletedAt: null};
-    const [insured, documents] = await Promise.all([
-        vehicleInsuranceService.exists({...base, status: {$ne: "cancelled"}, validFrom: {$lte: trip.from}, expiresAt: {$gte: until}}, {session: ctx.session}),
-        vehicleDocumentService.find({...base, supersededBy: null, type: {$in: ROAD_DOCUMENT_TYPES}, expiresAt: {$ne: null}}, {session: ctx.session}, undefined, "type expiresAt"),
-    ]);
-    const latest = new Map<string, Date>();
-    for (const document of documents) {
-        const current = latest.get(document.type);
-        if (!current || document.expiresAt! > current) latest.set(document.type, document.expiresAt!);
-    }
-    const lapsed = [...latest.values()].some((expiresAt) => expiresAt < until);
-    if (!insured || lapsed) {
+    if (!(await vehiclePapersCoverTrip(vehicle._id, trip, ctx))) {
         throw apiValidationException("rental_vehicle_papers_expired", "", null, ctx.languageCode, [vehicle.plate]);
     }
 }

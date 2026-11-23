@@ -105,6 +105,7 @@ import {
     type DemoHistory,
 } from "./carRental.demo.plan";
 import City from "@coreModule/database/schemas/city/city";
+import {publicPersonName} from "@coreModule/utilities/helpers/publicName";
 
 const LANGUAGE = "en-US";
 
@@ -1006,8 +1007,7 @@ async function seedCounterRecords(input: {
             {
                 ...owned,
                 rating: index === 0 ? 5 : 4,
-                authorName:
-                    `${reservation.contact.firstName} ${reservation.contact.lastName}`.trim(),
+                authorName: publicPersonName(reservation.contact.firstName, reservation.contact.lastName),
                 comment:
                     index === 0
                         ? "Makinë e pastër dhe marrja ishte në kohë."

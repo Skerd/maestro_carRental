@@ -79,6 +79,7 @@ import {
     takeDeposit,
 } from "@carRentalModule/utilities/services/rentalDeposit";
 import {PAYMENTS} from "@financeModule/environment";
+import {vehiclesWithLapsingPapers} from "@carRentalModule/utilities/services/vehiclePapers";
 
 const MINUTE = 60 * 1000;
 
@@ -583,10 +584,16 @@ export class RentalReservationActions {
                 _id: {$ne: reservation.vehicle},
             }).select("plate make model readiness").sort({plate: 1}).session(params.session),
         ]);
+        const free = cars.filter((car) => !busy.has(String(car._id)));
+        // Staff may renew the papers before the handover, so such a car stays on the list, marked (TD-B264).
+        const lapsing = await vehiclesWithLapsingPapers(free.map((car) => car._id), {from: reservation.pickupAt, until: reservation.returnAt}, {companyId, session: params.session});
         return {
-            data: cars
-                .filter((car) => !busy.has(String(car._id)))
-                .map((car) => ({value: String(car._id), label: `${car.make} ${car.model} · ${car.plate}`, readiness: car.readiness})),
+            data: free.map((car) => ({
+                value: String(car._id),
+                label: `${car.make} ${car.model} · ${car.plate}`,
+                readiness: car.readiness,
+                ...(lapsing.has(String(car._id)) ? {papersLapse: true} : {}),
+            })),
         };
     }
 

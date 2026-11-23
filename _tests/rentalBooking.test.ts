@@ -73,6 +73,7 @@ import RentalReservation from "@carRentalModule/database/schemas/rentalReservati
 import RentalPromoCode from "@carRentalModule/database/schemas/rentalPromoCode/rentalPromoCode";
 import RentalExtra from "@carRentalModule/database/schemas/rentalExtra/rentalExtra";
 import VehicleDamage from "@carRentalModule/database/schemas/vehicleDamage/vehicleDamage";
+import RentalReview from "@carRentalModule/database/schemas/rentalReview/rentalReview";
 import {generateRentalAgreementPdf} from "@carRentalModule/utilities/pdf/rentalAgreementPdf";
 import {settleRentalPayment} from "@carRentalModule/workflows/rentalLifecycle";
 import {runInTransaction} from "@coreModule/utilities/middlewares/runInTransaction";
@@ -535,6 +536,12 @@ describe("on the road", {timeout: 60000}, () => {
         expect(returned.body.status).toBe("completed");
         expect(returned.body.pricing.grandTotal).toBe(190);
         expect(returned.body.paymentStatus).toBe("unpaid");
+
+        // The customer's review is shown under the first name and the last name's initial (TD-B265).
+        const reviewed = await request(app).post("/api/carRental/rentalStorefront/manage/review").set(callerHeader(admin))
+            .send({token: body.data.manageToken, rating: 5, comment: "Clean car."});
+        expect([reviewed.status, reviewed.body.error_code]).toEqual([200, undefined]);
+        expect((await RentalReview.findOne({reservation: id}))!.authorName).toBe("Ada L.");
     }));
 
     it("refuses the handover until every driver has a licence valid to the return day", () => asCompany(async () => {
@@ -894,12 +901,36 @@ describe("fleet workflows", {timeout: 60000}, () => {
         expect(handedOver.body.status).toBe("in_progress");
     }));
 
-    it("refuses the handover of a car with no insurance to the return", () => asCompany(async () => {
-        await VehicleInsurance.updateMany({vehicle: vehicleId}, {$set: {expiresAt: new Date("2027-06-10T00:00:00Z")}});
+    it("refuses the handover of a car whose insurance ran short after it was booked", () => asCompany(async () => {
         const {body} = await book({});
+        await VehicleInsurance.updateMany({vehicle: vehicleId}, {$set: {expiresAt: new Date("2027-06-10T00:00:00Z")}});
         await action("saveDrivers", {_id: body.data.reservation._id, drivers: [driver]});
         const refused = await action("handover", {_id: body.data.reservation._id, odometerKm: 12000, fuelLevel: "full"});
         expect(refused.body.error_code).toBe("rental_vehicle_papers_expired");
+    }));
+
+    it("never books a car whose insurance or road papers run out during the trip (TD-B264)", () => asCompany(async () => {
+        await VehicleInsurance.updateMany({vehicle: vehicleId}, {$set: {expiresAt: new Date("2027-06-10T00:00:00Z")}});
+        expect((await book({})).body.error_code).toBe("rental_category_unavailable");
+
+        await VehicleInsurance.updateMany({vehicle: vehicleId}, {$set: {expiresAt: new Date("2030-01-01T00:00:00Z")}});
+        await create("vehicleDocument", {vehicle: vehicleId, type: "road_tax", issuedAt: "2026-06-10", expiresAt: "2027-06-10"});
+        expect((await book({})).body.error_code).toBe("rental_category_unavailable");
+    }));
+
+    it("still books a car with no insurance on record: the fleet may not record it yet, the handover asks for it (TD-B264)", () => asCompany(async () => {
+        await VehicleInsurance.deleteMany({vehicle: vehicleId});
+        expect((await book({})).status).toBe(200);
+    }));
+
+    it("marks the cars whose papers run out in the Change car list, without hiding them (TD-B264)", () => asCompany(async () => {
+        const lapsing = await Vehicle.create({company: companyId, category: categoryId, make: "VW", model: "Polo", plate: "ZH 2", homeLocation: locationId, status: "active"});
+        await insure(lapsing._id, {expiresAt: "2027-06-10"});
+        const {body} = await book({});
+        expect(String(body.data.reservation.vehicle ?? (await RentalReservation.findById(body.data.reservation._id))!.vehicle)).toBe(vehicleId);
+
+        const free = await action("freeVehicles", {_id: body.data.reservation._id});
+        expect(free.body.data).toEqual([expect.objectContaining({value: String(lapsing._id), papersLapse: true})]);
     }));
 
     it("names the driver to the authority and charges only the handling fee, invoiced after the return", () => asCompany(async () => {

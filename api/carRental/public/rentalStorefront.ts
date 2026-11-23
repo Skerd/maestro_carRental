@@ -130,6 +130,7 @@ import {rentalLocationService} from "@carRentalModule/database/schemas/rentalLoc
 import {rentalExtraService} from "@carRentalModule/database/schemas/rentalExtra/rentalExtra.service";
 import {mediaService} from "@coreModule/database/schemas/media/media.service";
 import {rentalSearchStatService} from "@carRentalModule/database/schemas/rentalSearchStat/rentalSearchStat.service";
+import {publicPersonName} from "@coreModule/utilities/helpers/publicName";
 export const basePath = "/api/carRental/rentalStorefront";
 
 const MY_RESERVATIONS_MAX = 50;
@@ -1160,8 +1161,8 @@ router.post(
                     reservation: reservation._id,
                     rating: params.rating,
                     comment: params.comment,
-                    authorName:
-                        `${reservation.contact.firstName} ${reservation.contact.lastName}`.trim(),
+                    // Shown in public: the first name and the last name's initial, as dental reviews (TD-B265).
+                    authorName: publicPersonName(reservation.contact.firstName, reservation.contact.lastName),
                     isPublished: false,
                 },
                 {
