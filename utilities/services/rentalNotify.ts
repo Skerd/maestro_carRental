@@ -8,7 +8,9 @@ import {RENTAL_RESERVATION_LINK_PURPOSE} from "armonia/src/modules/carRental/api
 import type {IRentalReservation} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation";
 import {carRentalConfigService} from "@carRentalModule/database/schemas/carRentalConfig/carRentalConfig.service";
 import {NotificationEventCodes} from "@carRentalModule/domain/notifications/notificationEventCodes";
-import {sendRentalCustomerMail, type RentalCustomerEmailKind} from "@carRentalModule/utilities/emails/sendRentalCustomerMail";
+import type {RentalCustomerEmailKind} from "@carRentalModule/utilities/emails/sendRentalCustomerMail";
+import {dispatchRentalCustomerEmail} from "@carRentalModule/utilities/emails/rentalCustomerEmailDispatch";
+import {rentalEmailEventType} from "@carRentalModule/kafka/kafkaProducer";
 import {companySiteUrl, portalAccountUrl} from "@coreModule/utilities/marketing/portalCompanies";
 
 import {currencyService} from "@coreModule/database/schemas/currency/currency.service";
@@ -29,22 +31,26 @@ export async function formatAmount(reservation: IRentalReservation, amount: numb
 
 /**
  * Emails the customer about their booking once the caller's transaction has
- * committed (right away without one). Attachments are built only when the
- * email is really sent. Uses the booking's contact email, which
- * a guest gave and a signed-in customer confirmed, with a fresh manage link.
+ * committed (right away without one), through the kind's Kafka topic (D188).
+ * The agreement or invoice PDF is built only when the email is really sent.
+ * Uses the booking's contact email, which a guest gave and a signed-in
+ * customer confirmed, with a fresh manage link.
  */
 export async function notifyRentalCustomer(
     kind: RentalCustomerEmailKind,
     reservation: IRentalReservation,
     ctx: {session?: ClientSession | null; languageCode: string},
-    options: {note?: string; attachments?: () => Promise<{filename: string; content: Buffer}[]>} = {},
+    options: {note?: string; withAgreement?: boolean; invoiceId?: ObjectId} = {},
 ): Promise<void> {
     await runAfterCommit(ctx.session, async () => {
         const companyId = nestedEntityToRef(reservation.company);
         const company = await companyService.findById(companyId, {}, undefined, "name siteSlug");
         if (!company) return;
         const {snapshot, contact} = reservation;
-        await sendRentalCustomerMail({
+        await dispatchRentalCustomerEmail({
+            eventType: rentalEmailEventType(kind),
+            timestamp: Date.now(),
+            rentalReservationId: reservation._id.toString(),
             kind,
             companyId: String(companyId),
             companyName: company.name,
@@ -68,7 +74,8 @@ export async function notifyRentalCustomer(
             // A guest booking is in no account (yet): the link would open an account without it.
             accountUrl: reservation.customer ? portalAccountUrl() : undefined,
             note: options.note,
-            attachments: options.attachments,
+            withAgreement: options.withAgreement,
+            invoiceId: options.invoiceId?.toString(),
         });
     });
 }

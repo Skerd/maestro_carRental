@@ -31,8 +31,7 @@ import {computeRentalQuote} from "@carRentalModule/utilities/services/rentalQuot
 import {isLocationOpenAt} from "@carRentalModule/utilities/services/rentalTrip";
 import {loadSelectedExtras, quoteTrip} from "@carRentalModule/workflows/rentalReservationService";
 import {releasePromoCode} from "@carRentalModule/utilities/services/rentalPromo";
-import {generateRentalAgreementPdf} from "@carRentalModule/utilities/pdf/rentalAgreementPdf";
-import {creditInvoicedLines, invoiceAttachment, invoiceNewLines} from "@carRentalModule/utilities/services/rentalInvoices";
+import {creditInvoicedLines, invoiceNewLines} from "@carRentalModule/utilities/services/rentalInvoices";
 import {rentalPricingLabel} from "@carRentalModule/utilities/services/rentalPricingLabels";
 import {
     acknowledgedDamageIds,
@@ -281,17 +280,7 @@ export async function handOverRentalReservation(
         await vehicle.save({session: ctx.session});
     }
     if (!input.silent)
-        await notifyRentalCustomer("handedOver", reservation, ctx, {
-            attachments: async () => [
-                {
-                    filename: `${reservation.number}.pdf`,
-                    content: await generateRentalAgreementPdf(
-                        reservation,
-                        ctx.languageCode,
-                    ),
-                },
-            ],
-        });
+        await notifyRentalCustomer("handedOver", reservation, ctx, {withAgreement: true});
 }
 
 /** The car is back. Extra charges (fuel, km, damage) are added to what the customer owes. */
@@ -356,14 +345,7 @@ export async function returnRentalReservation(
             "returned",
             reservation,
             ctx,
-            invoice
-                ? {
-                      attachments: invoiceAttachment(
-                          invoice._id,
-                          ctx.languageCode,
-                      ),
-                  }
-                : {},
+            invoice ? {invoiceId: invoice._id} : {},
         );
     }
     // The car is wherever it was returned; for a one-way rental that is another location.
@@ -578,14 +560,7 @@ export async function addReservationCharges(
     if (!input.silent) {
         await notifyRentalCustomer("charged", reservation, ctx, {
             note: notes.join(", "),
-            ...(invoice
-                ? {
-                      attachments: invoiceAttachment(
-                          invoice._id,
-                          ctx.languageCode,
-                      ),
-                  }
-                : {}),
+            ...(invoice ? {invoiceId: invoice._id} : {}),
         });
     }
 }
