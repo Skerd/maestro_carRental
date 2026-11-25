@@ -7,6 +7,8 @@ import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import {decimal128FromMinor} from "@coreModule/utilities/helpers/money";
 import {paymentTransactionService} from "@financeModule/database/schemas/paymentTransaction/paymentTransaction.service";
 import {getPaymentAdapter} from "@financeModule/utilities/services/payment/paymentService";
+import {PAYMENTS} from "@financeModule/environment";
+import {CARD_PAYMENTS_AVAILABLE} from "armonia/src/modules/finance/helpers/cardPaymentAvailability";
 import {
     recordManualCharge,
     refundSourceCharges,
@@ -64,6 +66,19 @@ export async function reservationCurrency(
 }
 
 /**
+ * Card payments are "Coming soon" (D190): until the switch is on, every card step (paying online, a card hold, a
+ * saved card) is refused with this, and the booking and its deposit are paid at the desk.
+ */
+export function assertCardPaymentsAvailable(languageCode: string): void {
+    if (!CARD_PAYMENTS_AVAILABLE) throw apiValidationException("rental_card_payments_coming_soon", "", null, languageCode);
+}
+
+/** A customer can pay by card online: card payments are on and the gateway is set up. */
+export function onlinePaymentAvailable(): boolean {
+    return Boolean(PAYMENTS.STRIPE_ENABLED && getPaymentAdapter("stripe")?.isEnabled());
+}
+
+/**
  * Starts the online payment for a held reservation: a gateway intent keyed on
  * the reservation (so a replayed request reuses it) and a pending ledger row the
  * webhook settles. Returns the client secret the public site confirms with.
@@ -72,6 +87,7 @@ export async function startOnlinePayment(
     reservation: IRentalReservation,
     ctx: Ctx,
 ): Promise<{clientSecret: string}> {
+    assertCardPaymentsAvailable(ctx.languageCode);
     const adapter = getPaymentAdapter("stripe");
     if (!adapter?.isEnabled()) {
         throw apiValidationException(
@@ -131,6 +147,7 @@ export async function startBalancePayment(
             null,
             ctx.languageCode,
         );
+    assertCardPaymentsAvailable(ctx.languageCode);
     const adapter = getPaymentAdapter("stripe");
     if (!adapter?.isEnabled()) {
         throw apiValidationException(

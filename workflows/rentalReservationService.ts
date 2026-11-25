@@ -5,6 +5,8 @@ import {apiValidationException} from "armonia/src/modules/core/helpers/exception
 import type {serverLogger} from "@coreModule/loggers/serverLog";
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import type {RentalPaymentChoice} from "armonia/src/modules/carRental/api/carRental/private/rentalReservation/rentalReservation.constants";
+import type {RentalPaymentPolicy} from "armonia/src/modules/carRental/api/carRental/private/carRentalConfig/carRentalConfig.schema-def";
+import {CARD_PAYMENTS_AVAILABLE} from "armonia/src/modules/finance/helpers/cardPaymentAvailability";
 import type {ICarRentalConfig} from "@carRentalModule/database/schemas/carRentalConfig/carRentalConfig";
 import VehicleCategory, {
     type IVehicleCategory,
@@ -317,11 +319,21 @@ export function quoteTrip(
 }
 
 /**
+ * The payment policy in force. While card payments are coming soon (D190) every booking
+ * is paid at the desk, whatever the company stored; its choice comes back with the switch.
+ */
+export function effectivePaymentPolicy(
+    config: Pick<ICarRentalConfig, "paymentPolicy">,
+): RentalPaymentPolicy {
+    return CARD_PAYMENTS_AVAILABLE ? config.paymentPolicy : "pay_at_pickup";
+}
+
+/**
  * How this booking is paid. The company policy decides unless it leaves the choice
  * to the customer; online payment needs a charge to make.
  */
 export function resolvePaymentChoice(
-    config: ICarRentalConfig,
+    config: Pick<ICarRentalConfig, "paymentPolicy">,
     requested: RentalPaymentChoice,
     ctx: {
         onlinePaymentAvailable: boolean;
@@ -329,10 +341,11 @@ export function resolvePaymentChoice(
         languageCode: string;
     },
 ): RentalPaymentChoice {
+    const policy = effectivePaymentPolicy(config);
     const choice: RentalPaymentChoice =
-        config.paymentPolicy === "pay_at_pickup"
+        policy === "pay_at_pickup"
             ? "pay_at_pickup"
-            : config.paymentPolicy === "prepay_online"
+            : policy === "prepay_online"
               ? "online"
               : requested;
     if (
@@ -340,7 +353,7 @@ export function resolvePaymentChoice(
         (!ctx.onlinePaymentAvailable || ctx.grandTotal <= 0)
     ) {
         if (
-            config.paymentPolicy === "prepay_online" ||
+            policy === "prepay_online" ||
             requested === "online"
         ) {
             throw apiValidationException(

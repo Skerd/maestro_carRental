@@ -36,7 +36,6 @@ import {CurrencySimpleSnippet} from "@coreModule/database/schemas/currency/curre
 import type {CurrencySimple} from "armonia/src/modules/core/dto/currency.dto";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import {PAYMENTS} from "@financeModule/environment";
-import {getPaymentAdapter} from "@financeModule/utilities/services/payment/paymentService";
 import {
     bookRentalFormSchema,
     categoryReviewsFormSchema,
@@ -95,6 +94,7 @@ import {
 } from "@carRentalModule/utilities/services/rentalAvailability";
 import {
     createRentalReservation,
+    effectivePaymentPolicy,
     loadApplicablePromo,
     loadBookableCategory,
     loadSelectedExtras,
@@ -102,6 +102,7 @@ import {
     resolvePaymentChoice,
 } from "@carRentalModule/workflows/rentalReservationService";
 import {
+    onlinePaymentAvailable,
     startBalancePayment,
     startOnlinePayment,
 } from "@carRentalModule/utilities/services/rentalPayments";
@@ -243,12 +244,6 @@ export function currencyOf(config: ICarRentalConfig, languageCode: string): Prom
     return carRentalConfigService.currencyOf(config, languageCode);
 }
 
-function onlinePaymentAvailable(): boolean {
-    return Boolean(
-        PAYMENTS.STRIPE_ENABLED && getPaymentAdapter("stripe")?.isEnabled(),
-    );
-}
-
 export function categoryToStorefront(
     category: IVehicleCategory,
 ): RentalStorefrontCategory {
@@ -387,7 +382,7 @@ router.post(
                         website: company.website,
                     },
                     currency,
-                    paymentPolicy: config.paymentPolicy,
+                    paymentPolicy: effectivePaymentPolicy(config),
                     onlinePaymentAvailable: online,
                     stripePublishableKey: online
                         ? PAYMENTS.STRIPE_PUBLISHABLE_KEY || undefined

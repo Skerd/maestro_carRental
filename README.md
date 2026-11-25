@@ -11,6 +11,7 @@ Enable via `ENABLED_MODULES=carRental` (with `core` and `finance`).
 - Customers book a category; a free vehicle is assigned inside the booking transaction. The vehicle's `allocationVersion` is written in that transaction, so two parallel bookings of the last car confirm exactly one.
 - All times are stored as instants and entered as local time at each location (IANA time zone).
 - Online payments settle through finance's Stripe webhook (`registerPaymentSourceHandler`).
+- Card payments are "Coming soon" while finance's `CARD_PAYMENTS_AVAILABLE` is off (D190): every booking is paid at the desk whatever `paymentPolicy` says (`effectivePaymentPolicy`), the deposit is taken in cash, and every card step (paying online, a card hold, a saved card, staff booking "online") answers `rental_card_payments_coming_soon`. Fines and damage still go on the booking, owed at the desk.
 
 ## Directory layout
 

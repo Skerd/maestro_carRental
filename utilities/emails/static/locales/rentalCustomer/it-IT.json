@@ -12,7 +12,7 @@
   "headingConfirmed": "La tua auto è prenotata",
   "subjectConfirmed": "Prenotazione {number} confermata — {companyName}",
   "introConfirmed": "Il tuo noleggio è confermato. Ecco i dettagli.",
-  "closingConfirmed": "Porta con te la patente e la carta usata per il pagamento al ritiro.",
+  "closingConfirmed": "Porta con te la patente al ritiro. Il deposito e quanto resta da pagare si pagano al banco.",
   "headingCancelled": "Prenotazione annullata",
   "subjectCancelled": "Prenotazione {number} annullata — {companyName}",
   "introCancelled": "Il tuo noleggio è stato annullato. Eventuali rimborsi tornano sul metodo di pagamento originale.",

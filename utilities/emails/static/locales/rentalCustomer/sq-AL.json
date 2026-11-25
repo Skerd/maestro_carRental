@@ -12,7 +12,7 @@
   "headingConfirmed": "Makina juaj është rezervuar",
   "subjectConfirmed": "Rezervimi {number} u konfirmua — {companyName}",
   "introConfirmed": "Qiraja juaj është konfirmuar. Ja detajet.",
-  "closingConfirmed": "Ju lutemi sillni patentën dhe kartën e pagesës në marrje.",
+  "closingConfirmed": "Ju lutemi sillni patentën në marrje. Depozita dhe çdo shumë e mbetur paguhen në sportel.",
   "headingCancelled": "Rezervimi u anulua",
   "subjectCancelled": "Rezervimi {number} u anulua — {companyName}",
   "introCancelled": "Qiraja juaj u anulua. Çdo rimbursim kthehet në mënyrën origjinale të pagesës.",

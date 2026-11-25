@@ -12,7 +12,7 @@
   "headingConfirmed": "Your car is booked",
   "subjectConfirmed": "Booking {number} confirmed — {companyName}",
   "introConfirmed": "Your rental is confirmed. Here are the details.",
-  "closingConfirmed": "Please bring your driving licence and the card used for payment to the pickup.",
+  "closingConfirmed": "Please bring your driving licence to the pickup. The deposit, and anything still to pay, are taken at the desk.",
   "headingCancelled": "Booking cancelled",
   "subjectCancelled": "Booking {number} cancelled — {companyName}",
   "introCancelled": "Your rental has been cancelled. Any refund due goes back to your original payment method.",

@@ -12,7 +12,7 @@
   "headingConfirmed": "Ihr Auto ist gebucht",
   "subjectConfirmed": "Buchung {number} bestätigt — {companyName}",
   "introConfirmed": "Ihre Miete ist bestätigt. Hier sind die Details.",
-  "closingConfirmed": "Bitte bringen Sie Ihren Führerschein und die Zahlungskarte zur Abholung mit.",
+  "closingConfirmed": "Bitte bringen Sie Ihren Führerschein zur Abholung mit. Die Kaution und allfällige offene Beträge werden am Schalter bezahlt.",
   "headingCancelled": "Buchung storniert",
   "subjectCancelled": "Buchung {number} storniert — {companyName}",
   "introCancelled": "Ihre Miete wurde storniert. Eine allfällige Rückerstattung geht auf Ihr ursprüngliches Zahlungsmittel zurück.",

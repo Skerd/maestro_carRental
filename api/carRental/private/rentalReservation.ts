@@ -20,6 +20,7 @@ import {
     loadSelectedExtras,
 } from "@carRentalModule/workflows/rentalReservationService";
 import {notifyRentalCustomer} from "@carRentalModule/utilities/services/rentalNotify";
+import {assertCardPaymentsAvailable} from "@carRentalModule/utilities/services/rentalPayments";
 
 import {rentalBusinessAccountService} from "@carRentalModule/database/schemas/rentalBusinessAccount/rentalBusinessAccount.service";
 export const basePath = "/api/carRental/rentalReservation";
@@ -87,6 +88,8 @@ export const {router} = createCrudRouter({
                 : params.paymentChoice === "online"
                   ? "online"
                   : "pay_at_pickup";
+        // "Online" waits for the customer's card: refused while card payments are coming soon (D190).
+        if (paymentChoice === "online") assertCardPaymentsAvailable(languageCode);
         const account = params.businessAccount
             ? await rentalBusinessAccountService.findOne({
                   _id: new ObjectId(String(params.businessAccount)),

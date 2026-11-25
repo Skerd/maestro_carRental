@@ -8,7 +8,7 @@ import type {VehicleSimple} from "armonia/src/modules/carRental/dto/vehicle.dto"
 import type {RentalLocationSimple} from "armonia/src/modules/carRental/dto/rentalLocation.dto";
 import type {RentalExtraSimple} from "armonia/src/modules/carRental/dto/rentalExtra.dto";
 import {dateToISOString, decimalToNumber, mapMedia, mapSnippet, nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
-import {amountDue} from "@carRentalModule/utilities/services/rentalPayments";
+import {amountDue, onlinePaymentAvailable} from "@carRentalModule/utilities/services/rentalPayments";
 import {CurrencySimpleSnippet} from "@coreModule/database/schemas/currency/currency.snippets";
 import {SimpleBlankUserSnippet} from "@coreModule/database/schemas/user/user.snippets";
 import {VehicleCategorySimpleSnippet} from "@carRentalModule/database/schemas/vehicleCategory/vehicleCategory.snippets";
@@ -195,7 +195,8 @@ export function rentalReservationToPublic(reservation: IRentalReservation, now =
         canCancel: (reservation.status === "held" || reservation.status === "confirmed") && reservation.pickupAt > now,
         canExtend: reservation.status === "confirmed" || reservation.status === "in_progress",
         canAddExtras: (reservation.status === "held" || reservation.status === "confirmed") && reservation.pickupAt > now,
-        canPayBalance: amountDue(reservation) > 0 && reservation.status !== "cancelled" && reservation.status !== "expired",
+        // Only by card online; while card payments are coming soon (D190) what is due is paid at the desk.
+        canPayBalance: onlinePaymentAvailable() && amountDue(reservation) > 0 && reservation.status !== "cancelled" && reservation.status !== "expired",
         canUploadDocuments: reservation.status === "held" || reservation.status === "confirmed",
         canReview: reservation.status === "completed",
         hasAgreement: Boolean(reservation.handover),

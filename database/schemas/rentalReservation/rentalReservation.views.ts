@@ -6,6 +6,7 @@ import {
     RENTAL_NOTES_MAX,
     RENTAL_PROMO_CODE_INPUT_MAX,
 } from "armonia/src/modules/carRental/api/carRental/private/rentalReservation/rentalReservation.constants";
+import {CARD_PAYMENTS_AVAILABLE} from "armonia/src/modules/finance/helpers/cardPaymentAvailability";
 
 const API_URL = "/api/carRental/rentalReservation";
 
@@ -1100,7 +1101,12 @@ export const rentalReservationCreateFormView: ViewConfig = {
                             value: "pay_at_pickup",
                             label: "form.paymentChoice.pay_at_pickup",
                         },
-                        {value: "online", label: "form.paymentChoice.online"},
+                        // Card payments are "Coming soon" (D190): shown, not selectable.
+                        {
+                            value: "online",
+                            label: CARD_PAYMENTS_AVAILABLE ? "form.paymentChoice.online" : "form.paymentChoice.online_soon",
+                            disabled: !CARD_PAYMENTS_AVAILABLE,
+                        },
                         {
                             value: "on_account",
                             label: "form.paymentChoice.on_account",

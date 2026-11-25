@@ -9,7 +9,8 @@ import {getPaymentAdapter} from "@financeModule/utilities/services/payment/payme
 import type {PaymentProviderAdapter} from "@financeModule/utilities/services/payment/paymentProvider.types";
 import {RENTAL_CARD_HOLD_MAX_DAYS, type RentalDepositMethod} from "armonia/src/modules/carRental/api/carRental/private/rentalReservation/rentalReservation.constants";
 import type {IRentalReservation} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation";
-import {addToAmountPaid, amountDue, paymentStatusFor, recordCounterPayment, reservationCurrency} from "./rentalPayments";
+import {CARD_PAYMENTS_AVAILABLE} from "armonia/src/modules/finance/helpers/cardPaymentAvailability";
+import {addToAmountPaid, amountDue, assertCardPaymentsAvailable, paymentStatusFor, recordCounterPayment, reservationCurrency} from "./rentalPayments";
 import {storedAmount} from "./rentalQuote";
 
 type Ctx = {session: ClientSession; logger: serverLogger; languageCode: string; auditUserId?: string | ObjectId};
@@ -23,6 +24,7 @@ export function cardDepositMethod(reservation: Pick<IRentalReservation, "pricing
 }
 
 function stripeOrFail(languageCode: string): PaymentProviderAdapter {
+    assertCardPaymentsAvailable(languageCode);
     const adapter = getPaymentAdapter("stripe");
     if (!adapter?.isEnabled()) throw apiValidationException("rental_online_payment_unavailable", "", null, languageCode);
     return adapter;
@@ -52,7 +54,7 @@ async function recordCardCharge(reservation: IRentalReservation, intentId: strin
 /**
  * Takes the deposit. Cash is held at once. A card starts a hold or a card setup
  * the customer confirms on the counter device; it is held once the gateway says so
- * (webhook, or `refreshDeposit`).
+ * (webhook, or `refreshDeposit`). While card payments are coming soon (D190) only cash is taken.
  */
 export async function takeDeposit(
     reservation: IRentalReservation,
@@ -145,6 +147,8 @@ export async function refreshDeposit(reservation: IRentalReservation, ctx: Ctx):
 export async function settleDeposit(reservation: IRentalReservation, keepAmount: number, input: {by?: ObjectId; now?: Date}, ctx: Ctx): Promise<void> {
     const deposit = reservation.deposit;
     if (!deposit || deposit.status !== "held") throw apiValidationException("rental_deposit_not_held", "", null, ctx.languageCode);
+    // A card deposit is captured or charged through the gateway: nothing of it moves while cards are coming soon (D190).
+    if (deposit.method !== "cash") assertCardPaymentsAvailable(ctx.languageCode);
     const currency = await reservationCurrency(reservation, ctx.session);
     const decimals = currency.decimalPlaces;
     const keep = roundToCurrency(keepAmount, decimals);
@@ -180,11 +184,12 @@ export async function settleDeposit(reservation: IRentalReservation, keepAmount:
 
 /**
  * Charges the card the customer saved, without them present (a fine, damage found
- * later). Returns false when no card is saved; the amount then stays owed.
+ * later). Returns false when no card is saved, or while card payments are coming soon
+ * (D190); the amount then stays owed and is paid at the desk.
  */
 export async function chargeSavedCard(reservation: IRentalReservation, amount: number, ctx: Ctx): Promise<boolean> {
     const deposit = reservation.deposit;
-    if (!deposit?.paymentMethodId || !deposit.stripeCustomerId) return false;
+    if (!CARD_PAYMENTS_AVAILABLE || !deposit?.paymentMethodId || !deposit.stripeCustomerId) return false;
     const adapter = stripeOrFail(ctx.languageCode);
     const charges = await paymentTransactionService.count({sourceId: reservation._id, type: "charge"}, {session: ctx.session});
     const currency = await reservationCurrency(reservation, ctx.session);

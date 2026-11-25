@@ -12,7 +12,7 @@
   "headingConfirmed": "Votre voiture est réservée",
   "subjectConfirmed": "Réservation {number} confirmée — {companyName}",
   "introConfirmed": "Votre location est confirmée. Voici les détails.",
-  "closingConfirmed": "Veuillez apporter votre permis de conduire et la carte utilisée pour le paiement lors de la prise en charge.",
+  "closingConfirmed": "Veuillez apporter votre permis de conduire lors de la prise en charge. La caution et tout montant restant dû se règlent au comptoir.",
   "headingCancelled": "Réservation annulée",
   "subjectCancelled": "Réservation {number} annulée — {companyName}",
   "introCancelled": "Votre location a été annulée. Tout remboursement dû revient sur votre moyen de paiement d'origine.",

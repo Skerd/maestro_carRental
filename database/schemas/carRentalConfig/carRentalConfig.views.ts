@@ -3,13 +3,16 @@ import {
     RENTAL_TERMS_TEXT_MAX,
     RENTAL_TERMS_VERSION_MAX,
 } from "armonia/src/modules/carRental/api/carRental/private/carRentalConfig/carRentalConfig.schema-def";
+import {CARD_PAYMENTS_AVAILABLE} from "armonia/src/modules/finance/helpers/cardPaymentAvailability";
 
 const API_URL = "/api/carRental/carRentalConfig";
 
+// Card payments are "Coming soon" (D190): the two online policies show it and cannot be picked; every booking is paid at the desk.
+const onlineSoon = !CARD_PAYMENTS_AVAILABLE;
 const paymentPolicyOptions = [
     {value: "pay_at_pickup", label: "form.paymentPolicy.pay_at_pickup"},
-    {value: "prepay_online", label: "form.paymentPolicy.prepay_online"},
-    {value: "customer_choice", label: "form.paymentPolicy.customer_choice"},
+    {value: "prepay_online", label: onlineSoon ? "form.paymentPolicy.prepay_online_soon" : "form.paymentPolicy.prepay_online", disabled: onlineSoon},
+    {value: "customer_choice", label: onlineSoon ? "form.paymentPolicy.customer_choice_soon" : "form.paymentPolicy.customer_choice", disabled: onlineSoon},
 ];
 
 /**
@@ -277,7 +280,9 @@ export const carRentalConfigEditFormView: ViewConfig = {
                                 label: "form.holdMinutesLabel",
                                 placeholder: "form.holdMinutesPlaceholder",
                                 required: true,
-                                widgetProps: {type: "number", min: 5, max: 120},
+                                // How long a booking waits for its online payment: nothing waits while card payments are
+                                // off (D190), so the stored value is shown but cannot be changed.
+                                widgetProps: {type: "number", min: 5, max: 120, ...(onlineSoon ? {disabled: true} : {})},
                             },
                         },
                         {

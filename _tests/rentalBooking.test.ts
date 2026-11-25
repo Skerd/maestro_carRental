@@ -40,6 +40,8 @@ const {stripe} = vi.hoisted(() => ({
 }));
 vi.mock("@financeModule/utilities/services/payment/paymentService", () => ({getPaymentAdapter: () => stripe}));
 vi.mock("@financeModule/environment", () => ({PAYMENTS: {STRIPE_ENABLED: true, STRIPE_PUBLISHABLE_KEY: "pk_test"}}));
+// These tests take cards: as if card payments were on (D190; rentalCardsComingSoon.test.ts covers them off).
+vi.mock("armonia/src/modules/finance/helpers/cardPaymentAvailability", () => ({CARD_PAYMENTS_AVAILABLE: true}));
 
 import {allPermissionTags, appFor, callerHeader, type TestCaller} from "@coreModule/_tests/httpHarness";
 import Currency from "@coreModule/database/schemas/currency/currency";
