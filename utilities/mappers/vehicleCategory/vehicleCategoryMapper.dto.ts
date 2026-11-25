@@ -1,7 +1,7 @@
 import type {IVehicleCategory} from "@carRentalModule/database/schemas/vehicleCategory/vehicleCategory";
 import type {VehicleCategory} from "armonia/src/modules/carRental/api/carRental/private/vehicleCategory/vehicleCategory.dto";
 import {mapMedia} from "@coreModule/utilities/mappers/common.mapper";
-import {mapLifeCycleToDTO, mapOwnershipToDTO, mapSoftDeleteToDTO} from "@coreModule/utilities/mappers/plugin/pluginMappers.dto";
+import {mapLifeCycleToDTO, mapOwnershipToDTO, mapSoftDeleteToDTO, mapPlatformHiddenToDTO} from "@coreModule/utilities/mappers/plugin/pluginMappers.dto";
 
 export function vehicleCategoryToDTO(category: IVehicleCategory): VehicleCategory {
     return {
@@ -27,6 +27,7 @@ export function vehicleCategoryToDTO(category: IVehicleCategory): VehicleCategor
         extraKmPrice: category.extraKmPrice,
         minDriverAge: category.minDriverAge,
         isPublic: category.isPublic,
+        ...mapPlatformHiddenToDTO(category),
         sortOrder: category.sortOrder,
         crossBorderAllowed: category.crossBorderAllowed !== false,
         crossBorderFee: category.crossBorderFee,

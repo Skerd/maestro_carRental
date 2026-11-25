@@ -16,18 +16,18 @@ import type {IRentalReservation} from "../rentalReservation/rentalReservation";
 import {RentalReservationSimpleSnippet} from "../rentalReservation/rentalReservation.snippets";
 import {applyRentalReviewIndexes} from "./rentalReview.indexes";
 import {rentalReviewViews} from "./rentalReview.views";
+import {platformHiddenPlugin, type IPlatformHiddenPluginFields} from "@coreModule/database/plugins/platformHiddenPlugin";
 
-export interface IRentalReview extends Document, IOwnershipPluginFields, ISoftDeletePluginFields, ILifeCyclePluginFields {
+export interface IRentalReview extends Document, IOwnershipPluginFields, ISoftDeletePluginFields, ILifeCyclePluginFields, IPlatformHiddenPluginFields {
     reservation: IRentalReservation;
     rating: number;
     comment?: string;
     authorName: string;
-    isPublished: boolean;
 }
 
 /**
- * A review is the customer's own words, written from their booking's manage link: staff publish or hide it, but never
- * write or change it, so the stars on the portal stay the customers'.
+ * A review is the customer's own words, written from their booking's manage link and shown at once (D191): staff never
+ * write, change or delete it, so the stars on the portal stay the customers'.
  */
 const CustomerWrittenOnly = {self: {write: "no-permission"}, others: {write: "no-permission"}};
 
@@ -37,19 +37,21 @@ const RentalReviewSchema = new Schema<IRentalReview>(
         rating: {type: SchemaTypes.Number, required: true, min: 1, max: 5, permissions: CustomerWrittenOnly},
         comment: {type: SchemaTypes.String, trim: true, maxlength: RENTAL_REVIEW_COMMENT_MAX, permissions: CustomerWrittenOnly, dynamicTableConfiguration: {hideColumn: true}},
         authorName: {type: SchemaTypes.String, required: true, trim: true, minlength: 1, maxlength: RENTAL_REVIEW_AUTHOR_NAME_MAX, permissions: CustomerWrittenOnly},
-        isPublished: {type: SchemaTypes.Boolean, default: false},
     },
     {
         accessMode: "loose",
-        // Only the customer's manage-link route creates a review (`rentalStorefront` `/manage/review`).
+        // Only the customer's manage-link route creates a review (`rentalStorefront` `/manage/review`), and nobody
+        // deletes one: the platform hides it instead (D191).
         permissions: {
-            self: {create: "no-permission"},
-            others: {create: "no-permission"},
+            self: {create: "no-permission", delete: "no-permission", restore: "no-permission"},
+            others: {create: "no-permission", delete: "no-permission", restore: "no-permission"},
         },
     },
 );
 
 ownershipPlugin(RentalReviewSchema);
+// The platform may hide it from the public after a report (D191).
+platformHiddenPlugin(RentalReviewSchema);
 auditPlugin(RentalReviewSchema);
 softDeletePlugin(RentalReviewSchema);
 lifeCyclePlugin(RentalReviewSchema);

@@ -11,6 +11,7 @@ Enable via `ENABLED_MODULES=carRental` (with `core` and `finance`).
 - Customers book a category; a free vehicle is assigned inside the booking transaction. The vehicle's `allocationVersion` is written in that transaction, so two parallel bookings of the last car confirm exactly one.
 - All times are stored as instants and entered as local time at each location (IANA time zone).
 - Online payments settle through finance's Stripe webhook (`registerPaymentSourceHandler`).
+- A customer reviews a completed rental once, from the manage link (`POST /api/carRental/rentalStorefront/manage/review`), and the review shows at once (D191). Staff never write, change or delete a review; they can report one to the platform. People report a car class or a review to the platform from the rental site (D191): `moduleBootstrap.reportables` declares `carRental.carClass` and `carRental.review` (`domain/reports/carRentalReportables.ts`); a class or review the platform hides (`hiddenByPlatform`) leaves the portal, the rental site, online booking and every rating.
 - Card payments are "Coming soon" while finance's `CARD_PAYMENTS_AVAILABLE` is off (D190): every booking is paid at the desk whatever `paymentPolicy` says (`effectivePaymentPolicy`), the deposit is taken in cash, and every card step (paying online, a card hold, a saved card, staff booking "online") answers `rental_card_payments_coming_soon`. Fines and damage still go on the booking, owed at the desk.
 
 ## Directory layout
@@ -19,7 +20,7 @@ Enable via `ENABLED_MODULES=carRental` (with `core` and `finance`).
 carRental/
 ├── api/carRental/private/         # CRUD routes and @actions
 ├── api/carRental/public/          # rentalStorefront (search, quote, book, manage)
-├── database/moduleBootstrap.ts    # models, default roles, onAccountVerified (a verified account claims its guest bookings, P23.9)
+├── database/moduleBootstrap.ts    # models, default roles, onAccountVerified (a verified account claims its guest bookings, P23.9), reportables (D191)
 ├── database/schemas/<resource>/   # models, indexes, services, snippets, views
 ├── domain/notifications/          # staff alerts
 └── utilities/                     # services, mappers, emails, cron jobs

@@ -3,7 +3,7 @@ import type {RentalReview} from "armonia/src/modules/carRental/api/carRental/pri
 import type {RentalReservationSimple} from "armonia/src/modules/carRental/dto/rentalReservation.dto";
 import {RentalReservationSimpleSnippet} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation.snippets";
 import {mapSnippet} from "@coreModule/utilities/mappers/common.mapper";
-import {mapLifeCycleToDTO, mapOwnershipToDTO, mapSoftDeleteToDTO} from "@coreModule/utilities/mappers/plugin/pluginMappers.dto";
+import {mapLifeCycleToDTO, mapOwnershipToDTO, mapSoftDeleteToDTO, mapPlatformHiddenToDTO} from "@coreModule/utilities/mappers/plugin/pluginMappers.dto";
 
 export function rentalReviewToDTO(review: IRentalReview): RentalReview {
     return {
@@ -12,7 +12,7 @@ export function rentalReviewToDTO(review: IRentalReview): RentalReview {
         rating: review.rating,
         comment: review.comment,
         authorName: review.authorName,
-        isPublished: review.isPublished,
+        ...mapPlatformHiddenToDTO(review),
         ...mapSoftDeleteToDTO(review),
         ...mapOwnershipToDTO(review),
         ...mapLifeCycleToDTO(review),

@@ -30,6 +30,7 @@ import {
 } from "armonia/src/modules/carRental/api/carRental/private/vehicleCategory/vehicleCategory.schema-def";
 import {applyVehicleCategoryIndexes} from "./vehicleCategory.indexes";
 import {vehicleCategoryViews} from "./vehicleCategory.views";
+import {platformHiddenPlugin, type IPlatformHiddenPluginFields} from "@coreModule/database/plugins/platformHiddenPlugin";
 
 export type IVehicleCategorySeason = {
     startDate: string;
@@ -42,7 +43,8 @@ export interface IVehicleCategory
         Document,
         IOwnershipPluginFields,
         ISoftDeletePluginFields,
-        ILifeCyclePluginFields {
+        ILifeCyclePluginFields,
+        IPlatformHiddenPluginFields {
     name: string;
     slug: string;
     description?: string;
@@ -188,6 +190,8 @@ VehicleCategorySchema.pre("validate", async function () {
 });
 
 ownershipPlugin(VehicleCategorySchema);
+// The platform may hide it from the public after a report (D191).
+platformHiddenPlugin(VehicleCategorySchema);
 publicMediaPlugin(VehicleCategorySchema, {schemaDef: VehicleCategorySchemaDef});
 auditPlugin(VehicleCategorySchema);
 softDeletePlugin(VehicleCategorySchema);

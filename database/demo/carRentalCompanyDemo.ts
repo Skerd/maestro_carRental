@@ -1012,7 +1012,6 @@ async function seedCounterRecords(input: {
                     index === 0
                         ? "Makinë e pastër dhe marrja ishte në kohë."
                         : "Makina ishte në rregull; marrja zgjati pak.",
-                isPublished: index === 0,
             },
         );
     }

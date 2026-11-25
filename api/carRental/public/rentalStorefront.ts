@@ -132,6 +132,7 @@ import {rentalExtraService} from "@carRentalModule/database/schemas/rentalExtra/
 import {mediaService} from "@coreModule/database/schemas/media/media.service";
 import {rentalSearchStatService} from "@carRentalModule/database/schemas/rentalSearchStat/rentalSearchStat.service";
 import {publicPersonName} from "@coreModule/utilities/helpers/publicName";
+import {notHiddenByPlatform} from "@coreModule/database/plugins/platformHiddenPlugin";
 export const basePath = "/api/carRental/rentalStorefront";
 
 const MY_RESERVATIONS_MAX = 50;
@@ -277,6 +278,8 @@ export async function publicCategories(
     return vehicleCategoryService.find({
         company: companyId,
         isPublic: true,
+        // A class the platform hid after a report is gone from the rental site (D191).
+        ...notHiddenByPlatform(),
         deletedAt: null,
     }, {}, undefined, undefined, {sortOrder: 1, name: 1});
 }
@@ -441,7 +444,8 @@ router.post(
  * POST /api/carRental/rentalStorefront/reviews
  *
  * A car class's published reviews on the rental site (D178): the average, how many, and the latest ones. Reviews are
- * written from the emailed manage link after a completed rental and shown once staff publish them.
+ * written from the emailed manage link after a completed rental and shown at once; one the platform hid is left out
+ * (D191).
  */
 router.post(
     "/reviews",
@@ -457,6 +461,7 @@ router.post(
                     average: found.average,
                     count: found.count,
                     reviews: found.reviews.map((review) => ({
+                        _id: review._id.toString(),
                         rating: review.rating,
                         ...(review.comment ? {comment: review.comment} : {}),
                         ...(review.authorName ? {authorName: review.authorName} : {}),
@@ -1158,7 +1163,6 @@ router.post(
                     comment: params.comment,
                     // Shown in public: the first name and the last name's initial, as dental reviews (TD-B265).
                     authorName: publicPersonName(reservation.contact.firstName, reservation.contact.lastName),
-                    isPublished: false,
                 },
                 {
                     session,

@@ -15,6 +15,30 @@ export const rentalReviewSheetView: ViewConfig = {
         showCloseButton: true,
     },
     nodes: [
+        // The platform hid it after a report (D191): staff still see it, and why the public no longer does.
+        {
+            render: "#SheetGroup",
+            dependent: "hiddenByPlatform",
+            props: {title: "hiddenByPlatform", titleIcon: "#IconEyeOff", accent: "danger", defaultOpen: true},
+            children: [
+                {
+                    render: "#SheetGrid",
+                    props: {columns: 1},
+                    children: [
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "hiddenByPlatform"},
+                            field: {
+                                name: "hiddenByPlatform",
+                                widget: "#DisplayCard",
+                                label: "hiddenByPlatformNote",
+                                widgetProps: {icon: "#IconEyeOff", dontRenderValue: true},
+                            },
+                        },
+                    ],
+                },
+            ],
+        },
         {
             render: "#SheetGroup",
             props: {title: "overview"},
@@ -62,19 +86,6 @@ export const rentalReviewSheetView: ViewConfig = {
                                 widgetProps: {icon: "#IconUser"},
                             },
                         },
-                        {
-                            render: "#DisplayCard",
-                            permissions: {read: "isPublished"},
-                            field: {
-                                name: "isPublished",
-                                widget: "#DisplayCard",
-                                label: "isPublished",
-                                widgetProps: {
-                                    icon: "#IconWorld",
-                                    type: "boolean",
-                                },
-                            },
-                        },
                     ],
                 },
                 {
@@ -104,5 +115,5 @@ export const rentalReviewSheetView: ViewConfig = {
     ],
 };
 
-/** No create or edit form: the customer writes the review from their booking's manage link, staff only publish it. */
+/** No create or edit form: the customer writes the review from their booking's manage link and it shows at once (D191). */
 export const rentalReviewViews: ViewConfig[] = [rentalReviewSheetView];

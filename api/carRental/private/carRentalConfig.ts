@@ -15,6 +15,7 @@ import {carRentalConfigsToSelect} from "@carRentalModule/utilities/mappers/carRe
 import {rentalLocationService} from "@carRentalModule/database/schemas/rentalLocation/rentalLocation.service";
 import {vehicleCategoryService} from "@carRentalModule/database/schemas/vehicleCategory/vehicleCategory.service";
 import {vehicleService} from "@carRentalModule/database/schemas/vehicle/vehicle.service";
+import {notHiddenByPlatform} from "@coreModule/database/plugins/platformHiddenPlugin";
 /**
  * Public booking only goes live once a customer could actually complete one: a
  * location to pick up at and a public category with a car in it.
@@ -22,7 +23,7 @@ import {vehicleService} from "@carRentalModule/database/schemas/vehicle/vehicle.
 async function assertReadyForPublicBooking(companyId: ObjectId, session: ClientSession, languageCode: string): Promise<void> {
     const location = await rentalLocationService.exists({company: companyId, isActive: true, pickupAllowed: true, deletedAt: null}, {session: session});
     if (!location) throw apiValidationException("rental_setup_missing_location", "", null, languageCode);
-    const categories = await vehicleCategoryService.find({company: companyId, isPublic: true, deletedAt: null}, {session: session}, undefined, "_id");
+    const categories = await vehicleCategoryService.find({company: companyId, isPublic: true, ...notHiddenByPlatform(), deletedAt: null}, {session: session}, undefined, "_id");
     const vehicle = categories.length
         ? await vehicleService.exists({company: companyId, status: "active", category: {$in: categories.map((c) => c._id)}, deletedAt: null}, {session: session})
         : null;

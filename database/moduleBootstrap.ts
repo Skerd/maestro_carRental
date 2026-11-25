@@ -27,6 +27,7 @@ import type {SelfServeBusinessType} from "@coreModule/domain/company/selfServeBu
 import type {AccountVerifiedHook} from "@coreModule/utilities/modules/moduleCompanyDefaults";
 import {asCrossTenant} from "@coreModule/utilities/endpoints/tenantScope";
 import {rentalReservationService} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation.service";
+import {carRentalReportables} from "@carRentalModule/domain/reports/carRentalReportables";
 
 export const carRentalModels: Model<any>[] = [
     CarRentalConfig,
@@ -99,4 +100,5 @@ export const moduleBootstrap = {
     defaultRoles: carRentalDefaultRoles,
     selfServeBusinessTypes,
     onAccountVerified,
+    reportables: carRentalReportables,
 };

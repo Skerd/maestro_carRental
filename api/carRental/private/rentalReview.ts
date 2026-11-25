@@ -8,7 +8,6 @@ import RentalReview from "@carRentalModule/database/schemas/rentalReview/rentalR
 import {rentalReviewService} from "@carRentalModule/database/schemas/rentalReview/rentalReview.service";
 import {rentalReviewToDTO, rentalReviewsToDTO} from "@carRentalModule/utilities/mappers/rentalReview/rentalReviewMapper.dto";
 import {rentalReviewsToSelect} from "@carRentalModule/utilities/mappers/rentalReview/rentalReviewMapper.select";
-import {RentalReviewActions} from "@carRentalModule/database/schemas/rentalReview/rentalReview.actions";
 
 export const basePath = "/api/carRental/rentalReview";
 
@@ -24,8 +23,8 @@ export const {router} = createCrudRouter({
     toSelect: rentalReviewsToSelect,
     selectSearchField: "authorName",
     defaultSort: {createdAt: -1},
-    actions: RentalReviewActions,
-    // A review comes only from the customer, through their booking's manage link: staff never write one.
+    // A review comes only from the customer, through their booking's manage link: staff never write or delete one, and
+    // only the platform hides one (D191).
     checkCreatePermission: ({languageCode}) => {
         throw apiValidationException("rental_review_written_by_customer_only", "", null, languageCode);
     },

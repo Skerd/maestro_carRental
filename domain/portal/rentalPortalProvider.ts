@@ -29,6 +29,7 @@ function classSubtitle(category: {seats: number; transmission: "manual" | "autom
     return [applyPlaceholders(words.seats, {count: String(category.seats)}), words[category.transmission]].join(" · ");
 }
 import {rentalLocationService} from "@carRentalModule/database/schemas/rentalLocation/rentalLocation.service";
+import {notHiddenByPlatform} from "@coreModule/database/plugins/platformHiddenPlugin";
 /** Rental companies taking public bookings (and on the apex, opted in to the portal). */
 export function rentalPortalCompanyIds(scope: PortalScope) {
     return portalListedCompanyIds("carRental", {
@@ -45,7 +46,8 @@ const CATEGORY_SORTS = {newest: {createdAt: -1}, priceAsc: {dailyRate: 1}, price
 
 /** Public categories of these companies matching the query and the car filters (`f.transmission`, `f.fuel`, `f.seats`). */
 function categoryClause({companyIds, query, filters}: PortalBrowseParams): Record<string, unknown> {
-    const clause: Record<string, unknown> = {company: {$in: companyIds}, isPublic: true, deletedAt: null};
+    // A class the platform hid after a report is gone from every portal list and page (D191).
+    const clause: Record<string, unknown> = {company: {$in: companyIds}, isPublic: true, ...notHiddenByPlatform(), deletedAt: null};
     if (query) clause.name = {$regex: escapeRegex(query), $options: "i"};
     const transmission = filterValue(filters, "transmission");
     if (transmission) clause.transmission = transmission;

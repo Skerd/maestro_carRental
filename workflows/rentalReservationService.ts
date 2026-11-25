@@ -56,6 +56,7 @@ import {
 import {formatPostalAddress} from "@coreModule/utilities/helpers/postalAddress";
 import {currencyDecimalPlaces} from "@financeModule/utilities/services/currencyDecimals";
 import type {RentalTrip} from "@carRentalModule/utilities/services/rentalTrip";
+import {notHiddenByPlatform} from "@coreModule/database/plugins/platformHiddenPlugin";
 
 const MINUTE = 60 * 1000;
 /** A quote the customer saw may differ from the server's by rounding only. */
@@ -70,7 +71,7 @@ type Ctx = {
     auditUserId?: string | ObjectId;
 };
 
-/** The category a booking is for: live, and public when booked online. */
+/** The category a booking is for: live, and public (and not hidden by the platform, D191) when booked online. */
 export async function loadBookableCategory(
     companyId: ObjectId,
     categoryId: string,
@@ -82,7 +83,7 @@ export async function loadBookableCategory(
                   _id: new ObjectId(categoryId),
                   company: companyId,
                   deletedAt: null,
-                  ...(ctx.online ? {isPublic: true} : {}),
+                  ...(ctx.online ? {isPublic: true, ...notHiddenByPlatform()} : {}),
               },
               {session: ctx.session},
           )
