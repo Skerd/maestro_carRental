@@ -1,4 +1,5 @@
 import {createCrudRouter} from "@coreModule/api/crudRouterFactory";
+import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import {buildCreateDataFromSchemaDef, buildUpdateDataFromSchemaDef} from "@coreModule/api/buildUpdateDataFromSchemaDef";
 import {RentalReviewSchemaDef} from "armonia/src/modules/carRental/api/carRental/private/rentalReview/rentalReview.schema-def";
 import {createRentalReviewFormSchema} from "armonia/src/modules/carRental/api/carRental/private/rentalReview/createRentalReview.form.validator";
@@ -24,6 +25,10 @@ export const {router} = createCrudRouter({
     selectSearchField: "authorName",
     defaultSort: {createdAt: -1},
     actions: RentalReviewActions,
+    // A review comes only from the customer, through their booking's manage link: staff never write one.
+    checkCreatePermission: ({languageCode}) => {
+        throw apiValidationException("rental_review_written_by_customer_only", "", null, languageCode);
+    },
     buildCreateData: buildCreateDataFromSchemaDef(RentalReviewSchemaDef),
     buildUpdateData: buildUpdateDataFromSchemaDef(RentalReviewSchemaDef),
 });

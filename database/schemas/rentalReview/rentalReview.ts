@@ -25,15 +25,28 @@ export interface IRentalReview extends Document, IOwnershipPluginFields, ISoftDe
     isPublished: boolean;
 }
 
+/**
+ * A review is the customer's own words, written from their booking's manage link: staff publish or hide it, but never
+ * write or change it, so the stars on the portal stay the customers'.
+ */
+const CustomerWrittenOnly = {self: {write: "no-permission"}, others: {write: "no-permission"}};
+
 const RentalReviewSchema = new Schema<IRentalReview>(
     {
-        reservation: {type: SchemaTypes.ObjectId, ref: "RentalReservation", required: true, refAllowlist: RentalReservationSimpleSnippet, dynamicTableConfiguration: {refDisplayKey: ["number"]}},
-        rating: {type: SchemaTypes.Number, required: true, min: 1, max: 5},
-        comment: {type: SchemaTypes.String, trim: true, maxlength: RENTAL_REVIEW_COMMENT_MAX, dynamicTableConfiguration: {hideColumn: true}},
-        authorName: {type: SchemaTypes.String, required: true, trim: true, minlength: 1, maxlength: RENTAL_REVIEW_AUTHOR_NAME_MAX},
+        reservation: {type: SchemaTypes.ObjectId, ref: "RentalReservation", required: true, refAllowlist: RentalReservationSimpleSnippet, permissions: CustomerWrittenOnly, dynamicTableConfiguration: {refDisplayKey: ["number"]}},
+        rating: {type: SchemaTypes.Number, required: true, min: 1, max: 5, permissions: CustomerWrittenOnly},
+        comment: {type: SchemaTypes.String, trim: true, maxlength: RENTAL_REVIEW_COMMENT_MAX, permissions: CustomerWrittenOnly, dynamicTableConfiguration: {hideColumn: true}},
+        authorName: {type: SchemaTypes.String, required: true, trim: true, minlength: 1, maxlength: RENTAL_REVIEW_AUTHOR_NAME_MAX, permissions: CustomerWrittenOnly},
         isPublished: {type: SchemaTypes.Boolean, default: false},
     },
-    {accessMode: "loose"},
+    {
+        accessMode: "loose",
+        // Only the customer's manage-link route creates a review (`rentalStorefront` `/manage/review`).
+        permissions: {
+            self: {create: "no-permission"},
+            others: {create: "no-permission"},
+        },
+    },
 );
 
 ownershipPlugin(RentalReviewSchema);
