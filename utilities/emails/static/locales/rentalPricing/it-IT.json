@@ -14,5 +14,7 @@
   "damage": "Danno: {description}",
   "fine": "Multa {reference}",
   "fineAdmin": "Spese di gestione della multa",
-  "chargeRemoved": "Rimosso: {label}"
+  "chargeRemoved": "Rimosso: {label}",
+  "carTransfer": "Trasferimento dell'auto da {location}",
+  "repriced": "prezzo ricalcolato per quest'auto"
 }

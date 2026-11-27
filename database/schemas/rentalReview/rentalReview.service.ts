@@ -38,7 +38,16 @@ export class RentalReviewService extends BaseCrudService<IRentalReview, typeof R
      * One car class's published reviews (D178): the average, how many, and the latest `limit`, newest first, each with
      * its id for the Report link (D191). One the platform hid is left out.
      */
-    async publishedForCategory(companyId: ObjectId, categoryId: ObjectId, limit: number): Promise<{
+    publishedForCategory(companyId: ObjectId, categoryId: ObjectId, limit: number) {
+        return this.publishedFor(companyId, {category: categoryId}, limit);
+    }
+
+    /** The published reviews of every rental of one car, for its page when it is rented on its own (D198). */
+    publishedForVehicle(companyId: ObjectId, vehicleId: ObjectId, limit: number) {
+        return this.publishedFor(companyId, {vehicle: vehicleId}, limit);
+    }
+
+    private async publishedFor(companyId: ObjectId, booking: {category: ObjectId} | {vehicle: ObjectId}, limit: number): Promise<{
         average: number;
         count: number;
         reviews: {_id: ObjectId; rating: number; comment?: string; authorName?: string; createdAt: Date}[];
@@ -49,7 +58,7 @@ export class RentalReviewService extends BaseCrudService<IRentalReview, typeof R
                 from: RentalReservation.collection.name,
                 let: {reservation: "$reservation"},
                 pipeline: [
-                    {$match: {$expr: {$eq: ["$_id", "$$reservation"]}, category: categoryId, deletedAt: null}},
+                    {$match: {$expr: {$eq: ["$_id", "$$reservation"]}, ...booking, deletedAt: null}},
                     {$project: {_id: 1}},
                 ],
                 as: "booked",

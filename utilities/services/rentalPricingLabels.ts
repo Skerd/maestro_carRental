@@ -19,7 +19,9 @@ export type RentalPricingLabelKey =
     | "damage"
     | "fine"
     | "fineAdmin"
-    | "chargeRemoved";
+    | "chargeRemoved"
+    | "carTransfer"
+    | "repriced";
 
 /**
  * Labels for the fee, discount and charge lines the system writes itself. A line

@@ -11,7 +11,8 @@ import type {ICarRentalConfig} from "@carRentalModule/database/schemas/carRental
 import VehicleCategory, {
     type IVehicleCategory,
 } from "@carRentalModule/database/schemas/vehicleCategory/vehicleCategory";
-import Vehicle from "@carRentalModule/database/schemas/vehicle/vehicle";
+import Vehicle, {type IVehicle} from "@carRentalModule/database/schemas/vehicle/vehicle";
+import {vehicleListingTitle} from "armonia/src/modules/carRental/helpers/vehicleRates";
 import RentalExtra, {
     type IRentalExtra,
 } from "@carRentalModule/database/schemas/rentalExtra/rentalExtra";
@@ -29,6 +30,8 @@ import type {IRentalPromoCode} from "@carRentalModule/database/schemas/rentalPro
 import {
     applyDiscount,
     computeRentalQuote,
+    quoteCategoryFor,
+    type ExactVehicleRates,
     rentalDaysBetween,
     storedAmount,
     storedPricing,
@@ -49,10 +52,13 @@ import {rentalPricingLabel} from "@carRentalModule/utilities/services/rentalPric
 import {
     busyUntil,
     busyVehicleIds,
+    exactCarPlacement,
     freeVehiclesInCategory,
     lockVehicle,
     needsTransferFor,
 } from "@carRentalModule/utilities/services/rentalAvailability";
+import {vehiclesWithLapsingPapers} from "@carRentalModule/utilities/services/vehiclePapers";
+import {rentalLocationService} from "@carRentalModule/database/schemas/rentalLocation/rentalLocation.service";
 import {formatPostalAddress} from "@coreModule/utilities/helpers/postalAddress";
 import {currencyDecimalPlaces} from "@financeModule/utilities/services/currencyDecimals";
 import type {RentalTrip} from "@carRentalModule/utilities/services/rentalTrip";
@@ -96,6 +102,66 @@ export async function loadBookableCategory(
             ctx.languageCode,
         );
     return category;
+}
+
+/**
+ * The car of an exact booking (D198): an active car of the booked group. Online it must be rented on its own; staff may
+ * book any car exactly, as they would sell it at the desk.
+ */
+export async function loadBookableVehicle(
+    companyId: ObjectId,
+    vehicleId: string,
+    category: IVehicleCategory,
+    ctx: {languageCode: string; online: boolean; session?: ClientSession},
+): Promise<IVehicle> {
+    const vehicle = ObjectId.isValid(vehicleId)
+        ? await vehicleService.findOne(
+              {_id: new ObjectId(vehicleId), company: companyId, status: "active", deletedAt: null, ...(ctx.online ? notHiddenByPlatform() : {})},
+              {session: ctx.session},
+          )
+        : null;
+    if (!vehicle) throw apiValidationException("vehicle_not_found", "", null, ctx.languageCode);
+    if (String(nestedEntityToRef(vehicle.category)) !== String(category._id)) {
+        throw apiValidationException("rental_vehicle_wrong_category", "", null, ctx.languageCode);
+    }
+    if (ctx.online && !vehicle.listedAlone) {
+        throw apiValidationException("rental_vehicle_not_listed", "", null, ctx.languageCode);
+    }
+    return vehicle;
+}
+
+/** Online, a group that only heads its cars rented on their own is not booked as a class (D198). */
+export function assertSoldAsClass(category: IVehicleCategory, languageCode: string): void {
+    if (category.soldAsClass === false) {
+        throw apiValidationException("rental_class_not_sold", "", null, languageCode, [category.name]);
+    }
+}
+
+/**
+ * What an online booking is for (D198): the class when no car was picked (refused for a group that only heads its
+ * cars), or this exact car, rented on its own, free of lapsing papers, and at the pickup branch then or brought there
+ * for the company's transfer fee.
+ */
+export async function loadOnlineExactCar(
+    input: {companyId: ObjectId; vehicleId?: string; category: IVehicleCategory; trip: RentalTrip; config: ICarRentalConfig; now?: Date},
+    ctx: {languageCode: string; session?: ClientSession},
+): Promise<{exactVehicle?: IVehicle; carTransfer?: {amount: number; fromName: string}}> {
+    const {companyId, category, trip, config} = input;
+    if (!input.vehicleId) {
+        assertSoldAsClass(category, ctx.languageCode);
+        return {};
+    }
+    const vehicle = await loadBookableVehicle(companyId, input.vehicleId, category, {...ctx, online: true});
+    const lapsing = await vehiclesWithLapsingPapers([vehicle._id as ObjectId], {from: trip.pickupAt, until: trip.returnAt}, {companyId, session: ctx.session});
+    if (lapsing.size) throw apiValidationException("vehicle_unavailable", "", null, ctx.languageCode);
+    const placement = await exactCarPlacement(
+        {_id: vehicle._id as ObjectId, homeLocation: vehicle.homeLocation, currentLocation: vehicle.currentLocation},
+        {locationId: trip.pickupLocation._id, at: trip.pickupAt},
+        {companyId, config, now: input.now ?? new Date(), languageCode: ctx.languageCode, session: ctx.session},
+    );
+    if (!placement) return {exactVehicle: vehicle};
+    const from = await rentalLocationService.findOne({_id: placement.fromLocationId, company: companyId}, {session: ctx.session}, undefined, "name");
+    return {exactVehicle: vehicle, carTransfer: {amount: placement.fee, fromName: from?.name ?? ""}};
 }
 
 /** Active extras for a selection, with the quantity rules checked. */
@@ -211,6 +277,10 @@ export type TripPricingOptions = {
     rentalPrice?: number;
     /** The booking currency's `decimalPlaces`, where amounts are rounded (default 2, TD-B30). */
     decimalPlaces?: number;
+    /** This exact car, priced from its own price list where it has one (D198). */
+    exactVehicle?: ExactVehicleRates;
+    /** Bringing that car from another branch for an online booking (D198): the fee and where it comes from. */
+    carTransfer?: {amount: number; fromName: string};
 };
 
 /**
@@ -245,6 +315,14 @@ export function quoteTrip(
             perDay: false,
         });
     }
+    if (options.carTransfer) {
+        fees.push({
+            label: rentalPricingLabel(languageCode, "carTransfer", {location: options.carTransfer.fromName}),
+            code: "car_transfer",
+            amount: options.carTransfer.amount,
+            perDay: false,
+        });
+    }
     if (options.crossBorder) {
         if (category.crossBorderAllowed === false) {
             throw apiValidationException(
@@ -265,8 +343,9 @@ export function quoteTrip(
     const protection = extras.find(
         ({extra}) => extra.kind === "protection",
     )?.extra;
+    const priced = quoteCategoryFor(category, options.exactVehicle);
     let quote = computeRentalQuote({
-        category,
+        category: priced,
         extras: extras.map(({extra, quantity}) => ({
             name: extra.name,
             pricing: extra.pricing,
@@ -294,7 +373,7 @@ export function quoteTrip(
         );
         const lines = [
             {
-                label: category.name,
+                label: priced.name,
                 kind: "rental" as const,
                 quantity: 1,
                 unitPrice: options.rentalPrice,
@@ -481,6 +560,13 @@ export type CreateRentalReservationInput = {
     config: ICarRentalConfig;
     category: IVehicleCategory;
     vehicleId?: string;
+    /**
+     * This exact car, of `category` (D198): booked at its own prices and guaranteed. Without it a `vehicleId` is only
+     * which of the class's cars goes out.
+     */
+    exactVehicle?: IVehicle;
+    /** Bringing the exact car from another branch (online only): the fee line, see `exactCarPlacement`. */
+    carTransfer?: {amount: number; fromName: string};
     trip: RentalTrip;
     extras: {extra: IRentalExtra; quantity: number}[];
     contact: {
@@ -587,6 +673,8 @@ export async function buildRentalReservation(
         accountDiscount,
         rentalPrice: input.rentalPrice,
         decimalPlaces,
+        exactVehicle: input.exactVehicle,
+        carTransfer: input.carTransfer,
     });
     if (
         input.expectedTotal !== undefined &&
@@ -608,7 +696,7 @@ export async function buildRentalReservation(
         {
             companyId,
             categoryId: category._id,
-            vehicleId: input.vehicleId,
+            vehicleId: input.exactVehicle ? String(input.exactVehicle._id) : input.vehicleId,
             pickupAt: trip.pickupAt,
             blockedUntil,
             preferLocationId: trip.pickupLocation._id,
@@ -634,6 +722,7 @@ export async function buildRentalReservation(
         source,
         category: category._id,
         vehicle: vehicleId,
+        exactVehicle: Boolean(input.exactVehicle),
         needsTransfer,
         pickupLocation: trip.pickupLocation._id,
         returnLocation: trip.returnLocation._id,
@@ -674,6 +763,7 @@ export async function buildRentalReservation(
         pricing: storedPricing(quote, currency, decimalPlaces),
         snapshot: {
             categoryName: category.name,
+            ...(input.exactVehicle ? {vehicleTitle: vehicleListingTitle(input.exactVehicle)} : {}),
             pickupLocationName: trip.pickupLocation.name,
             pickupAddress: formatPostalAddress(trip.pickupLocation.address),
             returnLocationName: trip.returnLocation.name,

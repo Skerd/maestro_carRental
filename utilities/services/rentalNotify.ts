@@ -58,7 +58,8 @@ export async function notifyRentalCustomer(
             email: contact.email,
             fullName: `${contact.firstName} ${contact.lastName}`.trim(),
             number: reservation.number,
-            categoryName: snapshot.categoryName,
+            // An exact booking names its car (D198); a class booking its class.
+            categoryName: snapshot.vehicleTitle ?? snapshot.categoryName,
             pickupAt: formatLocal(reservation.pickupAt, snapshot.timezone, ctx.languageCode),
             pickupLocation: [snapshot.pickupLocationName, snapshot.pickupAddress].filter(Boolean).join(", "),
             returnAt: formatLocal(reservation.returnAt, snapshot.timezone, ctx.languageCode),

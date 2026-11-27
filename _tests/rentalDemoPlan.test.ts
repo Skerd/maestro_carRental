@@ -1,25 +1,28 @@
 import {describe, expect, it} from "vitest";
 import {addLocalDays} from "@coreModule/utilities/time/timeWindows";
-import {DEMO_LOCATIONS, demoVehicles} from "@carRentalModule/database/demo/carRental.demo.data";
+import {CAR_BY_CAR_CATEGORIES, DEMO_LOCATIONS, demoListing, demoVehicles} from "@carRentalModule/database/demo/carRental.demo.data";
 import {planDemoBookings, planVehicleHistory} from "@carRentalModule/database/demo/carRental.demo.plan";
 
 const today = "2026-10-20";
-const vehicles = demoVehicles(2026);
+const year = 2026;
+const vehicles = demoVehicles(year);
 const bookings = planDemoBookings(vehicles, today);
 
 describe("demo fleet plan", () => {
-    it("builds 80 cars with unique plates, keeping the earlier seed's plates", () => {
-        expect(vehicles).toHaveLength(80);
-        expect(new Set(vehicles.map((vehicle) => vehicle.plate)).size).toBe(80);
+    it("builds 85 cars with unique plates, keeping the earlier seed's plates", () => {
+        // 80 cars, then the five special cars rented on their own (D198), added last so earlier keys stay.
+        expect(vehicles).toHaveLength(85);
+        expect(new Set(vehicles.map((vehicle) => vehicle.plate)).size).toBe(85);
+        expect(vehicles.slice(80).map((vehicle) => vehicle.category)).toEqual(["special", "special", "special", "special", "special"]);
         for (const plate of ["AA101DM", "AA102DM", "AB201DM", "AB202DM", "AC301DM", "AC302DM"]) {
             expect(vehicles.some((vehicle) => vehicle.plate === plate)).toBe(true);
         }
         expect(vehicles.filter((vehicle) => vehicle.status !== "active")).toHaveLength(5);
     });
 
-    it("plans about 150 bookings, every status, all within 90 days back and 60 ahead", () => {
-        expect(bookings.length).toBeGreaterThanOrEqual(140);
-        expect(bookings.length).toBeLessThanOrEqual(180);
+    it("plans about 180 bookings, every status, all within 90 days back and 60 ahead", () => {
+        expect(bookings.length).toBeGreaterThanOrEqual(150);
+        expect(bookings.length).toBeLessThanOrEqual(200);
         expect(new Set(bookings.map((booking) => booking.outcome))).toEqual(
             new Set(["completed", "in_progress", "cancelled", "no_show", "expired", "held", "confirmed"]),
         );
@@ -97,5 +100,17 @@ describe("demo fleet plan", () => {
 
     it("returns the same plan for the same day", () => {
         expect(planDemoBookings(demoVehicles(2026), today)).toEqual(bookings);
+    });
+
+    it("rents the special, premium, 4x4 and minivan cars on their own, priced by model year (D198)", () => {
+        const special = vehicles.find((vehicle) => vehicle.modelKey === "Mercedes-Benz G-Class")!;
+        expect(demoListing(special, {dailyRate: 150}, year)).toMatchObject({listedAlone: true, dailyRate: 240, depositAmount: 4000});
+        const premium = vehicles.filter((vehicle) => vehicle.category === "premium");
+        expect(premium.every((vehicle) => demoListing(vehicle, {dailyRate: 110}, year).listedAlone)).toBe(true);
+        const newest = premium.find((vehicle) => vehicle.year === year - 1)!;
+        expect(demoListing(newest, {dailyRate: 110}, year).dailyRate).toBe(127);
+        const economy = vehicles.find((vehicle) => vehicle.category === "economy")!;
+        expect(demoListing(economy, {dailyRate: 29}, year)).toEqual({listedAlone: false});
+        expect(CAR_BY_CAR_CATEGORIES).toEqual(["premium", "suv-4x4", "minivan", "special"]);
     });
 });

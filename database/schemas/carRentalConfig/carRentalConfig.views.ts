@@ -417,6 +417,9 @@ export const carRentalConfigEditFormView: ViewConfig = {
                     "cleaningFee",
                     "smokingFee",
                     "fineAdminFee",
+                    "exactCarTransfers",
+                    "exactCarTransferFee",
+                    "exactCarTransferNoticeHours",
                 ],
                 writeAny: [
                     "youngDriverUnderAge",
@@ -429,6 +432,9 @@ export const carRentalConfigEditFormView: ViewConfig = {
                     "cleaningFee",
                     "smokingFee",
                     "fineAdminFee",
+                    "exactCarTransfers",
+                    "exactCarTransferFee",
+                    "exactCarTransferNoticeHours",
                 ],
             },
             children: [
@@ -613,6 +619,63 @@ export const carRentalConfigEditFormView: ViewConfig = {
                                     type: "number",
                                     min: 0,
                                     max: 100000,
+                                },
+                            },
+                        },
+                    ],
+                },
+                {
+                    // Cars rented on their own (D198): offered online only where they will be, unless brought over.
+                    render: "#FormGrid",
+                    props: {columns: 3},
+                    children: [
+                        {
+                            render: "#Field",
+                            permissions: {
+                                read: "exactCarTransfers",
+                                write: "exactCarTransfers",
+                            },
+                            field: {
+                                name: "exactCarTransfers",
+                                widget: "#Switch",
+                                label: "form.exactCarTransfersLabel",
+                                description: "form.exactCarTransfersDescription",
+                            },
+                        },
+                        {
+                            render: "#Field",
+                            permissions: {
+                                read: "exactCarTransferFee",
+                                write: "exactCarTransferFee",
+                            },
+                            field: {
+                                name: "exactCarTransferFee",
+                                widget: "#Input",
+                                label: "form.exactCarTransferFeeLabel",
+                                placeholder: "form.exactCarTransferFeePlaceholder",
+                                widgetProps: {
+                                    type: "number",
+                                    min: 0,
+                                    max: 100000,
+                                },
+                            },
+                        },
+                        {
+                            render: "#Field",
+                            permissions: {
+                                read: "exactCarTransferNoticeHours",
+                                write: "exactCarTransferNoticeHours",
+                            },
+                            field: {
+                                name: "exactCarTransferNoticeHours",
+                                widget: "#Input",
+                                label: "form.exactCarTransferNoticeHoursLabel",
+                                placeholder: "form.exactCarTransferNoticeHoursPlaceholder",
+                                widgetProps: {
+                                    type: "number",
+                                    min: 0,
+                                    max: 720,
+                                    step: 1,
                                 },
                             },
                         },

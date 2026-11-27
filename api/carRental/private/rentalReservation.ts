@@ -17,6 +17,7 @@ import {
     buildRentalReservation,
     loadApplicablePromo,
     loadBookableCategory,
+    loadBookableVehicle,
     loadSelectedExtras,
 } from "@carRentalModule/workflows/rentalReservationService";
 import {notifyRentalCustomer} from "@carRentalModule/utilities/services/rentalNotify";
@@ -71,6 +72,12 @@ export const {router} = createCrudRouter({
             params.category,
             {languageCode, online: false, session},
         );
+        // This exact car at its own prices (D198); otherwise a picked car is only which of the class's cars goes out.
+        if (params.exactVehicle && !params.vehicle)
+            throw apiValidationException("rental_exact_vehicle_required", "", null, languageCode);
+        const exactVehicle = params.exactVehicle
+            ? await loadBookableVehicle(company._id, params.vehicle, category, {languageCode, online: false, session})
+            : undefined;
         const extras = await loadSelectedExtras(
             company._id,
             params.extras ?? [],
@@ -118,6 +125,7 @@ export const {router} = createCrudRouter({
                 config,
                 category,
                 vehicleId: params.vehicle,
+                exactVehicle,
                 trip,
                 extras,
                 contact: params.contact,

@@ -63,6 +63,7 @@ import {
     assertStatus,
     cancelRentalReservation,
     extendRentalReservation,
+    reassignRentalVehicle,
     handOverRentalReservation,
     markRentalNoShow,
     returnRentalReservation,
@@ -555,7 +556,10 @@ export class RentalReservationActions {
         return {data: {until: until?.toISOString(), closedDays, timeZone}};
     }
 
-    /** The cars of the booking's class free for its whole window (turnaround kept), for "Change car". */
+    /**
+     * The cars free for the booking's whole window (turnaround kept), for "Change car": its own group's first, then
+     * every other group's (D198), each named with its group.
+     */
     @action({
         auth: "private",
         transaction: true,
@@ -567,7 +571,7 @@ export class RentalReservationActions {
     ): Promise<{data: RentalFreeVehicle[]}> {
         const reservation = await loadReservation(params);
         const companyId = params.company._id;
-        const [busy, cars] = await Promise.all([
+        const [busy, cars, groups] = await Promise.all([
             busyVehicleIds({
                 companyId,
                 start: reservation.pickupAt,
@@ -578,13 +582,20 @@ export class RentalReservationActions {
             }),
             Vehicle.find({
                 company: companyId,
-                category: reservation.category,
                 status: "active",
                 deletedAt: null,
                 _id: {$ne: reservation.vehicle},
-            }).select("plate make model readiness").sort({plate: 1}).session(params.session),
+            }).select("plate make model readiness category").sort({plate: 1}).session(params.session),
+            VehicleCategory.find({company: companyId}).select("name sortOrder").session(params.session),
         ]);
-        const free = cars.filter((car) => !busy.has(String(car._id)));
+        const groupOf = new Map(groups.map((group) => [String(group._id), group]));
+        const own = String(reservation.category);
+        const free = cars
+            .filter((car) => !busy.has(String(car._id)))
+            .sort((a, b) =>
+                Number(String(b.category) === own) - Number(String(a.category) === own)
+                || (groupOf.get(String(a.category))?.sortOrder ?? 0) - (groupOf.get(String(b.category))?.sortOrder ?? 0),
+            );
         // Staff may renew the papers before the handover, so such a car stays on the list, marked (TD-B264).
         const lapsing = await vehiclesWithLapsingPapers(free.map((car) => car._id), {from: reservation.pickupAt, until: reservation.returnAt}, {companyId, session: params.session});
         return {
@@ -593,11 +604,16 @@ export class RentalReservationActions {
                 label: `${car.make} ${car.model} · ${car.plate}`,
                 readiness: car.readiness,
                 ...(lapsing.has(String(car._id)) ? {papersLapse: true} : {}),
+                groupName: groupOf.get(String(car.category))?.name ?? "",
+                sameGroup: String(car.category) === own,
             })),
         };
     }
 
-    /** Moves the booking to another car of the same category that is free for its whole window. */
+    /**
+     * Moves the booking to another free car, of its group or another one, kept as booked or re-priced (D198); see
+     * `reassignRentalVehicle`.
+     */
     @action({
         auth: "private",
         transaction: true,
@@ -608,67 +624,15 @@ export class RentalReservationActions {
         params: ActionParams<ReassignRentalVehicleFormType>,
     ): Promise<RentalReservationDto> {
         const reservation = await loadReservation(params);
-        assertStatus(reservation, ["held", "confirmed"], params.languageCode);
-        const companyId = params.company._id;
-        const target = await Vehicle.findOne({
-            _id: new ObjectId(params.vehicle),
-            company: companyId,
-            deletedAt: null,
-        }).session(params.session);
-        if (!target)
-            throw apiValidationException(
-                "vehicle_not_found",
-                "",
-                null,
-                params.languageCode,
-            );
-        if (String(target.category) !== String(reservation.category)) {
-            throw apiValidationException(
-                "rental_vehicle_wrong_category",
-                "",
-                null,
-                params.languageCode,
-            );
-        }
-        await lockVehicle(target._id, {
-            companyId,
-            session: params.session,
-            languageCode: params.languageCode,
-        });
-        const busy = await busyVehicleIds({
-            companyId,
-            vehicleIds: [target._id],
-            start: reservation.pickupAt,
-            end: reservation.blockedUntil,
-            now: new Date(),
-            excludeReservationId: reservation._id,
-            session: params.session,
-        });
-        if (busy.size)
-            throw apiValidationException(
-                "vehicle_unavailable",
-                "",
-                null,
-                params.languageCode,
-            );
-
-        reservation.vehicle = target._id;
-        reservation.needsTransfer = await needsTransferFor(
-            target._id,
+        await reassignRentalVehicle(
+            reservation,
             {
-                locationId: nestedEntityToRef(reservation.pickupLocation)!,
-                at: reservation.pickupAt,
+                vehicleId: new ObjectId(params.vehicle),
+                pricing: params.pricing,
+                by: new ObjectId(params.actionUserCtx.userId),
             },
-            companyId,
-            params.session,
+            ctxOf(params),
         );
-        reservation.timeline.push({
-            event: "vehicle_reassigned",
-            at: new Date(),
-            by: new ObjectId(params.actionUserCtx.userId),
-            note: target.plate,
-        });
-        await reservation.save({session: params.session});
         return toDto(reservation, params);
     }
 

@@ -6,6 +6,9 @@ import {vehicleCategoryService} from "@carRentalModule/database/schemas/vehicleC
 import {rentalReviewService} from "@carRentalModule/database/schemas/rentalReview/rentalReview.service";
 import {rentalReservationService} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation.service";
 import VehicleCategory from "@carRentalModule/database/schemas/vehicleCategory/vehicleCategory";
+import Vehicle from "@carRentalModule/database/schemas/vehicle/vehicle";
+import {vehicleService} from "@carRentalModule/database/schemas/vehicle/vehicle.service";
+import {vehicleListingTitle} from "armonia/src/modules/carRental/helpers/vehicleRates";
 import RentalReview from "@carRentalModule/database/schemas/rentalReview/rentalReview";
 import {RENTAL_REVIEW_REPORT_KIND} from "armonia/src/modules/carRental/api/carRental/private/rentalReview/rentalReview.dto";
 
@@ -30,6 +33,29 @@ function reviewTitle(review: {rating: number; comment?: string; authorName: stri
  * a customer's review of one. Hiding either takes it off every public page and, for a review, out of every rating.
  */
 export const carRentalReportables: ReportableDefinition[] = [
+    {
+        // A car rented on its own has its own page (D198).
+        kind: "carRental.car",
+        typeLabel: {
+            "en-US": "Rental car",
+            "de-CH": "Mietfahrzeug",
+            "fr-FR": "Voiture de location",
+            "it-IT": "Auto a noleggio",
+            "sq-AL": "Makinë me qira",
+        },
+        snapshot: async ({recordId, session}) => {
+            const car = await vehicleService.findReportable(recordId, session);
+            if (!car) return null;
+            const company = (await portalCompanyRefs([car.company])).get(car.company.toString());
+            return {
+                title: vehicleListingTitle(car),
+                companyId: car.company,
+                url: company ? `/car-rental/${company.slug}/cars/${car._id.toString()}` : undefined,
+                hidden: car.hiddenByPlatform === true,
+            };
+        },
+        model: Vehicle,
+    },
     {
         kind: "carRental.carClass",
         typeLabel: {

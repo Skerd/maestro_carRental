@@ -3,7 +3,12 @@ import {applyPlaceholders, loadEmailStrings} from "@coreModule/utilities/emails/
 import type {ObjectId} from "mongodb";
 import {registerPortalProvider} from "@coreModule/domain/portal/portalProviderRegistry";
 import type {PortalBrowseParams, PortalNewSinceContext} from "@coreModule/domain/portal/portalProvider.types";
-import {catalogItems, catalogRating, configCurrencies, filterValue, itemPagePath, newSinceClause, priceRange, samePriceCurrencyCompanies, slugOrIdClause} from "@coreModule/domain/portal/portalCatalog";
+import {catalogItems, catalogRating, configCurrencies, filterValue, idClause, itemPagePath, newSinceClause, priceRange, samePriceCurrencyCompanies, slugOrIdClause} from "@coreModule/domain/portal/portalCatalog";
+import {effectiveVehicleRates, vehicleListingTitle} from "armonia/src/modules/carRental/helpers/vehicleRates";
+import type {IVehicle} from "@carRentalModule/database/schemas/vehicle/vehicle";
+import {vehicleService} from "@carRentalModule/database/schemas/vehicle/vehicle.service";
+import {freeExactCars} from "@carRentalModule/utilities/services/rentalStorefrontCars";
+import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import {rentalReviewService} from "@carRentalModule/database/schemas/rentalReview/rentalReview.service";
 import {addressCitiesByCompany, portalListedCompanyIds, type PortalScope} from "@coreModule/utilities/marketing/portalCompanies";
 import {escapeRegex} from "@coreModule/utilities/helpers";
@@ -64,8 +69,9 @@ function categoryClause({companyIds, query, filters}: PortalBrowseParams): Recor
  */
 async function browseCategories(params: PortalBrowseParams, narrowing: Record<string, unknown> = {}) {
     const currencies = await configCurrencies(CarRentalConfig, params.companyIds);
-    // Daily rates are compared only between companies charging in one currency.
-    const clause = {...categoryClause({...params, companyIds: samePriceCurrencyCompanies(params.companyIds, currencies, params)}), ...narrowing};
+    // Daily rates are compared only between companies charging in one currency. A group that only heads its cars
+    // rented on their own is not a class to book (D198): its cars are the "vehicle" kind.
+    const clause: Record<string, unknown> = {...categoryClause({...params, companyIds: samePriceCurrencyCompanies(params.companyIds, currencies, params)}), soldAsClass: {$ne: false}, ...narrowing};
     const price = priceRange(params.priceMin, params.priceMax);
     if (price) clause.dailyRate = price;
     const [categories, total] = await Promise.all([
@@ -115,7 +121,7 @@ async function availableInCompany(companyId: ObjectId, trip: RentalPortalTripTyp
         } catch {
             continue;
         }
-        const categories = await vehicleCategoryService.find({...categoryClause(params), company: companyId}, {}, undefined, undefined, {sortOrder: 1, name: 1});
+        const categories = await vehicleCategoryService.find({...categoryClause(params), soldAsClass: {$ne: false}, company: companyId}, {}, undefined, undefined, {sortOrder: 1, name: 1});
         const end = busyUntil(resolved.returnAt, config.turnaroundBufferMinutes);
         const now = new Date();
         const tripQuery = new URLSearchParams({pickupLocation: id, returnLocation: id, ...trip}).toString();
@@ -162,6 +168,134 @@ async function browseAvailable(params: PortalBrowseParams, trip: RentalPortalTri
     return {items, total: found.length};
 }
 
+/** At most this many cars rented on their own are read per browse: their price depends on their group, so they are sorted in memory. */
+const CARS_MAX = 2000;
+
+/** A car rented on its own as its card names it: year and colour, then its group's seats and gearbox. */
+function carSubtitle(car: IVehicle, group: IVehicleCategory, languageCode: string): string {
+    const specs = {seats: car.seats ?? group.seats, transmission: car.transmission ?? group.transmission};
+    return [car.year ? String(car.year) : "", car.color ?? "", classSubtitle(specs, languageCode)].filter(Boolean).join(" · ");
+}
+
+/** The photo a car's card shows: its listing photo, else its group's (never its own photos, which show the plate). */
+function carImage(car: IVehicle, group: IVehicleCategory) {
+    return publicMediaUrl(car.listingImages?.[0] ?? group.images?.[0]);
+}
+
+/**
+ * The cars rented on their own (D198) in the public groups matching the car filters, with the query on the car's
+ * name, make and model. `narrowing` applies to the cars (a "new since" ask, an item page).
+ */
+async function listedCars(params: PortalBrowseParams, companyIds: ObjectId[], narrowing: Record<string, unknown>) {
+    const groups = await vehicleCategoryService.find(categoryClause({...params, query: undefined, companyIds}), {}, undefined, undefined, {sortOrder: 1, name: 1});
+    const groupById = new Map(groups.map((group) => [String(group._id), group]));
+    const clause: Record<string, unknown> = {
+        company: {$in: companyIds},
+        listedAlone: true,
+        status: "active",
+        deletedAt: null,
+        ...notHiddenByPlatform(),
+        category: {$in: groups.map((group) => group._id)},
+        ...narrowing,
+    };
+    if (params.query) {
+        const pattern = {$regex: escapeRegex(params.query), $options: "i"};
+        clause.$or = [{listingTitle: pattern}, {make: pattern}, {model: pattern}];
+    }
+    const cars = await vehicleService.find(clause, {}, undefined, undefined, {createdAt: -1}, CARS_MAX);
+    return cars.flatMap((car) => {
+        const group = groupById.get(String(nestedEntityToRef(car.category)));
+        return group ? [{car, group, company: nestedEntityToRef(car.company)!, dailyRate: effectiveVehicleRates(group, car).dailyRate}] : [];
+    });
+}
+
+/** Without dates: the cars rented on their own at their day price; each opens its page on the company's rental site. */
+async function browseCars(params: PortalBrowseParams, narrowing: Record<string, unknown> = {}) {
+    const currencies = await configCurrencies(CarRentalConfig, params.companyIds);
+    const rows = (await listedCars(params, samePriceCurrencyCompanies(params.companyIds, currencies, params), narrowing))
+        .filter((row) => (params.priceMin == null || row.dailyRate >= params.priceMin) && (params.priceMax == null || row.dailyRate <= params.priceMax));
+    if (params.sort === "priceAsc") rows.sort((a, b) => a.dailyRate - b.dailyRate);
+    if (params.sort === "priceDesc") rows.sort((a, b) => b.dailyRate - a.dailyRate);
+    const items = await catalogItems(rows.slice(params.skip, params.skip + params.limit), ({car, group, company, dailyRate}) => {
+        const currency = currencies.get(company.toString());
+        return {
+            kind: "vehicle",
+            id: car._id.toString(),
+            title: vehicleListingTitle(car),
+            subtitle: carSubtitle(car, group, params.languageCode),
+            image: carImage(car, group),
+            ...(currency ? {price: {amount: dailyRate, currency, per: "day" as const}} : {}),
+            section: "carRental",
+            path: `/cars/${car._id.toString()}`,
+        };
+    });
+    return {items, total: rows.length};
+}
+
+/** With dates: the cars rented on their own free for the trip, at a pickup location in `city`, priced for it. */
+async function browseAvailableCars(params: PortalBrowseParams, trip: RentalPortalTripType) {
+    const found: {car: IVehicle; group: IVehicleCategory; company: ObjectId; total: number; currency: string; city?: string; tripQuery: string}[] = [];
+    for (const companyId of params.companyIds.slice(0, TRIP_COMPANIES_MAX)) {
+        const config = await carRentalConfigService.findOne({company: companyId, deletedAt: null}, {});
+        const currency = config ? await currencyOf(config, params.languageCode).catch(() => null) : null;
+        if (!config || !currency) continue;
+        const rows = await listedCars(params, [companyId], {});
+        if (!rows.length) continue;
+        const where = params.city?.toLowerCase();
+        const locations = (await rentalLocationService.findPortalLocations(companyId))
+            .filter((location) => !where || (location.address?.city?.name ?? "").toLowerCase().includes(where));
+        const placed = new Set<string>();
+        for (const location of locations) {
+            const id = location._id.toString();
+            let resolved;
+            try {
+                resolved = await resolveRentalTrip({...trip, pickupLocation: id, returnLocation: id}, config, {companyId, languageCode: params.languageCode, online: true});
+            } catch {
+                continue;
+            }
+            const free = await freeExactCars({
+                companyId,
+                config,
+                cars: rows.map((row) => row.car).filter((car) => !placed.has(String(car._id))),
+                categories: new Map(rows.map((row) => [String(row.group._id), row.group])),
+                trip: resolved,
+                end: busyUntil(resolved.returnAt, config.turnaroundBufferMinutes),
+                now: new Date(),
+                languageCode: params.languageCode,
+            });
+            const tripQuery = new URLSearchParams({pickupLocation: id, returnLocation: id, ...trip}).toString();
+            for (const {car, category, carTransfer} of free) {
+                placed.add(String(car._id));
+                const total = quoteTrip(config, category, [], resolved, {languageCode: params.languageCode, exactVehicle: car, carTransfer}).grandTotal;
+                found.push({car, group: category, company: companyId, total, currency: currency.abbreviation, city: location.address?.city?.name, tripQuery});
+            }
+        }
+    }
+    // Trip prices are compared only between companies charging in one currency.
+    const comparable = new Set(samePriceCurrencyCompanies(
+        found.map((row) => row.company),
+        new Map(found.map((row) => [row.company.toString(), row.currency])),
+        params,
+    ).map(String));
+    const rows = found
+        .filter((row) => comparable.has(row.company.toString()))
+        .filter((row) => (params.priceMin == null || row.total >= params.priceMin) && (params.priceMax == null || row.total <= params.priceMax));
+    if (params.sort === "priceAsc") rows.sort((a, b) => a.total - b.total);
+    if (params.sort === "priceDesc") rows.sort((a, b) => b.total - a.total);
+    const items = await catalogItems(rows.slice(params.skip, params.skip + params.limit), (row) => ({
+        kind: "vehicle",
+        id: row.car._id.toString(),
+        title: vehicleListingTitle(row.car),
+        subtitle: carSubtitle(row.car, row.group, params.languageCode),
+        image: carImage(row.car, row.group),
+        price: {amount: row.total, currency: row.currency},
+        city: row.city,
+        section: "carRental",
+        path: `/cars/${row.car._id.toString()}?${row.tripQuery}`,
+    }));
+    return {items, total: rows.length};
+}
+
 /** The trip of the car filters (`f.pickupDate` …), when all of it is there and valid. */
 function tripOf(params: PortalBrowseParams): RentalPortalTripType | null {
     const parsed = rentalPortalTripSchema(params.languageCode).safeParse({
@@ -183,24 +317,35 @@ export function registerRentalPortalProvider(): void {
         sitePath: "car-rental",
         // As the portal names it: the section (sinfonia `portalSectionName`) and its kinds' tabs (`portalKindName`).
         names: {
-            "en-US": {title: "Car rental", description: "Compare rental companies and book a car for your dates.", kinds: {vehicleCategory: "Cars"}},
-            "sq-AL": {title: "Qiraja e makinave", description: "Krahasoni kompanitë e qirasë dhe rezervoni një makinë për datat tuaja.", kinds: {vehicleCategory: "Makina"}},
-            "it-IT": {title: "Noleggio auto", description: "Confronta i noleggiatori e prenota un'auto per le tue date.", kinds: {vehicleCategory: "Auto"}},
-            "fr-FR": {title: "Location de voitures", description: "Comparez les loueurs et réservez une voiture pour vos dates.", kinds: {vehicleCategory: "Voitures"}},
-            "de-CH": {title: "Autovermietung", description: "Vergleichen Sie Vermieter und buchen Sie ein Auto für Ihre Daten.", kinds: {vehicleCategory: "Autos"}},
+            "en-US": {title: "Car rental", description: "Compare rental companies and book a car for your dates.", kinds: {vehicleCategory: "Cars", vehicle: "Exact cars"}},
+            "sq-AL": {title: "Qiraja e makinave", description: "Krahasoni kompanitë e qirasë dhe rezervoni një makinë për datat tuaja.", kinds: {vehicleCategory: "Makina", vehicle: "Makina të caktuara"}},
+            "it-IT": {title: "Noleggio auto", description: "Confronta i noleggiatori e prenota un'auto per le tue date.", kinds: {vehicleCategory: "Auto", vehicle: "Auto precise"}},
+            "fr-FR": {title: "Location de voitures", description: "Comparez les loueurs et réservez une voiture pour vos dates.", kinds: {vehicleCategory: "Voitures", vehicle: "Voitures précises"}},
+            "de-CH": {title: "Autovermietung", description: "Vergleichen Sie Vermieter und buchen Sie ein Auto für Ihre Daten.", kinds: {vehicleCategory: "Autos", vehicle: "Bestimmte Autos"}},
         },
-        kinds: ["vehicleCategory"],
+        // Car classes ("or similar") and the cars rented on their own (D198).
+        kinds: ["vehicleCategory", "vehicle"],
         companyIds: rentalPortalCompanyIds,
         citiesByCompany: (companyIds) => addressCitiesByCompany(RentalLocation, companyIds, {isActive: true}),
         browse(params) {
             const trip = tripOf(params);
+            if (params.kind === "vehicle") return trip ? browseAvailableCars(params, trip) : browseCars(params);
             return trip ? browseAvailable(params, trip) : browseCategories(params);
         },
-        // Car classes added after the date (D178), whatever the trip: a saved trip's dates pass, its car filters stay.
-        newSince: (context: PortalNewSinceContext) => browseCategories({...context, sort: "newest", skip: 0}, newSinceClause(context)),
+        // Classes or cars added after the date (D178), whatever the trip: a saved trip's dates pass, its car filters stay.
+        newSince: (context: PortalNewSinceContext) => context.kind === "vehicle"
+            ? browseCars({...context, sort: "newest", skip: 0}, newSinceClause(context))
+            : browseCategories({...context, sort: "newest", skip: 0}, newSinceClause(context)),
         // A car class's page (D181): `/categories/{slug or id}`, with or without a trip's dates.
         itemAt: async ({scope, companyId, path, languageCode}) => {
             const [page, ref] = itemPagePath(path).segments;
+            // A car rented on its own (D198): `/cars/{id}`.
+            if (page === "cars") {
+                const clause = idClause(ref);
+                if (!clause) return undefined;
+                const {items} = await browseCars({kind: "vehicle", scope, companyIds: [companyId], filters: {}, skip: 0, limit: 1, languageCode}, clause);
+                return items[0] ? {item: items[0], schemaType: "Product"} : undefined;
+            }
             if (page !== "categories" || !ref) return undefined;
             const {items} = await browseCategories({kind: "vehicleCategory", scope, companyIds: [companyId], filters: {}, skip: 0, limit: 1, languageCode}, slugOrIdClause(ref));
             return items[0] ? {item: items[0], schemaType: "Product"} : undefined;

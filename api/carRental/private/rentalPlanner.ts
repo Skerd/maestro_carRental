@@ -58,7 +58,7 @@ router.post(
                 status: {$in: ["held", "confirmed", "in_progress", "completed"]},
                 pickupAt: {$lt: to},
                 returnAt: {$gt: from},
-            }, {}, undefined, "number vehicle status pickupAt returnAt contact needsTransfer"),
+            }, {}, undefined, "number vehicle status pickupAt returnAt contact needsTransfer exactVehicle"),
             vehicleBlockService.find({company: company._id, vehicle: {$in: ids}, deletedAt: null, startAt: {$lt: to}, endAt: {$gt: from}}, {}, undefined, "vehicle startAt endAt reason"),
         ]);
 
@@ -87,6 +87,7 @@ router.post(
                     returnAt: reservation.returnAt.toISOString(),
                     customer: `${reservation.contact.firstName} ${reservation.contact.lastName}`.trim(),
                     needsTransfer: reservation.needsTransfer ?? false,
+                    exactVehicle: reservation.exactVehicle === true,
                 })),
                 blocks: blocks.map((block) => ({
                     _id: block._id.toString(),

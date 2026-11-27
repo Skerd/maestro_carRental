@@ -43,5 +43,10 @@
   "subjectCharged": "Neue Belastung zur Buchung {number} — {companyName}",
   "introCharged": "Wir haben Ihrer Buchung einen Betrag hinzugefügt: {note}",
   "closingCharged": "Antworten Sie auf diese E-Mail, wenn Sie Fragen zu dieser Belastung haben.",
-  "preheaderCharged": "Ihrer Buchung wurde ein Betrag belastet."
+  "preheaderCharged": "Ihrer Buchung wurde ein Betrag belastet.",
+  "headingCarChanged": "Ihr Fahrzeug wurde geändert",
+  "subjectCarChanged": "Ihr Fahrzeug für die Buchung {number} wurde geändert — {companyName}",
+  "introCarChanged": "Das gebuchte Fahrzeug kann nicht mehr ausfahren, deshalb haben wir Ihnen ein anderes zugeteilt: {note}",
+  "closingCarChanged": "Antworten Sie auf diese E-Mail, wenn Ihnen das neue Fahrzeug nicht passt; wir finden eine Lösung oder stornieren die Buchung kostenlos.",
+  "preheaderCarChanged": "Wir haben Ihrer Buchung ein anderes Fahrzeug zugeteilt."
 }

@@ -64,6 +64,10 @@ export interface ICarRentalConfig extends Document, IOwnershipPluginFields, ISof
     cleaningFee?: number;
     smokingFee?: number;
     fineAdminFee?: number;
+    /** Cars rented on their own may be offered online at another branch and brought there (D198). */
+    exactCarTransfers: boolean;
+    exactCarTransferFee?: number;
+    exactCarTransferNoticeHours?: number;
 }
 
 const CarRentalConfigSchema = new Schema<ICarRentalConfig>(
@@ -113,6 +117,9 @@ const CarRentalConfigSchema = new Schema<ICarRentalConfig>(
         cleaningFee: {type: SchemaTypes.Number, ...RENTAL_FEE_AMOUNT},
         smokingFee: {type: SchemaTypes.Number, ...RENTAL_FEE_AMOUNT},
         fineAdminFee: {type: SchemaTypes.Number, ...RENTAL_FEE_AMOUNT},
+        exactCarTransfers: {type: SchemaTypes.Boolean, default: false},
+        exactCarTransferFee: {type: SchemaTypes.Number, ...RENTAL_FEE_AMOUNT},
+        exactCarTransferNoticeHours: {type: SchemaTypes.Number, ...RENTAL_LEAD_TIME_HOURS},
     },
     {accessMode: "loose"},
 );

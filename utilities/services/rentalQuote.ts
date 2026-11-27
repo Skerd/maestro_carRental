@@ -1,4 +1,5 @@
 import type {Decimal128} from "mongodb";
+import {effectiveVehicleRates, vehicleListingTitle} from "armonia/src/modules/carRental/helpers/vehicleRates";
 import {DEFAULT_DECIMAL_PLACES, minorToNumber, multiplyMinor, percentOfMinor, sumMinor, toMinor, type MoneyInput} from "armonia/src/modules/core/helpers/money";
 import {decimal128FromMinor} from "@coreModule/utilities/helpers/money";
 import {invoiceTotals} from "@financeModule/database/schemas/invoice/invoice.service";
@@ -21,6 +22,35 @@ export type QuoteCategory = {
     rateSeasons: {startDate: string; endDate: string; dailyRate: number}[];
     depositAmount?: number;
 };
+
+/** What a car rented on its own (D198) carries for its quote: its name and its own price list, if any. */
+export type ExactVehicleRates = {
+    make: string;
+    model: string;
+    listingTitle?: string;
+    dailyRate?: number;
+    weekendDailyRate?: number;
+    weeklyRate?: number;
+    rateSeasons?: {startDate: string; endDate: string; dailyRate: number}[];
+    depositAmount?: number;
+};
+
+/**
+ * What a booking is priced from: the group, or for this exact car its own prices where it has them, under its own
+ * name, so the rental lines, emails and invoice name the car.
+ */
+export function quoteCategoryFor(category: QuoteCategory, exactVehicle?: ExactVehicleRates): QuoteCategory {
+    if (!exactVehicle) return category;
+    const rates = effectiveVehicleRates(category, exactVehicle);
+    return {
+        name: vehicleListingTitle(exactVehicle),
+        dailyRate: rates.dailyRate,
+        ...(rates.weekendDailyRate !== undefined ? {weekendDailyRate: rates.weekendDailyRate} : {}),
+        ...(rates.weeklyRate !== undefined ? {weeklyRate: rates.weeklyRate} : {}),
+        rateSeasons: rates.rateSeasons,
+        ...(rates.depositAmount !== undefined ? {depositAmount: rates.depositAmount} : {}),
+    };
+}
 
 export type QuoteExtra = {
     name: string;

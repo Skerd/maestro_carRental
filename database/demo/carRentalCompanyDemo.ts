@@ -36,7 +36,7 @@ import RentalLocation, {
 import VehicleCategory, {
     type IVehicleCategory,
 } from "@carRentalModule/database/schemas/vehicleCategory/vehicleCategory";
-import Vehicle from "@carRentalModule/database/schemas/vehicle/vehicle";
+import Vehicle, {type IVehicle} from "@carRentalModule/database/schemas/vehicle/vehicle";
 import RentalExtra from "@carRentalModule/database/schemas/rentalExtra/rentalExtra";
 import RentalPromoCode from "@carRentalModule/database/schemas/rentalPromoCode/rentalPromoCode";
 import VehicleBlock from "@carRentalModule/database/schemas/vehicleBlock/vehicleBlock";
@@ -79,10 +79,12 @@ import {rentalPricingLabel} from "@carRentalModule/utilities/services/rentalPric
 import {resolveRentalTrip} from "@carRentalModule/utilities/services/rentalTrip";
 import {syncVehicleServiceDue} from "@carRentalModule/utilities/services/vehicleRecords";
 import {
+    CAR_BY_CAR_CATEGORIES,
     DEMO_CATEGORIES,
     DEMO_CONTACTS,
     DEMO_EXTRAS,
     demoDriver,
+    demoListing,
     DEMO_LOCATIONS,
     DEMO_MODELS,
     DEMO_TIMEZONE,
@@ -251,6 +253,8 @@ export async function seedCarRentalDemoData(
                     images: galleryIds,
                     videos: clips(CATEGORY_VIDEOS[category.slug]),
                     isPublic: true,
+                    // Some categories only head their cars rented on their own (D198).
+                    soldAsClass: !CAR_BY_CAR_CATEGORIES.includes(category.slug),
                 },
             );
             categoryBySlug.set(category.slug, doc);
@@ -288,7 +292,7 @@ export async function seedCarRentalDemoData(
         for (const [offset, model] of DEMO_MODELS.entries()) {
             const modelKey = `${model.make} ${model.model}`;
             const {galleryIds} = await resolveDemoImagesFromUnsplash(
-                modelPhotos(model.category, offset),
+                modelPhotos(model.category, offset, modelKey),
                 `${company._id}:${modelKey}`,
                 modelKey,
                 company,
@@ -301,8 +305,12 @@ export async function seedCarRentalDemoData(
         }
 
         const vehicleIdByIndex = new Map<number, ObjectId>();
+        const listedByIndex = new Map<number, IVehicle>();
         for (const vehicle of fleet) {
             const history = histories.get(vehicle.index)!;
+            const category = categoryBySlug.get(vehicle.category)!;
+            const listing = demoListing(vehicle, category, year);
+            const photos = photosByModel.get(vehicle.modelKey) ?? [];
             // Every car is active while its bookings are made (the lock needs it); off-road statuses come after.
             const doc = await upsert(
                 Vehicle,
@@ -315,9 +323,12 @@ export async function seedCarRentalDemoData(
                     year: vehicle.year,
                     color: vehicle.color,
                     homeLocation: locationDocs[vehicle.home]._id,
-                    images: photosByModel.get(vehicle.modelKey) ?? [],
+                    images: photos,
                     videos: clips(VEHICLE_VIDEOS[vehicle.category]),
                     status: "active",
+                    // Rented on its own (D198): its public photos are the stock photos of its model, which show no plate of ours.
+                    ...listing,
+                    listingImages: listing.listedAlone ? photos : [],
                 },
                 {
                     // Only on insert: a re-run keeps the readings the bookings left.
@@ -327,6 +338,7 @@ export async function seedCarRentalDemoData(
                 },
             );
             vehicleIdByIndex.set(vehicle.index, doc._id as ObjectId);
+            if (listing.listedAlone) listedByIndex.set(vehicle.index, doc);
             if (
                 !(await VehicleInsurance.exists({
                     company: company._id,
@@ -424,6 +436,8 @@ export async function seedCarRentalDemoData(
                             vehicleId: String(
                                 vehicleIdByIndex.get(booking.vehicleIndex),
                             ),
+                            // A car rented on its own is booked as that exact car, at its own prices (D198).
+                            exactVehicle: listedByIndex.get(booking.vehicleIndex),
                             trip,
                             extras,
                             contact: {...DEMO_CONTACTS[booking.contact]},
@@ -444,6 +458,18 @@ export async function seedCarRentalDemoData(
                 logger.warn(
                     `Skipped demo booking ${booking.key}: ${error instanceof Error ? error.message : String(error)}`,
                 );
+            }
+        }
+
+        // A demo booking was made `bookedDaysBefore` its pickup, as its `created` timeline entry says: its createdAt
+        // says so too, so lists and reports read a real booking history (TD-B290). Raw writes: createdAt is immutable.
+        for (const reservation of await RentalReservation.find({
+            company: company._id,
+            idempotencyKey: {$in: plan.map((b) => b.key)},
+        }).select("createdAt timeline")) {
+            const created = reservation.timeline.find((entry) => entry.event === "created")?.at;
+            if (created && created.getTime() !== reservation.createdAt.getTime()) {
+                await RentalReservation.collection.updateOne({_id: reservation._id}, {$set: {createdAt: created}});
             }
         }
 

@@ -27,6 +27,7 @@ export function vehicleCategoryToDTO(category: IVehicleCategory): VehicleCategor
         extraKmPrice: category.extraKmPrice,
         minDriverAge: category.minDriverAge,
         isPublic: category.isPublic,
+        soldAsClass: category.soldAsClass !== false,
         ...mapPlatformHiddenToDTO(category),
         sortOrder: category.sortOrder,
         crossBorderAllowed: category.crossBorderAllowed !== false,

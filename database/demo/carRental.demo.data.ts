@@ -1,3 +1,5 @@
+import {multiplyMoney} from "armonia/src/modules/core/helpers/money";
+
 /**
  * Static tables of the car-rental demo company: locations, categories, models,
  * extras, insurers, workshops and customers. The fleet itself (80 cars) is built
@@ -315,9 +317,43 @@ export const DEMO_CATEGORIES = [
         sortOrder: 10,
         description: "Tetë vende për familje dhe grupe që shkojnë në jug.",
     },
+    {
+        // Rented car by car only (D198): each one has its own page and price.
+        name: "Special cars",
+        slug: "special",
+        seats: 4,
+        doors: 2,
+        luggage: 2,
+        transmission: "automatic",
+        fuelType: "petrol",
+        features: [
+            "Ndenjëse lëkure",
+            "Navigim",
+            "Kamerë e pasme",
+            "Sistem audio premium",
+        ],
+        dailyRate: 150,
+        weeklyRate: 950,
+        summerDailyRate: 190,
+        depositAmount: 2500,
+        mileagePolicy: "limited",
+        includedKmPerDay: 250,
+        extraKmPrice: 0.6,
+        minDriverAge: 27,
+        sortOrder: 11,
+        description:
+            "Makina të veçanta për dasma, ditëlindje dhe udhëtime që mbahen mend. Rezervoni pikërisht makinën që zgjidhni.",
+    },
 ] as const;
 
 export type DemoCategorySlug = (typeof DEMO_CATEGORIES)[number]["slug"];
+
+/**
+ * How each category is sold (D198): these only head their cars rented on their own; Compact SUV and Electric are
+ * sold as a class and some of their cars also on their own; the rest only as a class.
+ */
+export const CAR_BY_CAR_CATEGORIES: readonly DemoCategorySlug[] = ["premium", "suv-4x4", "minivan", "special"];
+const ALSO_EXACT_MODELS = ["Toyota C-HR", "Hyundai Tucson", "Tesla Model 3"];
 
 /** Models per category with how many cars of each; a category's counts add up to its share of the 80 cars. */
 export const DEMO_MODELS: {
@@ -368,7 +404,63 @@ export const DEMO_MODELS: {
     {category: "minivan", make: "Kia", model: "Carnival", count: 2},
     {category: "minivan", make: "Hyundai", model: "Staria", count: 2},
     {category: "minivan", make: "Volkswagen", model: "Multivan", count: 2},
+    // Added after the first 80 cars, so the earlier cars and their bookings keep their keys.
+    {category: "special", make: "Mercedes-Benz", model: "G-Class", count: 1},
+    {category: "special", make: "Porsche", model: "911 Cabriolet", count: 1},
+    {category: "special", make: "Land Rover", model: "Defender 110", count: 1},
+    {category: "special", make: "Ford", model: "Mustang Convertible", count: 1},
+    {category: "special", make: "Mercedes-Benz", model: "S-Class", count: 1},
 ];
+
+/** The special cars' own pages: name, words, colour and prices (D198). */
+type CarSpecs = {seats?: number; doors?: number; luggage?: number; fuelType?: "petrol" | "diesel"};
+
+const SPECIAL_LISTINGS: Record<string, {title: string; description: string; color: string; dailyRate: number; weekendDailyRate?: number; depositAmount: number; specs: CarSpecs}> = {
+    "Mercedes-Benz G-Class": {
+        title: "Mercedes-Benz G 63 AMG – E zezë",
+        description: "Ikona e rrugëve shqiptare: për Thethin, për dasmën ose thjesht për bulevardin e Tiranës.",
+        color: "E zezë",
+        dailyRate: 240,
+        weekendDailyRate: 280,
+        depositAmount: 4000,
+        specs: {seats: 5, doors: 5, luggage: 3},
+    },
+    "Porsche 911 Cabriolet": {
+        title: "Porsche 911 Carrera Cabriolet",
+        description: "Kapotë e hapur përgjatë Rivierës, nga Vlora në Himarë. Për shoferë me përvojë.",
+        color: "Gri",
+        dailyRate: 290,
+        weekendDailyRate: 330,
+        depositAmount: 5000,
+        specs: {luggage: 1},
+    },
+    "Land Rover Defender 110": {
+        title: "Land Rover Defender 110",
+        description: "Komod në autostradë dhe i fortë në rrugët malore drejt Valbonës dhe Thethit.",
+        color: "Jeshile e errët",
+        dailyRate: 190,
+        depositAmount: 3000,
+        specs: {seats: 5, doors: 5, luggage: 4, fuelType: "diesel"},
+    },
+    "Ford Mustang Convertible": {
+        title: "Ford Mustang GT Convertible",
+        description: "V8 dhe kapotë e hapur: dita perfekte në bregdet.",
+        color: "Blu e errët",
+        dailyRate: 150,
+        weekendDailyRate: 175,
+        depositAmount: 2000,
+        specs: {},
+    },
+    "Mercedes-Benz S-Class": {
+        title: "Mercedes-Benz S-Class – Makina e dasmës",
+        description: "E zbukuruar me lule sipas kërkesës, me shofer opsional. E preferuara e dasmave në Tiranë dhe Durrës.",
+        color: "E bardhë",
+        dailyRate: 180,
+        weekendDailyRate: 220,
+        depositAmount: 2500,
+        specs: {seats: 5, doors: 4, luggage: 3, fuelType: "diesel"},
+    },
+};
 
 /** Plates of earlier seeds, kept so re-seeding an existing database finds the same cars. */
 const LEGACY_PLATES: Record<string, string[]> = {
@@ -386,6 +478,7 @@ const PLATE_SERIES: Record<DemoCategorySlug, string> = {
     "compact-suv": "AB2",
     electric: "AC3",
     mini: "AD4",
+    special: "AN5",
     compact: "AE5",
     sedan: "AF6",
     estate: "AG7",
@@ -454,7 +547,7 @@ export function demoVehicles(currentYear: number): DemoVehicle[] {
                 model: model.model,
                 modelKey,
                 year,
-                color: COLORS[(index * 3) % COLORS.length],
+                color: SPECIAL_LISTINGS[modelKey]?.color ?? COLORS[(index * 3) % COLORS.length],
                 // Half the fleet at the two Tirana branches, the rest along the coast and in the north.
                 home: [0, 1, 1, 0, 2, 3, 4, 1, 5, 0][index % 10],
                 baseKm:
@@ -469,6 +562,37 @@ export function demoVehicles(currentYear: number): DemoVehicle[] {
         }
     }
     return vehicles;
+}
+
+/**
+ * Whether a car is rented on its own and at what (D198). A special car has its own page and prices. In a category
+ * sold car by car, and for a few models sold both ways, every car is listed: the newest year costs 15% more than its
+ * category, the year after 5% more, older cars 10% less, and the middle year keeps the category's price.
+ */
+export function demoListing(
+    vehicle: DemoVehicle,
+    category: {dailyRate: number},
+    currentYear: number,
+): {listedAlone: boolean; listingTitle?: string; listingDescription?: string; dailyRate?: number; weekendDailyRate?: number; depositAmount?: number} & CarSpecs {
+    const special = SPECIAL_LISTINGS[vehicle.modelKey];
+    if (special) {
+        return {
+            listedAlone: true,
+            listingTitle: special.title,
+            listingDescription: special.description,
+            dailyRate: special.dailyRate,
+            ...(special.weekendDailyRate !== undefined ? {weekendDailyRate: special.weekendDailyRate} : {}),
+            depositAmount: special.depositAmount,
+            // Where it differs from its category's (TD-B291).
+            ...special.specs,
+        };
+    }
+    const listed = CAR_BY_CAR_CATEGORIES.includes(vehicle.category) || ALSO_EXACT_MODELS.includes(vehicle.modelKey);
+    if (!listed) return {listedAlone: false};
+    const age = currentYear - 1 - vehicle.year;
+    const factor = age === 0 ? 1.15 : age === 1 ? 1.05 : age === 2 ? 1 : 0.9;
+    // Whole euros, as a rental desk prices them.
+    return factor === 1 ? {listedAlone: true} : {listedAlone: true, dailyRate: multiplyMoney(category.dailyRate, factor, 0)};
 }
 
 export const DEMO_EXTRAS = [

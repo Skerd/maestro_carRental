@@ -14,5 +14,7 @@
   "damage": "Dëmtim: {description}",
   "fine": "Gjobë {reference}",
   "fineAdmin": "Tarifa e trajtimit të gjobës",
-  "chargeRemoved": "Hequr: {label}"
+  "chargeRemoved": "Hequr: {label}",
+  "carTransfer": "Sjellja e makinës nga {location}",
+  "repriced": "çmimi u rillogarit për këtë makinë"
 }

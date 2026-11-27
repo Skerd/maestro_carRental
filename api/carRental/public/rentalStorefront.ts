@@ -38,6 +38,8 @@ import {apiValidationException} from "armonia/src/modules/core/helpers/exception
 import {PAYMENTS} from "@financeModule/environment";
 import {
     bookRentalFormSchema,
+    carReviewsFormSchema,
+    type CarReviewsFormType,
     categoryReviewsFormSchema,
     type CategoryReviewsFormType,
     manageDriverFormSchema,
@@ -92,11 +94,13 @@ import {
     busyUntil,
     freeVehiclesInCategory,
 } from "@carRentalModule/utilities/services/rentalAvailability";
+import {carToStorefront, freeExactCars, publicCars} from "@carRentalModule/utilities/services/rentalStorefrontCars";
 import {
     createRentalReservation,
     effectivePaymentPolicy,
     loadApplicablePromo,
     loadBookableCategory,
+    loadOnlineExactCar,
     loadSelectedExtras,
     quoteTrip,
     resolvePaymentChoice,
@@ -269,6 +273,7 @@ export function categoryToStorefront(
         minDriverAge: category.minDriverAge,
         crossBorderAllowed: category.crossBorderAllowed !== false,
         crossBorderFee: category.crossBorderFee,
+        soldAsClass: category.soldAsClass !== false,
     };
 }
 
@@ -375,6 +380,8 @@ router.post(
                 ],
             );
             const online = onlinePaymentAvailable();
+            const categoryById = new Map(categories.map((category) => [String(category._id), category]));
+            const cars = await publicCars(company._id, categories);
             return {
                 data: {
                     company: {
@@ -422,6 +429,7 @@ router.post(
                         returnAllowed: location.returnAllowed,
                     })),
                     categories: categories.map(categoryToStorefront),
+                    cars: cars.map((car) => carToStorefront(car, categoryById.get(String(nestedEntityToRef(car.category)))!)),
                     extras: extras.map((extra) => ({
                         _id: extra._id.toString(),
                         name: extra.name,
@@ -432,6 +440,41 @@ router.post(
                         maxQuantity: extra.maxQuantity,
                         excessAmount: extra.excessAmount,
                         depositAmount: extra.depositAmount,
+                    })),
+                },
+            };
+        },
+    ),
+);
+
+/**
+ * POST /api/carRental/rentalStorefront/carReviews
+ *
+ * The published reviews of a car rented on its own (D198), for its page: every rental of that car. A car that is not
+ * public (not listed, or in a hidden group) has none to show.
+ */
+router.post(
+    "/carReviews",
+    authMW("public"),
+    rateLimiter({windowMs: 60000, max: 60}),
+    validateFormZod(carReviewsFormSchema),
+    asyncHandler(
+        async ({origin, languageCode, vehicle, limit}: NotAuthenticatedMWType & CarReviewsFormType): Promise<RentalCategoryReviewsResponse> => {
+            const {company} = await storefrontContext(origin, languageCode);
+            const listed = (await publicCars(company._id, await publicCategories(company._id))).some((car) => String(car._id) === vehicle);
+            const found = listed
+                ? await rentalReviewService.publishedForVehicle(company._id, new ObjectId(vehicle), limit ?? 10)
+                : {average: 0, count: 0, reviews: []};
+            return {
+                data: {
+                    average: found.average,
+                    count: found.count,
+                    reviews: found.reviews.map((review) => ({
+                        _id: review._id.toString(),
+                        rating: review.rating,
+                        ...(review.comment ? {comment: review.comment} : {}),
+                        ...(review.authorName ? {authorName: review.authorName} : {}),
+                        createdAt: review.createdAt.toISOString(),
                     })),
                 },
             };
@@ -502,8 +545,9 @@ router.post(
             );
             const now = new Date();
 
+            // A group that only heads its cars rented on their own is not offered as a class (D198).
             const results = await Promise.all(
-                categories.map(async (category) => {
+                categories.filter((category) => category.soldAsClass !== false).map(async (category) => {
                     const free = await freeVehiclesInCategory({
                         companyId: company._id,
                         categoryId: category._id,
@@ -527,6 +571,16 @@ router.post(
                     results.map((row) => ({category: row.category._id, available: row.available})),
                 );
             }
+            const cars = await freeExactCars({
+                companyId: company._id,
+                config,
+                cars: await publicCars(company._id, categories),
+                categories: new Map(categories.map((category) => [String(category._id), category])),
+                trip,
+                end,
+                now,
+                languageCode,
+            });
             return {
                 data: {
                     pickupAt: trip.pickupAt.toISOString(),
@@ -535,6 +589,13 @@ router.post(
                         category: categoryToStorefront(row.category),
                         available: row.available,
                         quote: {...row.quote, currency},
+                    })),
+                    cars: cars.map(({car, category, carTransfer}) => ({
+                        car: carToStorefront(car, category),
+                        quote: {
+                            ...quoteTrip(config, category, [], trip, {languageCode, exactVehicle: car, carTransfer}),
+                            currency,
+                        },
                     })),
                 },
             };
@@ -566,6 +627,10 @@ router.post(
                 params.category,
                 {languageCode, online: true},
             );
+            const {exactVehicle, carTransfer} = await loadOnlineExactCar(
+                {companyId: company._id, vehicleId: params.vehicle, category, trip, config},
+                {languageCode},
+            );
             const extras = await loadSelectedExtras(
                 company._id,
                 params.extras ?? [],
@@ -594,6 +659,8 @@ router.post(
                         drivers,
                         promo,
                         crossBorder: params.crossBorder,
+                        exactVehicle,
+                        carTransfer,
                     }),
                     currency: await currencyOf(config, languageCode),
                 },
@@ -672,6 +739,10 @@ router.post(
                 params.category,
                 {languageCode, online: true, session},
             );
+            const {exactVehicle, carTransfer} = await loadOnlineExactCar(
+                {companyId: company._id, vehicleId: params.vehicle, category, trip, config},
+                {languageCode, session},
+            );
             const extras = await loadSelectedExtras(
                 company._id,
                 params.extras ?? [],
@@ -702,6 +773,8 @@ router.post(
                         drivers,
                         promo,
                         crossBorder: params.crossBorder,
+                        exactVehicle,
+                        carTransfer,
                     }).grandTotal,
                     languageCode,
                 },
@@ -712,6 +785,8 @@ router.post(
                     companyId: company._id,
                     config,
                     category,
+                    exactVehicle,
+                    carTransfer,
                     trip,
                     extras,
                     contact: params.contact,

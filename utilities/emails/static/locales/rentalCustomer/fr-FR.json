@@ -43,5 +43,10 @@
   "subjectCharged": "Nouveaux frais sur la réservation {number} — {companyName}",
   "introCharged": "Nous avons ajouté des frais à votre réservation : {note}",
   "closingCharged": "Répondez à cet e-mail si vous avez des questions sur ces frais.",
-  "preheaderCharged": "Des frais ont été ajoutés à votre réservation."
+  "preheaderCharged": "Des frais ont été ajoutés à votre réservation.",
+  "headingCarChanged": "Votre voiture a changé",
+  "subjectCarChanged": "Votre voiture pour la réservation {number} a changé — {companyName}",
+  "introCarChanged": "La voiture réservée ne peut plus partir, nous vous en avons donc attribué une autre : {note}",
+  "closingCarChanged": "Répondez à cet e-mail si la nouvelle voiture ne vous convient pas ; nous trouverons une solution ou annulerons la réservation sans frais.",
+  "preheaderCarChanged": "Nous avons attribué une autre voiture à votre réservation."
 }

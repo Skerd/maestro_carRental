@@ -93,11 +93,11 @@ beforeEach(() => {
 });
 
 describe("rental customer emails on Kafka (D188)", () => {
-    it("publishes each of the 6 kinds on its own topic, keyed by the booking, and sends nothing directly", async () => {
+    it("publishes each of the 7 kinds on its own topic, keyed by the booking, and sends nothing directly", async () => {
         for (const kind of KINDS) await dispatchRentalCustomerEmail(event(kind));
 
-        expect(KINDS).toHaveLength(6);
-        expect(new Set(published.map((p) => p.topic)).size).toBe(6);
+        expect(KINDS).toHaveLength(7);
+        expect(new Set(published.map((p) => p.topic)).size).toBe(7);
         for (const [index, kind] of KINDS.entries()) {
             expect(published[index].topic).toBe(`topic-${RENTAL_EMAIL_TOPIC_BY_KIND[kind]}`);
             expect(published[index].key).toBe(bookingId);

@@ -1,16 +1,16 @@
 import type {IVehicle} from "@carRentalModule/database/schemas/vehicle/vehicle";
 import type {Vehicle} from "armonia/src/modules/carRental/api/carRental/private/vehicle/vehicle.dto";
-import type {VehicleCategorySimple} from "armonia/src/modules/carRental/dto/vehicleCategory.dto";
+import type {VehicleCategoryPriced} from "armonia/src/modules/carRental/dto/vehicleCategory.dto";
 import type {RentalLocationSimple} from "armonia/src/modules/carRental/dto/rentalLocation.dto";
 import {dateToISOString, mapMedia, mapSnippet} from "@coreModule/utilities/mappers/common.mapper";
-import {VehicleCategorySimpleSnippet} from "@carRentalModule/database/schemas/vehicleCategory/vehicleCategory.snippets";
+import {VehicleCategoryPricedSnippet} from "@carRentalModule/database/schemas/vehicleCategory/vehicleCategory.snippets";
 import {RentalLocationSimpleSnippet} from "@carRentalModule/database/schemas/rentalLocation/rentalLocation.snippets";
-import {mapLifeCycleToDTO, mapOwnershipToDTO, mapSoftDeleteToDTO} from "@coreModule/utilities/mappers/plugin/pluginMappers.dto";
+import {mapLifeCycleToDTO, mapOwnershipToDTO, mapPlatformHiddenToDTO, mapSoftDeleteToDTO} from "@coreModule/utilities/mappers/plugin/pluginMappers.dto";
 
 export function vehicleToDTO(vehicle: IVehicle): Vehicle {
     return {
         _id: vehicle._id.toString(),
-        category: mapSnippet<VehicleCategorySimple>()(vehicle.category, VehicleCategorySimpleSnippet),
+        category: mapSnippet<VehicleCategoryPriced>()(vehicle.category, VehicleCategoryPricedSnippet),
         make: vehicle.make,
         model: vehicle.model,
         year: vehicle.year,
@@ -33,6 +33,21 @@ export function vehicleToDTO(vehicle: IVehicle): Vehicle {
         lastReportedAt: vehicle.lastReportedAt ? dateToISOString(vehicle.lastReportedAt) : undefined,
         nextServiceDueAt: vehicle.nextServiceDueAt ? dateToISOString(vehicle.nextServiceDueAt) : undefined,
         nextServiceDueKm: vehicle.nextServiceDueKm,
+        listedAlone: vehicle.listedAlone === true,
+        listingTitle: vehicle.listingTitle,
+        listingDescription: vehicle.listingDescription,
+        listingImages: vehicle.listingImages?.length ? vehicle.listingImages.map(mapMedia).filter((media) => media !== undefined) : undefined,
+        dailyRate: vehicle.dailyRate,
+        weekendDailyRate: vehicle.weekendDailyRate,
+        weeklyRate: vehicle.weeklyRate,
+        rateSeasons: (vehicle.rateSeasons ?? []).map(({startDate, endDate, dailyRate}) => ({startDate, endDate, dailyRate})),
+        depositAmount: vehicle.depositAmount,
+        seats: vehicle.seats,
+        doors: vehicle.doors,
+        luggage: vehicle.luggage,
+        transmission: vehicle.transmission,
+        fuelType: vehicle.fuelType,
+        ...mapPlatformHiddenToDTO(vehicle),
         ...mapSoftDeleteToDTO(vehicle),
         ...mapOwnershipToDTO(vehicle),
         ...mapLifeCycleToDTO(vehicle),

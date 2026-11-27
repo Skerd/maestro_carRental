@@ -43,5 +43,10 @@
   "subjectCharged": "New charge on booking {number} — {companyName}",
   "introCharged": "We added a charge to your booking: {note}",
   "closingCharged": "Reply to this email if you have questions about this charge.",
-  "preheaderCharged": "A charge was added to your booking."
+  "preheaderCharged": "A charge was added to your booking.",
+  "headingCarChanged": "Your car has changed",
+  "subjectCarChanged": "Your car for booking {number} has changed — {companyName}",
+  "introCarChanged": "The car you booked can no longer go out, so we have given you another one: {note}",
+  "closingCarChanged": "Reply to this email if the new car doesn't suit you; we will find a solution or cancel the booking free of charge.",
+  "preheaderCarChanged": "We have given your booking another car."
 }

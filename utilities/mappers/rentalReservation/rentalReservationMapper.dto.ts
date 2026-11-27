@@ -32,8 +32,8 @@ function driversToDTO(drivers: IRentalReservation["drivers"]) {
 }
 
 function snapshotToDTO(snapshot: IRentalReservation["snapshot"]) {
-    const {categoryName, vehicleLabel, pickupLocationName, pickupAddress, returnLocationName, returnAddress, timezone, mileagePolicy, includedKmPerDay, extraKmPrice} = snapshot;
-    return {categoryName, vehicleLabel, pickupLocationName, pickupAddress, returnLocationName, returnAddress, timezone, mileagePolicy, includedKmPerDay, extraKmPrice};
+    const {categoryName, vehicleTitle, vehicleLabel, pickupLocationName, pickupAddress, returnLocationName, returnAddress, timezone, mileagePolicy, includedKmPerDay, extraKmPrice} = snapshot;
+    return {categoryName, vehicleTitle, vehicleLabel, pickupLocationName, pickupAddress, returnLocationName, returnAddress, timezone, mileagePolicy, includedKmPerDay, extraKmPrice};
 }
 
 function vehicleCheck(check: IRentalVehicleCheck | undefined) {
@@ -91,6 +91,7 @@ export function rentalReservationToDTO(reservation: IRentalReservation): RentalR
         source: reservation.source,
         category: mapSnippet<VehicleCategorySimple>()(reservation.category, VehicleCategorySimpleSnippet),
         vehicle: mapSnippet<VehicleSimple>()(reservation.vehicle, VehicleSimpleSnippet),
+        exactVehicle: reservation.exactVehicle === true,
         pickupLocation: mapSnippet<RentalLocationSimple>()(reservation.pickupLocation, RentalLocationSimpleSnippet),
         returnLocation: mapSnippet<RentalLocationSimple>()(reservation.returnLocation, RentalLocationSimpleSnippet),
         pickupAt: dateToISOString(reservation.pickupAt),
@@ -174,6 +175,8 @@ export function rentalReservationToPublic(reservation: IRentalReservation, now =
         number: reservation.number,
         status: reservation.status,
         categoryName: reservation.snapshot.categoryName,
+        exactVehicle: reservation.exactVehicle === true,
+        vehicleTitle: reservation.snapshot.vehicleTitle,
         vehicleLabel: reservation.snapshot.vehicleLabel,
         pickupLocationName: reservation.snapshot.pickupLocationName,
         pickupAddress: reservation.snapshot.pickupAddress,

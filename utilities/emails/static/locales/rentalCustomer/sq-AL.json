@@ -43,5 +43,10 @@
   "subjectCharged": "Pagesë e re në rezervimin {number} — {companyName}",
   "introCharged": "Shtuam një pagesë në rezervimin tuaj: {note}",
   "closingCharged": "Përgjigjuni këtij emaili nëse keni pyetje për këtë pagesë.",
-  "preheaderCharged": "U shtua një pagesë në rezervimin tuaj."
+  "preheaderCharged": "U shtua një pagesë në rezervimin tuaj.",
+  "headingCarChanged": "Makina juaj ka ndryshuar",
+  "subjectCarChanged": "Makina për rezervimin {number} ka ndryshuar — {companyName}",
+  "introCarChanged": "Makina që rezervuat nuk mund të dalë më, prandaj ju caktuam një tjetër: {note}",
+  "closingCarChanged": "Përgjigjuni këtij emaili nëse makina e re nuk ju përshtatet; do të gjejmë një zgjidhje ose do ta anulojmë rezervimin pa pagesë.",
+  "preheaderCarChanged": "I caktuam rezervimit tuaj një makinë tjetër."
 }

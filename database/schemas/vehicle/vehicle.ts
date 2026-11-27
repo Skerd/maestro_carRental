@@ -11,11 +11,15 @@ import {
 } from "@coreModule/database/types/plugin-fields";
 import {addModelData} from "@coreModule/database/collections";
 import {validateSchemaDefAgainstMongoose} from "@coreModule/database/utilities/validateSchemaDefAgainstMongoose";
+import publicMediaPlugin from "@coreModule/database/plugins/publicMediaPlugin";
+import {platformHiddenPlugin, type IPlatformHiddenPluginFields} from "@coreModule/database/plugins/platformHiddenPlugin";
 import {IMedia} from "@coreModule/database/schemas/media/media";
 import {MediaSimpleSnippet} from "@coreModule/database/schemas/media/media.snippets";
 import {COLUMN_TYPE} from "armonia/src/modules/core/database/filter/typeOperators";
 import {
     VEHICLE_COLOR_MAX,
+    VEHICLE_LISTING_DESCRIPTION_MAX,
+    VEHICLE_LISTING_TITLE_MAX,
     VEHICLE_MAKE_MAX,
     VEHICLE_MODEL_MAX,
     VEHICLE_NOTES_MAX,
@@ -28,9 +32,16 @@ import {
     type VehicleReadiness,
     type VehicleStatus,
 } from "armonia/src/modules/carRental/api/carRental/private/vehicle/vehicle.schema-def";
-import type {IVehicleCategory} from "../vehicleCategory/vehicleCategory";
+import type {IVehicleCategory, IVehicleCategorySeason} from "../vehicleCategory/vehicleCategory";
+import {
+    VEHICLE_DOORS,
+    VEHICLE_FUEL_TYPES,
+    VEHICLE_LUGGAGE,
+    VEHICLE_SEATS,
+    VEHICLE_TRANSMISSIONS,
+} from "armonia/src/modules/carRental/api/carRental/private/vehicleCategory/vehicleCategory.schema-def";
 import type {IRentalLocation} from "../rentalLocation/rentalLocation";
-import {VehicleCategorySimpleSnippet} from "../vehicleCategory/vehicleCategory.snippets";
+import {VehicleCategoryPricedSnippet} from "../vehicleCategory/vehicleCategory.snippets";
 import {RentalLocationSimpleSnippet} from "../rentalLocation/rentalLocation.snippets";
 import {applyVehicleIndexes} from "./vehicle.indexes";
 import {vehicleViews} from "./vehicle.views";
@@ -40,7 +51,7 @@ const NoWritePermission = {
     others: {write: "no-permission"},
 };
 
-export interface IVehicle extends Document, IOwnershipPluginFields, ISoftDeletePluginFields, ILifeCyclePluginFields {
+export interface IVehicle extends Document, IOwnershipPluginFields, ISoftDeletePluginFields, ILifeCyclePluginFields, IPlatformHiddenPluginFields {
     category: IVehicleCategory;
     make: string;
     model: string;
@@ -64,6 +75,24 @@ export interface IVehicle extends Document, IOwnershipPluginFields, ISoftDeleteP
     lastLatitude?: number;
     lastLongitude?: number;
     lastReportedAt?: Date;
+    /** Rented on its own (D198): customers can book this exact car. */
+    listedAlone: boolean;
+    listingTitle?: string;
+    listingDescription?: string;
+    /** Public photos without the plate; empty: the group's. */
+    listingImages: IMedia[];
+    /** Its own price list (all of it, when `dailyRate` is set) and deposit; see armonia `effectiveVehicleRates`. */
+    dailyRate?: number;
+    weekendDailyRate?: number;
+    weeklyRate?: number;
+    rateSeasons: IVehicleCategorySeason[];
+    depositAmount?: number;
+    /** Its own specs where they differ from its category's (TD-B291). */
+    seats?: number;
+    doors?: number;
+    luggage?: number;
+    transmission?: (typeof VEHICLE_TRANSMISSIONS)[number];
+    fuelType?: (typeof VEHICLE_FUEL_TYPES)[number];
     /** Copied from the latest completed VehicleMaintenance record by `syncVehicleServiceDue`. */
     nextServiceDueAt?: Date;
     nextServiceDueKm?: number;
@@ -83,7 +112,7 @@ const VehicleSchema = new Schema<IVehicle>(
             type: SchemaTypes.ObjectId,
             ref: "VehicleCategory",
             required: true,
-            refAllowlist: VehicleCategorySimpleSnippet,
+            refAllowlist: VehicleCategoryPricedSnippet,
             dynamicTableConfiguration: {
                 refDisplayKey: ["name"]
             },
@@ -262,6 +291,48 @@ const VehicleSchema = new Schema<IVehicle>(
             type: SchemaTypes.Date,
             permissions: NoWritePermission,
         },
+        listedAlone: {type: SchemaTypes.Boolean, default: false},
+        listingTitle: {type: SchemaTypes.String, trim: true, maxlength: VEHICLE_LISTING_TITLE_MAX},
+        listingDescription: {
+            type: SchemaTypes.String,
+            maxlength: VEHICLE_LISTING_DESCRIPTION_MAX,
+            dynamicTableConfiguration: {hideColumn: true},
+        },
+        listingImages: {
+            type: [{type: SchemaTypes.ObjectId, ref: "Media"}],
+            default: [],
+            refAllowlist: MediaSimpleSnippet,
+            dynamicTableConfiguration: {
+                sortable: false,
+                filterable: false,
+                hideColumn: true,
+            },
+        },
+        dailyRate: {type: SchemaTypes.Number, min: 0, dynamicTableConfiguration: {currencyPath: "currency"}},
+        weekendDailyRate: {type: SchemaTypes.Number, min: 0, dynamicTableConfiguration: {currencyPath: "currency", visible: false}},
+        weeklyRate: {type: SchemaTypes.Number, min: 0, dynamicTableConfiguration: {currencyPath: "currency", visible: false}},
+        rateSeasons: {
+            type: [
+                {
+                    _id: false,
+                    startDate: {type: SchemaTypes.String, required: true},
+                    endDate: {type: SchemaTypes.String, required: true},
+                    dailyRate: {type: SchemaTypes.Number, required: true, min: 0},
+                },
+            ],
+            default: [],
+            dynamicTableConfiguration: {
+                hideColumn: true,
+                filterable: false,
+                sortable: false,
+            },
+        },
+        depositAmount: {type: SchemaTypes.Number, min: 0, dynamicTableConfiguration: {currencyPath: "currency", visible: false}},
+        seats: {type: SchemaTypes.Number, ...VEHICLE_SEATS, dynamicTableConfiguration: {visible: false}},
+        doors: {type: SchemaTypes.Number, ...VEHICLE_DOORS, dynamicTableConfiguration: {visible: false}},
+        luggage: {type: SchemaTypes.Number, ...VEHICLE_LUGGAGE, dynamicTableConfiguration: {visible: false}},
+        transmission: {type: SchemaTypes.String, enum: VEHICLE_TRANSMISSIONS, dynamicTableConfiguration: {visible: false}},
+        fuelType: {type: SchemaTypes.String, enum: VEHICLE_FUEL_TYPES, dynamicTableConfiguration: {visible: false}},
         nextServiceDueAt: {
             type: SchemaTypes.Date,
             permissions: NoWritePermission,
@@ -295,6 +366,10 @@ const VehicleSchema = new Schema<IVehicle>(
 );
 
 ownershipPlugin(VehicleSchema);
+// A car rented on its own is a public item the platform may hide after a report (D191, D198).
+platformHiddenPlugin(VehicleSchema);
+// Only `listingImages` is public: the car's own photos show the plate.
+publicMediaPlugin(VehicleSchema, {schemaDef: VehicleSchemaDef});
 auditPlugin(VehicleSchema);
 softDeletePlugin(VehicleSchema);
 lifeCyclePlugin(VehicleSchema);

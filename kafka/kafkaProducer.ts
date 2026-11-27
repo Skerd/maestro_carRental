@@ -12,6 +12,7 @@ export const RENTAL_EMAIL_TOPIC_BY_KIND: Record<RentalCustomerEmailKind, keyof t
     handedOver: "RENTAL_HANDED_OVER_EMAIL",
     returned: "RENTAL_RETURNED_EMAIL",
     charged: "RENTAL_CHARGED_EMAIL",
+    carChanged: "RENTAL_CAR_CHANGED_EMAIL",
 };
 
 /** The `eventType` a kind's topic carries. */

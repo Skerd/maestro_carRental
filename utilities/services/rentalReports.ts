@@ -1,4 +1,5 @@
 import type {ObjectId} from "mongodb";
+import type {IRentalReservation} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation";
 import {
     localDayInterval,
     type TimeInterval,
@@ -75,6 +76,11 @@ function groupOf(
  * confirmed, on-the-road and completed bookings. Available hours are the window
  * minus blocks, for cars that are not retired.
  */
+/** When a booking was made: its `created` timeline entry, which the demo seed backdates (TD-B290); else `createdAt`. */
+function bookedAt(reservation: Pick<IRentalReservation, "createdAt" | "timeline">): Date {
+    return reservation.timeline?.find((entry) => entry.event === "created")?.at ?? reservation.createdAt ?? new Date();
+}
+
 export async function buildRentalReport(
     companyId: ObjectId,
     input: {from: string; to: string; locationId?: string; timezone: string},
@@ -110,7 +116,7 @@ export async function buildRentalReport(
             deletedAt: null,
             pickupAt: {$lt: window.end},
             returnAt: {$gt: window.start},
-        }, {}, undefined, "vehicle category pickupLocation status pickupAt returnAt createdAt pricing.grandTotal",),
+        }, {}, undefined, "vehicle category pickupLocation status pickupAt returnAt createdAt timeline pricing.grandTotal exactVehicle",),
         vehicleBlockService.find({
             company: companyId,
             deletedAt: null,
@@ -213,6 +219,11 @@ export async function buildRentalReport(
     let decided = 0;
     let revenueTotal = 0;
     let rentedDays = 0;
+    // Exact cars against classes (D198): does selling the car itself earn more?
+    const saleKinds = {
+        class: {kind: "class" as const, bookings: 0, revenue: 0},
+        exact: {kind: "exact" as const, bookings: 0, revenue: 0},
+    };
 
     for (const reservation of reservations) {
         const vehicleId = String(reservation.vehicle);
@@ -230,7 +241,7 @@ export async function buildRentalReport(
             if (reservation.status === "no_show") noShow += 1;
             leadTotal +=
                 (reservation.pickupAt.getTime() -
-                    reservation.createdAt.getTime()) /
+                    bookedAt(reservation).getTime()) /
                 DAY;
             leadCount += 1;
         }
@@ -252,6 +263,9 @@ export async function buildRentalReport(
                 addMoney(revenue.get(vehicleId) ?? 0, amount),
             );
             revenueTotal = addMoney(revenueTotal, amount);
+            const saleKind = saleKinds[reservation.exactVehicle ? "exact" : "class"];
+            saleKind.bookings += 1;
+            saleKind.revenue = addMoney(saleKind.revenue, amount);
             rentedDays += Math.max(
                 1,
                 (reservation.returnAt.getTime() -
@@ -321,6 +335,7 @@ export async function buildRentalReport(
             ),
         },
         byVehicle,
+        bySaleKind: [saleKinds.class, saleKinds.exact],
         byCategory: groupOf(
             byVehicle.map((row) => ({
                 name: row.categoryName,

@@ -3,6 +3,9 @@ import {lifecycleSheetGroup} from "@coreModule/database/schemas/shared/lifecycle
 import {
     VEHICLE_COLOR_MAX,
     VEHICLE_IMAGES_MAX,
+    VEHICLE_LISTING_DESCRIPTION_MAX,
+    VEHICLE_LISTING_IMAGES_MAX,
+    VEHICLE_LISTING_TITLE_MAX,
     VEHICLE_MAKE_MAX,
     VEHICLE_MODEL_MAX,
     VEHICLE_NOTES_MAX,
@@ -23,6 +26,30 @@ export const vehicleSheetView: ViewConfig = {
         showCloseButton: true,
     },
     nodes: [
+        // The platform hid it after a report (D191, D198): staff still see it, and why the public no longer does.
+        {
+            render: "#SheetGroup",
+            dependent: "hiddenByPlatform",
+            props: {title: "hiddenByPlatform", titleIcon: "#IconEyeOff", accent: "danger", defaultOpen: true},
+            children: [
+                {
+                    render: "#SheetGrid",
+                    props: {columns: 1},
+                    children: [
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "hiddenByPlatform"},
+                            field: {
+                                name: "hiddenByPlatform",
+                                widget: "#DisplayCard",
+                                label: "hiddenByPlatformNote",
+                                widgetProps: {icon: "#IconEyeOff", dontRenderValue: true},
+                            },
+                        },
+                    ],
+                },
+            ],
+        },
         {
             render: "#SheetGroup",
             props: {title: "overview"},
@@ -155,6 +182,69 @@ export const vehicleSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            dependent: "seats",
+                            permissions: {read: "seats"},
+                            field: {
+                                name: "seats",
+                                widget: "#DisplayCard",
+                                label: "seats",
+                                widgetProps: {icon: "#IconArmchair", type: "number"},
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
+                            dependent: "doors",
+                            permissions: {read: "doors"},
+                            field: {
+                                name: "doors",
+                                widget: "#DisplayCard",
+                                label: "doors",
+                                widgetProps: {icon: "#IconDoor", type: "number"},
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
+                            dependent: "luggage",
+                            permissions: {read: "luggage"},
+                            field: {
+                                name: "luggage",
+                                widget: "#DisplayCard",
+                                label: "luggage",
+                                widgetProps: {icon: "#IconLuggage", type: "number"},
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
+                            dependent: "transmission",
+                            permissions: {read: "transmission"},
+                            field: {
+                                name: "transmission",
+                                widget: "#DisplayCard",
+                                label: "transmission",
+                                widgetProps: {
+                                    icon: "#IconManualGearbox",
+                                    type: "enum",
+                                    languageKeyCategory: "transmissionValues",
+                                },
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
+                            dependent: "fuelType",
+                            permissions: {read: "fuelType"},
+                            field: {
+                                name: "fuelType",
+                                widget: "#DisplayCard",
+                                label: "fuelType",
+                                widgetProps: {
+                                    icon: "#IconGasStation",
+                                    type: "enum",
+                                    languageKeyCategory: "fuelTypeValues",
+                                },
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
                             dependent: "odometerKm",
                             permissions: {read: "odometerKm"},
                             field: {
@@ -198,6 +288,336 @@ export const vehicleSheetView: ViewConfig = {
                                     maxLength: 250,
                                 },
                             },
+                        },
+                    ],
+                },
+            ],
+        },
+        {
+            render: "#SheetGroup",
+            props: {title: "salesGroup"},
+            permissions: {
+                readAny: [
+                    "listedAlone",
+                    "listingTitle",
+                    "category",
+                    "dailyRate",
+                    "depositAmount",
+                    "listingDescription",
+                    "listingImages",
+                    "rateSeasons",
+                ],
+            },
+            children: [
+                {
+                    render: "#SheetGrid",
+                    props: {columns: 3},
+                    children: [
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "listedAlone"},
+                            field: {
+                                name: "listedAlone",
+                                widget: "#DisplayCard",
+                                label: "listedAlone",
+                                widgetProps: {
+                                    icon: "#IconStar",
+                                    type: "boolean",
+                                },
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
+                            dependent: "listingTitle",
+                            permissions: {read: "listingTitle"},
+                            field: {
+                                name: "listingTitle",
+                                widget: "#DisplayCard",
+                                label: "listingTitle",
+                                widgetProps: {icon: "#IconTag"},
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
+                            dependent: "dailyRate",
+                            permissions: {read: "dailyRate"},
+                            field: {
+                                name: "dailyRate",
+                                widget: "#DisplayCard",
+                                label: "ownDailyRate",
+                                widgetProps: {
+                                    icon: "#IconTags",
+                                    format: "locale",
+                                    valuePath: ["currency.symbol", "dailyRate"],
+                                    joinSeparator: " ",
+                                    type: "currency",
+                                },
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
+                            dependent: "weekendDailyRate",
+                            permissions: {read: "weekendDailyRate"},
+                            field: {
+                                name: "weekendDailyRate",
+                                widget: "#DisplayCard",
+                                label: "ownWeekendDailyRate",
+                                widgetProps: {
+                                    icon: "#IconTags",
+                                    format: "locale",
+                                    valuePath: ["currency.symbol", "weekendDailyRate"],
+                                    joinSeparator: " ",
+                                    type: "currency",
+                                },
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
+                            dependent: "weeklyRate",
+                            permissions: {read: "weeklyRate"},
+                            field: {
+                                name: "weeklyRate",
+                                widget: "#DisplayCard",
+                                label: "ownWeeklyRate",
+                                widgetProps: {
+                                    icon: "#IconTags",
+                                    format: "locale",
+                                    valuePath: ["currency.symbol", "weeklyRate"],
+                                    joinSeparator: " ",
+                                    type: "currency",
+                                },
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
+                            dependent: "depositAmount",
+                            permissions: {read: "depositAmount"},
+                            field: {
+                                name: "depositAmount",
+                                widget: "#DisplayCard",
+                                label: "ownDepositAmount",
+                                widgetProps: {
+                                    icon: "#IconShieldCheck",
+                                    format: "locale",
+                                    valuePath: ["currency.symbol", "depositAmount"],
+                                    joinSeparator: " ",
+                                    type: "currency",
+                                },
+                            },
+                        },
+                    ],
+                },
+                {
+                    render: "#SheetGrid",
+                    props: {
+                        columns: 3,
+                        watchField: "dailyRate",
+                        whenValues: [""],
+                    },
+                    children: [
+                        {
+                            render: "#DisplayCard",
+                            dependent: "category.dailyRate",
+                            permissions: {read: "category"},
+                            field: {
+                                name: "category.dailyRate",
+                                widget: "#DisplayCard",
+                                label: "categoryDailyRate",
+                                widgetProps: {
+                                    icon: "#IconCash",
+                                    format: "locale",
+                                    valuePath: [
+                                        "currency.symbol",
+                                        "category.dailyRate",
+                                    ],
+                                    joinSeparator: " ",
+                                    type: "currency",
+                                },
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
+                            dependent: "category.weekendDailyRate",
+                            permissions: {read: "category"},
+                            field: {
+                                name: "category.weekendDailyRate",
+                                widget: "#DisplayCard",
+                                label: "categoryWeekendDailyRate",
+                                widgetProps: {
+                                    icon: "#IconCash",
+                                    format: "locale",
+                                    valuePath: [
+                                        "currency.symbol",
+                                        "category.weekendDailyRate",
+                                    ],
+                                    joinSeparator: " ",
+                                    type: "currency",
+                                },
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
+                            dependent: "category.weeklyRate",
+                            permissions: {read: "category"},
+                            field: {
+                                name: "category.weeklyRate",
+                                widget: "#DisplayCard",
+                                label: "categoryWeeklyRate",
+                                widgetProps: {
+                                    icon: "#IconCash",
+                                    format: "locale",
+                                    valuePath: [
+                                        "currency.symbol",
+                                        "category.weeklyRate",
+                                    ],
+                                    joinSeparator: " ",
+                                    type: "currency",
+                                },
+                            },
+                        },
+                    ],
+                },
+                {
+                    render: "#SheetGrid",
+                    props: {
+                        columns: 3,
+                        watchField: "depositAmount",
+                        whenValues: [""],
+                    },
+                    children: [
+                        {
+                            render: "#DisplayCard",
+                            dependent: "category.depositAmount",
+                            permissions: {read: "category"},
+                            field: {
+                                name: "category.depositAmount",
+                                widget: "#DisplayCard",
+                                label: "categoryDepositAmount",
+                                widgetProps: {
+                                    icon: "#IconShieldCheck",
+                                    format: "locale",
+                                    valuePath: [
+                                        "currency.symbol",
+                                        "category.depositAmount",
+                                    ],
+                                    joinSeparator: " ",
+                                    type: "currency",
+                                },
+                            },
+                        },
+                    ],
+                },
+                {
+                    render: "#SheetGrid",
+                    props: {columns: 1},
+                    children: [
+                        {
+                            render: "#DisplayCard",
+                            dependent: "listingDescription",
+                            permissions: {read: "listingDescription"},
+                            field: {
+                                name: "listingDescription",
+                                widget: "#DisplayCard",
+                                label: "listingDescription",
+                                widgetProps: {
+                                    icon: "#IconAlignLeft",
+                                    expandable: true,
+                                    maxLength: 250,
+                                },
+                            },
+                        },
+                    ],
+                },
+                {
+                    render: "#SheetGroup",
+                    props: {title: "listingImages"},
+                    dependent: "listingImages",
+                    permissions: {read: "listingImages"},
+                    children: [
+                        {
+                            render: "div",
+                            props: {className: "max-w-full"},
+                            children: [
+                                {
+                                    render: "#GalleryCarousel",
+                                    permissions: {read: "listingImages"},
+                                    field: {
+                                        name: "listingImages",
+                                        widget: "#GalleryCarousel",
+                                        widgetProps: {
+                                            imageGalleryField: "listingImages",
+                                            showThumbnails: false,
+                                            allowFullScreen: false,
+                                            coverAfterFirst: false,
+                                            showPreviews: true,
+                                            previewLocation: "right",
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                },
+                {
+                    render: "#SheetGroup",
+                    props: {
+                        title: "rateSeasons",
+                        titleActions: "#ReferencesViewModeToggle",
+                    },
+                    dependent: "rateSeasons",
+                    permissions: {read: "rateSeasons"},
+                    children: [
+                        {
+                            render: "div",
+                            props: {
+                                className:
+                                    "rounded-lg bg-muted/30 border border-border/50",
+                            },
+                            children: [
+                                {
+                                    render: "#SheetEmbeddedItemsList",
+                                    permissions: {read: "rateSeasons"},
+                                    field: {
+                                        name: "rateSeasons",
+                                        widget: "#SheetEmbeddedItemsList",
+                                        widgetProps: {
+                                            pageSize: 6,
+                                            entityCards: true,
+                                            columns: 2,
+                                            fields: [
+                                                {
+                                                    name: "startDate",
+                                                    type: "text",
+                                                    format: "date",
+                                                    labelKey: "startDate",
+                                                    className:
+                                                        "text-sm font-medium",
+                                                },
+                                                {
+                                                    name: "endDate",
+                                                    type: "text",
+                                                    format: "date",
+                                                    labelKey: "endDate",
+                                                    className: "text-sm",
+                                                },
+                                                {
+                                                    name: "dailyRate",
+                                                    type: "text",
+                                                    currencyField: "currency",
+                                                    labelKey: "dailyRate",
+                                                    className: "text-sm",
+                                                },
+                                            ],
+                                            compactSummaryFields: [
+                                                "startDate",
+                                                "endDate",
+                                                "dailyRate",
+                                            ],
+                                            compactSummaryJoinSeparator: " · ",
+                                        },
+                                    },
+                                },
+                            ],
                         },
                     ],
                 },
@@ -674,6 +1094,14 @@ const statusOptions = ["active", "maintenance", "retired"].map((value) => ({
     label: `form.status.${value}`,
 }));
 
+const transmissionOptions = [
+    {value: "manual", label: "form.transmission.manual"},
+    {value: "automatic", label: "form.transmission.automatic"},
+];
+const fuelTypeOptions = ["petrol", "diesel", "hybrid", "electric", "other"].map(
+    (value) => ({value, label: `form.fuelType.${value}`}),
+);
+
 const vehicleCreateFormNodes: ViewConfig["nodes"] = [
     {
         render: "#TitleWithCollapse",
@@ -907,6 +1335,270 @@ const vehicleCreateFormNodes: ViewConfig["nodes"] = [
                         mediaType: "video",
                         mode: "multiple",
                         maxCount: VEHICLE_VIDEOS_MAX,
+                    },
+                },
+            },
+        ],
+    },
+    {
+        render: "#TitleWithCollapse",
+        props: {title: "form.specsSectionTitle"},
+        children: [
+            {
+                render: "#FormGrid",
+                props: {columns: 3},
+                children: [
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "seats",
+                            widget: "#Input",
+                            label: "form.seatsLabel",
+                            placeholder: "form.ownSpecPlaceholder",
+                            description: "form.ownSpecsDescription",
+                            widgetProps: {
+                                type: "number",
+                                min: 1,
+                                step: 1,
+                            },
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "doors",
+                            widget: "#Input",
+                            label: "form.doorsLabel",
+                            placeholder: "form.ownSpecPlaceholder",
+                            widgetProps: {
+                                type: "number",
+                                min: 0,
+                                step: 1,
+                            },
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "luggage",
+                            widget: "#Input",
+                            label: "form.luggageLabel",
+                            placeholder: "form.ownSpecPlaceholder",
+                            widgetProps: {
+                                type: "number",
+                                min: 0,
+                                step: 1,
+                            },
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "transmission",
+                            widget: "#SimpleSelect",
+                            label: "form.transmissionLabel",
+                            placeholder: "form.ownSpecPlaceholder",
+                            widgetProps: {
+                                options: transmissionOptions,
+                                className: "grow w-full",
+                            },
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "fuelType",
+                            widget: "#SimpleSelect",
+                            label: "form.fuelTypeLabel",
+                            placeholder: "form.ownSpecPlaceholder",
+                            widgetProps: {
+                                options: fuelTypeOptions,
+                                className: "grow w-full",
+                            },
+                        },
+                    },
+                ],
+            },
+        ],
+    },
+    {
+        render: "#TitleWithCollapse",
+        props: {title: "form.ownPricesSectionTitle"},
+        children: [
+            {
+                render: "#FormGrid",
+                props: {columns: 3},
+                children: [
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "dailyRate",
+                            widget: "#Input",
+                            label: "form.dailyRateLabel",
+                            placeholder: "form.dailyRatePlaceholder",
+                            description: "form.ownDailyRateDescription",
+                            widgetProps: {type: "number", min: 0, step: "any"},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "weekendDailyRate",
+                            widget: "#Input",
+                            label: "form.weekendDailyRateLabel",
+                            placeholder: "form.weekendDailyRatePlaceholder",
+                            description: "form.amountCurrencyDescription",
+                            widgetProps: {type: "number", min: 0, step: "any"},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "weeklyRate",
+                            widget: "#Input",
+                            label: "form.weeklyRateLabel",
+                            placeholder: "form.weeklyRatePlaceholder",
+                            description: "form.amountCurrencyDescription",
+                            widgetProps: {type: "number", min: 0, step: "any"},
+                        },
+                    },
+                ],
+            },
+            {
+                render: "#FormGrid",
+                props: {columns: 3},
+                children: [
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "depositAmount",
+                            widget: "#Input",
+                            label: "form.depositAmountLabel",
+                            placeholder: "form.depositAmountPlaceholder",
+                            description: "form.ownDepositDescription",
+                            widgetProps: {type: "number", min: 0, step: "any"},
+                        },
+                    },
+                ],
+            },
+            {
+                render: "#Field",
+                field: {
+                    name: "rateSeasons",
+                    widget: "#FormRepeater",
+                    widgetProps: {
+                        title: "form.rateSeasonsSectionTitle",
+                        arrayField: "rateSeasons",
+                        defaultItem: {startDate: "", endDate: ""},
+                        addLabel: "form.seasonAddRow",
+                        removeLabel: "form.seasonRemoveRow",
+                        rowTitleFields: ["startDate", "endDate", "dailyRate"],
+                        rowTitleSeparators: [" – ", " · "],
+                        rowTitlePlaceholder: "form.seasonRowTitle",
+                        rowTemplate: [
+                            {
+                                render: "#FormGrid",
+                                props: {columns: 3},
+                                children: [
+                                    {
+                                        render: "#Field",
+                                        field: {
+                                            name: "startDate",
+                                            widget: "#DateInput",
+                                            label: "form.seasonStartLabel",
+                                            required: true,
+                                            widgetProps: {
+                                                valueFormat: "YYYY-MM-DD",
+                                            },
+                                        },
+                                    },
+                                    {
+                                        render: "#Field",
+                                        field: {
+                                            name: "endDate",
+                                            widget: "#DateInput",
+                                            label: "form.seasonEndLabel",
+                                            required: true,
+                                            widgetProps: {
+                                                valueFormat: "YYYY-MM-DD",
+                                            },
+                                        },
+                                    },
+                                    {
+                                        render: "#Field",
+                                        field: {
+                                            name: "dailyRate",
+                                            widget: "#Input",
+                                            label: "form.seasonDailyRateLabel",
+                                            description:
+                                                "form.amountCurrencyDescription",
+                                            required: true,
+                                            widgetProps: {
+                                                type: "number",
+                                                min: 0,
+                                                step: "any",
+                                            },
+                                        },
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                },
+            },
+        ],
+    },
+    {
+        render: "#TitleWithCollapse",
+        props: {title: "form.listingSectionTitle"},
+        children: [
+            {
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "listedAlone",
+                            widget: "#Switch",
+                            label: "form.listedAloneLabel",
+                            description: "form.listedAloneDescription",
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "listingTitle",
+                            widget: "#Input",
+                            label: "form.listingTitleLabel",
+                            placeholder: "form.listingTitlePlaceholder",
+                            description: "form.listingTitleDescription",
+                            widgetProps: {maxLength: VEHICLE_LISTING_TITLE_MAX},
+                        },
+                    },
+                ],
+            },
+            {
+                render: "#Field",
+                field: {
+                    name: "listingDescription",
+                    widget: "#Textarea",
+                    label: "form.listingDescriptionLabel",
+                    placeholder: "form.listingDescriptionPlaceholder",
+                    widgetProps: {maxLength: VEHICLE_LISTING_DESCRIPTION_MAX},
+                },
+            },
+            {
+                render: "#Field",
+                field: {
+                    name: "listingImages",
+                    widget: "#MediaField",
+                    label: "form.listingImagesLabel",
+                    description: "form.listingImagesDescription",
+                    widgetProps: {
+                        mediaType: "image",
+                        mode: "multiple",
+                        maxCount: VEHICLE_LISTING_IMAGES_MAX,
                     },
                 },
             },
@@ -1172,6 +1864,360 @@ const vehicleEditFormNodes: ViewConfig["nodes"] = [
                         mediaType: "video",
                         mode: "multiple",
                         maxCount: VEHICLE_VIDEOS_MAX,
+                    },
+                },
+            },
+        ],
+    },
+    {
+        render: "#TitleWithCollapse",
+        props: {title: "form.specsSectionTitle"},
+        permissions: {
+            readAny: [
+                "seats",
+                "doors",
+                "luggage",
+                "transmission",
+                "fuelType",
+            ],
+            writeAny: [
+                "seats",
+                "doors",
+                "luggage",
+                "transmission",
+                "fuelType",
+            ],
+        },
+        children: [
+            {
+                render: "#FormGrid",
+                props: {columns: 3},
+                children: [
+                    {
+                        render: "#Field",
+                        permissions: {
+                            read: "seats",
+                            write: "seats",
+                        },
+                        field: {
+                            name: "seats",
+                            widget: "#Input",
+                            label: "form.seatsLabel",
+                            placeholder: "form.ownSpecPlaceholder",
+                            description: "form.ownSpecsDescription",
+                            widgetProps: {
+                                type: "number",
+                                min: 1,
+                                step: 1,
+                            },
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {
+                            read: "doors",
+                            write: "doors",
+                        },
+                        field: {
+                            name: "doors",
+                            widget: "#Input",
+                            label: "form.doorsLabel",
+                            placeholder: "form.ownSpecPlaceholder",
+                            widgetProps: {
+                                type: "number",
+                                min: 0,
+                                step: 1,
+                            },
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {
+                            read: "luggage",
+                            write: "luggage",
+                        },
+                        field: {
+                            name: "luggage",
+                            widget: "#Input",
+                            label: "form.luggageLabel",
+                            placeholder: "form.ownSpecPlaceholder",
+                            widgetProps: {
+                                type: "number",
+                                min: 0,
+                                step: 1,
+                            },
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {
+                            read: "transmission",
+                            write: "transmission",
+                        },
+                        field: {
+                            name: "transmission",
+                            widget: "#SimpleSelect",
+                            label: "form.transmissionLabel",
+                            placeholder: "form.ownSpecPlaceholder",
+                            widgetProps: {
+                                options: transmissionOptions,
+                                className: "grow w-full",
+                            },
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {
+                            read: "fuelType",
+                            write: "fuelType",
+                        },
+                        field: {
+                            name: "fuelType",
+                            widget: "#SimpleSelect",
+                            label: "form.fuelTypeLabel",
+                            placeholder: "form.ownSpecPlaceholder",
+                            widgetProps: {
+                                options: fuelTypeOptions,
+                                className: "grow w-full",
+                            },
+                        },
+                    },
+                ],
+            },
+        ],
+    },
+    {
+        render: "#TitleWithCollapse",
+        props: {title: "form.ownPricesSectionTitle"},
+        permissions: {
+            readAny: [
+                "dailyRate",
+                "weekendDailyRate",
+                "weeklyRate",
+                "depositAmount",
+                "rateSeasons",
+            ],
+            writeAny: [
+                "dailyRate",
+                "weekendDailyRate",
+                "weeklyRate",
+                "depositAmount",
+                "rateSeasons",
+            ],
+        },
+        children: [
+            {
+                render: "#FormGrid",
+                props: {columns: 3},
+                children: [
+                    {
+                        render: "#Field",
+                        permissions: {read: "dailyRate", write: "dailyRate"},
+                        field: {
+                            name: "dailyRate",
+                            widget: "#Input",
+                            label: "form.dailyRateLabel",
+                            placeholder: "form.dailyRatePlaceholder",
+                            description: "form.ownDailyRateDescription",
+                            widgetProps: {type: "number", min: 0, step: "any"},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {
+                            read: "weekendDailyRate",
+                            write: "weekendDailyRate",
+                        },
+                        field: {
+                            name: "weekendDailyRate",
+                            widget: "#Input",
+                            label: "form.weekendDailyRateLabel",
+                            placeholder: "form.weekendDailyRatePlaceholder",
+                            description: "form.amountCurrencyDescription",
+                            widgetProps: {type: "number", min: 0, step: "any"},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "weeklyRate", write: "weeklyRate"},
+                        field: {
+                            name: "weeklyRate",
+                            widget: "#Input",
+                            label: "form.weeklyRateLabel",
+                            placeholder: "form.weeklyRatePlaceholder",
+                            description: "form.amountCurrencyDescription",
+                            widgetProps: {type: "number", min: 0, step: "any"},
+                        },
+                    },
+                ],
+            },
+            {
+                render: "#FormGrid",
+                props: {columns: 3},
+                children: [
+                    {
+                        render: "#Field",
+                        permissions: {
+                            read: "depositAmount",
+                            write: "depositAmount",
+                        },
+                        field: {
+                            name: "depositAmount",
+                            widget: "#Input",
+                            label: "form.depositAmountLabel",
+                            placeholder: "form.depositAmountPlaceholder",
+                            description: "form.ownDepositDescription",
+                            widgetProps: {type: "number", min: 0, step: "any"},
+                        },
+                    },
+                ],
+            },
+            {
+                render: "#Field",
+                permissions: {read: "rateSeasons", write: "rateSeasons"},
+                field: {
+                    name: "rateSeasons",
+                    widget: "#FormRepeater",
+                    widgetProps: {
+                        title: "form.rateSeasonsSectionTitle",
+                        arrayField: "rateSeasons",
+                        defaultItem: {startDate: "", endDate: ""},
+                        addLabel: "form.seasonAddRow",
+                        removeLabel: "form.seasonRemoveRow",
+                        rowTitleFields: ["startDate", "endDate", "dailyRate"],
+                        rowTitleSeparators: [" – ", " · "],
+                        rowTitlePlaceholder: "form.seasonRowTitle",
+                        rowTemplate: [
+                            {
+                                render: "#FormGrid",
+                                props: {columns: 3},
+                                children: [
+                                    {
+                                        render: "#Field",
+                                        field: {
+                                            name: "startDate",
+                                            widget: "#DateInput",
+                                            label: "form.seasonStartLabel",
+                                            required: true,
+                                            widgetProps: {
+                                                valueFormat: "YYYY-MM-DD",
+                                            },
+                                        },
+                                    },
+                                    {
+                                        render: "#Field",
+                                        field: {
+                                            name: "endDate",
+                                            widget: "#DateInput",
+                                            label: "form.seasonEndLabel",
+                                            required: true,
+                                            widgetProps: {
+                                                valueFormat: "YYYY-MM-DD",
+                                            },
+                                        },
+                                    },
+                                    {
+                                        render: "#Field",
+                                        field: {
+                                            name: "dailyRate",
+                                            widget: "#Input",
+                                            label: "form.seasonDailyRateLabel",
+                                            description:
+                                                "form.amountCurrencyDescription",
+                                            required: true,
+                                            widgetProps: {
+                                                type: "number",
+                                                min: 0,
+                                                step: "any",
+                                            },
+                                        },
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                },
+            },
+        ],
+    },
+    {
+        render: "#TitleWithCollapse",
+        props: {title: "form.listingSectionTitle"},
+        permissions: {
+            readAny: [
+                "listedAlone",
+                "listingTitle",
+                "listingDescription",
+                "listingImages",
+            ],
+            writeAny: [
+                "listedAlone",
+                "listingTitle",
+                "listingDescription",
+                "listingImages",
+            ],
+        },
+        children: [
+            {
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        permissions: {
+                            read: "listedAlone",
+                            write: "listedAlone",
+                        },
+                        field: {
+                            name: "listedAlone",
+                            widget: "#Switch",
+                            label: "form.listedAloneLabel",
+                            description: "form.listedAloneDescription",
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {
+                            read: "listingTitle",
+                            write: "listingTitle",
+                        },
+                        field: {
+                            name: "listingTitle",
+                            widget: "#Input",
+                            label: "form.listingTitleLabel",
+                            placeholder: "form.listingTitlePlaceholder",
+                            description: "form.listingTitleDescription",
+                            widgetProps: {maxLength: VEHICLE_LISTING_TITLE_MAX},
+                        },
+                    },
+                ],
+            },
+            {
+                render: "#Field",
+                permissions: {
+                    read: "listingDescription",
+                    write: "listingDescription",
+                },
+                field: {
+                    name: "listingDescription",
+                    widget: "#Textarea",
+                    label: "form.listingDescriptionLabel",
+                    placeholder: "form.listingDescriptionPlaceholder",
+                    widgetProps: {maxLength: VEHICLE_LISTING_DESCRIPTION_MAX},
+                },
+            },
+            {
+                render: "#Field",
+                permissions: {read: "listingImages", write: "listingImages"},
+                field: {
+                    name: "listingImages",
+                    widget: "#MediaField",
+                    label: "form.listingImagesLabel",
+                    description: "form.listingImagesDescription",
+                    widgetProps: {
+                        mediaType: "image",
+                        mode: "multiple",
+                        maxCount: VEHICLE_LISTING_IMAGES_MAX,
                     },
                 },
             },

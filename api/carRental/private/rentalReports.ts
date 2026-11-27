@@ -18,6 +18,8 @@ import RentalReservation from "@carRentalModule/database/schemas/rentalReservati
 import {buildRentalReport} from "@carRentalModule/utilities/services/rentalReports";
 
 import {rentalLocationService} from "@carRentalModule/database/schemas/rentalLocation/rentalLocation.service";
+import {carRentalConfigService} from "@carRentalModule/database/schemas/carRentalConfig/carRentalConfig.service";
+
 export const basePath = "/api/carRental/rentalReports";
 export const router = Router();
 
@@ -63,13 +65,18 @@ router.post(
                       company: company._id,
                       deletedAt: null,
                   });
-            const data = await buildRentalReport(company._id, {
-                from: params.from,
-                to: params.to,
-                locationId: params.location,
-                timezone: location?.timezone ?? "UTC",
-            });
-            return {data};
+            const [data, config] = await Promise.all([
+                buildRentalReport(company._id, {
+                    from: params.from,
+                    to: params.to,
+                    locationId: params.location,
+                    timezone: location?.timezone ?? "UTC",
+                }),
+                carRentalConfigService.findForCompany(company._id, {languageCode}),
+            ]);
+            // Every amount is in the rental currency (UX-07).
+            const currency = config ? await carRentalConfigService.currencyOf(config, languageCode).catch(() => undefined) : undefined;
+            return {data: {...data, ...(currency ? {currency} : {})}};
         },
     ),
 );

@@ -92,6 +92,21 @@ export const rentalReservationSheetView: ViewConfig = {
                             },
                         },
                         {
+                            // This exact car was booked (D198): it is guaranteed, never "or similar".
+                            render: "#DisplayCard",
+                            dependent: "snapshot.vehicleTitle",
+                            permissions: {read: "vehicle"},
+                            field: {
+                                name: "snapshot.vehicleTitle",
+                                widget: "#DisplayCard",
+                                label: "exactVehicle",
+                                widgetProps: {
+                                    icon: "#IconStar",
+                                    variant: "info",
+                                },
+                            },
+                        },
+                        {
                             render: "#DisplayCard",
                             dependent: "vehicle.plate",
                             permissions: {read: "vehicle"},
@@ -853,6 +868,15 @@ export const rentalReservationCreateFormView: ViewConfig = {
                                     defaultOptionsFormExtraKey:
                                         "vehicleDefaultOptions",
                                 },
+                            },
+                        },
+                        {
+                            render: "#Field",
+                            field: {
+                                name: "exactVehicle",
+                                widget: "#Switch",
+                                label: "form.exactVehicleLabel",
+                                description: "form.exactVehicleDescription",
                             },
                         },
                         {

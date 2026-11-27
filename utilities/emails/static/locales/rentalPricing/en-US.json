@@ -14,5 +14,7 @@
   "damage": "Damage: {description}",
   "fine": "Traffic fine {reference}",
   "fineAdmin": "Fine handling fee",
-  "chargeRemoved": "Removed: {label}"
+  "chargeRemoved": "Removed: {label}",
+  "carTransfer": "Bringing the car from {location}",
+  "repriced": "re-priced for this car"
 }

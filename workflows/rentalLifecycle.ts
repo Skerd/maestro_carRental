@@ -27,7 +27,7 @@ import RentalLocation from "@carRentalModule/database/schemas/rentalLocation/ren
 import {assertCustomerAllowed} from "@carRentalModule/utilities/services/rentalDeny";
 import {assertVehiclePapersValid} from "@carRentalModule/utilities/services/vehicleRecords";
 import {applyDriverFees, assertDriversReadyForHandover} from "@carRentalModule/utilities/services/rentalDrivers";
-import {computeRentalQuote} from "@carRentalModule/utilities/services/rentalQuote";
+import {computeRentalQuote, quoteCategoryFor} from "@carRentalModule/utilities/services/rentalQuote";
 import {isLocationOpenAt} from "@carRentalModule/utilities/services/rentalTrip";
 import {loadSelectedExtras, quoteTrip} from "@carRentalModule/workflows/rentalReservationService";
 import {releasePromoCode} from "@carRentalModule/utilities/services/rentalPromo";
@@ -40,7 +40,10 @@ import {
     type MediaIdsInput,
     type NewDamageInput,
 } from "@carRentalModule/utilities/services/rentalInspection";
-import {busyUntil, busyVehicleIds, lockVehicle} from "@carRentalModule/utilities/services/rentalAvailability";
+import {busyUntil, busyVehicleIds, lockVehicle, needsTransferFor} from "@carRentalModule/utilities/services/rentalAvailability";
+import {rentalExtraService} from "@carRentalModule/database/schemas/rentalExtra/rentalExtra.service";
+import {vehicleListingTitle} from "armonia/src/modules/carRental/helpers/vehicleRates";
+import type {RentalReassignPricing} from "armonia/src/modules/carRental/api/carRental/private/rentalReservation/rentalReservation.schema-def";
 import {
     addToAmountPaid,
     amountDue,
@@ -696,9 +699,14 @@ export async function extendRentalReservation(
         );
 
     const {decimalPlaces} = await reservationCurrency(reservation, ctx.session);
+    // An exact booking's extra days are at that car's prices, as booked (D198).
+    const exactVehicle = reservation.exactVehicle
+        ? (await vehicleService.findOne({_id: vehicleId, company: companyId}, {session: ctx.session})) ?? undefined
+        : undefined;
+    const priced = quoteCategoryFor(category, exactVehicle);
     const quoteFor = (returnAt: Date) =>
         computeRentalQuote({
-            category,
+            category: priced,
             extras: reservation.extras.map(
                 ({name, pricing, unitPrice, quantity}) => ({
                     name,
@@ -722,7 +730,7 @@ export async function extendRentalReservation(
     const extension = Math.max(0, subtractMoney(longer.subtotal, original.subtotal, decimalPlaces));
     if (extension > 0) {
         reservation.pricing.lines.push(storedPriceLine({
-            label: category.name,
+            label: priced.name,
             kind: "extension",
             quantity: 1,
             unitPrice: extension,
@@ -824,4 +832,96 @@ export async function addRentalExtras(
         note: extras.map(({extra}) => extra.name).join(", "),
     });
     await reservation.save({session: ctx.session});
+}
+
+/**
+ * "Change car" (D198): moves a booking that has not started to another free car, of its group or of another one.
+ * `keep` leaves it as booked, price and km terms included (a free upgrade); `reprice` prices the rental days again
+ * for the new car (its own prices when the booking is for an exact car, else its group's) and takes the new group's
+ * km terms and deposit, while extras, fees and discount lines keep their amounts. An exact booking stays exact, now
+ * for the new car, and its customer is told; a class booking only gets another of the cars it was "similar" to.
+ */
+export async function reassignRentalVehicle(
+    reservation: IRentalReservation,
+    input: {vehicleId: ObjectId; pricing?: RentalReassignPricing; by?: ObjectId},
+    ctx: Ctx,
+): Promise<void> {
+    assertStatus(reservation, ["held", "confirmed"], ctx.languageCode);
+    const companyId = nestedEntityToRef(reservation.company)!;
+    const target = await vehicleService.findOne({_id: input.vehicleId, company: companyId, deletedAt: null}, {session: ctx.session});
+    if (!target) throw apiValidationException("vehicle_not_found", "", null, ctx.languageCode);
+    await lockVehicle(target._id, {companyId, session: ctx.session, languageCode: ctx.languageCode});
+    const busy = await busyVehicleIds({
+        companyId,
+        vehicleIds: [target._id],
+        start: reservation.pickupAt,
+        end: reservation.blockedUntil,
+        now: new Date(),
+        excludeReservationId: reservation._id,
+        session: ctx.session,
+    });
+    if (busy.size) throw apiValidationException("vehicle_unavailable", "", null, ctx.languageCode);
+
+    const targetGroupId = nestedEntityToRef(target.category);
+    const group = await vehicleCategoryService.findOne({_id: targetGroupId, company: companyId}, {session: ctx.session});
+    if (!group) throw apiValidationException("vehicle_category_not_found", "", null, ctx.languageCode);
+    if (String(targetGroupId) !== String(nestedEntityToRef(reservation.category))) {
+        reservation.category = group._id;
+        reservation.snapshot.categoryName = group.name;
+    }
+    if (input.pricing === "reprice") {
+        const [config, {decimalPlaces}] = await Promise.all([
+            carRentalConfigService.getOrCreateForCompany(companyId, ctx),
+            reservationCurrency(reservation, ctx.session),
+        ]);
+        const priced = quoteCategoryFor(group, reservation.exactVehicle ? target : undefined);
+        const quote = computeRentalQuote({
+            category: priced,
+            extras: [],
+            pickupAt: reservation.pickupAt,
+            returnAt: reservation.returnAt,
+            timeZone: reservation.snapshot.timezone,
+            settings: {
+                vatRate: reservation.pricing.vatRate,
+                pricesIncludeVat: reservation.pricing.pricesIncludeVat,
+                lateGraceMinutes: config.lateGraceMinutes,
+                decimalPlaces,
+            },
+        });
+        reservation.pricing.lines = [
+            ...quote.lines.filter((line) => line.kind === "rental").map((line) => storedPriceLine(line, decimalPlaces)),
+            ...reservation.pricing.lines.filter((line) => line.kind !== "rental"),
+        ];
+        Object.assign(
+            reservation.pricing,
+            storedTotalsFor(reservation.pricing.lines, reservation.pricing.vatRate, reservation.pricing.pricesIncludeVat, decimalPlaces),
+        );
+        // A protection package sets the deposit; otherwise it follows the car now booked.
+        const protectedBooking = reservation.extras.length > 0 && await rentalExtraService.exists(
+            {_id: {$in: reservation.extras.map((extra) => nestedEntityToRef(extra.extra))}, company: companyId, kind: "protection"},
+            {session: ctx.session},
+        );
+        if (!protectedBooking) reservation.pricing.depositAmount = storedAmount(priced.depositAmount ?? 0, decimalPlaces);
+        reservation.snapshot.mileagePolicy = group.mileagePolicy;
+        reservation.snapshot.includedKmPerDay = group.includedKmPerDay;
+        reservation.snapshot.extraKmPrice = group.extraKmPrice;
+        reservation.paymentStatus = paymentStatusFor(reservation, false, decimalPlaces);
+    }
+    const title = vehicleListingTitle(target);
+    if (reservation.exactVehicle) reservation.snapshot.vehicleTitle = title;
+    reservation.vehicle = target._id;
+    reservation.needsTransfer = await needsTransferFor(
+        target._id,
+        {locationId: nestedEntityToRef(reservation.pickupLocation)!, at: reservation.pickupAt},
+        companyId,
+        ctx.session,
+    );
+    reservation.timeline.push({
+        event: "vehicle_reassigned",
+        at: new Date(),
+        by: input.by,
+        note: input.pricing === "reprice" ? `${target.plate} · ${rentalPricingLabel(ctx.languageCode, "repriced")}` : target.plate,
+    });
+    await reservation.save({session: ctx.session});
+    if (reservation.exactVehicle) await notifyRentalCustomer("carChanged", reservation, ctx, {note: title});
 }

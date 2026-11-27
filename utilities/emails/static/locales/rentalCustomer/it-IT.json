@@ -43,5 +43,10 @@
   "subjectCharged": "Nuovo addebito sulla prenotazione {number} — {companyName}",
   "introCharged": "Abbiamo aggiunto un addebito alla tua prenotazione: {note}",
   "closingCharged": "Rispondi a questa e-mail se hai domande su questo addebito.",
-  "preheaderCharged": "È stato aggiunto un addebito alla tua prenotazione."
+  "preheaderCharged": "È stato aggiunto un addebito alla tua prenotazione.",
+  "headingCarChanged": "La tua auto è cambiata",
+  "subjectCarChanged": "La tua auto per la prenotazione {number} è cambiata — {companyName}",
+  "introCarChanged": "L'auto che hai prenotato non può più partire, quindi te ne abbiamo assegnata un'altra: {note}",
+  "closingCarChanged": "Rispondi a questa e-mail se la nuova auto non ti va bene; troveremo una soluzione o annulleremo la prenotazione senza costi.",
+  "preheaderCarChanged": "Abbiamo assegnato un'altra auto alla tua prenotazione."
 }

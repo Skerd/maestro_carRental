@@ -14,5 +14,7 @@
   "damage": "Schaden: {description}",
   "fine": "Busse {reference}",
   "fineAdmin": "Bearbeitungsgebühr Busse",
-  "chargeRemoved": "Entfernt: {label}"
+  "chargeRemoved": "Entfernt: {label}",
+  "carTransfer": "Überführung des Fahrzeugs aus {location}",
+  "repriced": "für dieses Fahrzeug neu berechnet"
 }

@@ -2,7 +2,6 @@ import {createCrudRouter} from "@coreModule/api/crudRouterFactory";
 import {buildCreateDataFromSchemaDef, buildUpdateDataFromSchemaDef} from "@coreModule/api/buildUpdateDataFromSchemaDef";
 import {restoreUnlessKeyTaken} from "@coreModule/api/restoreUnlessKeyTaken";
 import {mediaUploadMW} from "@coreModule/utilities/middlewares/mediaUploadMW";
-import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import {VehicleCategorySchemaDef} from "armonia/src/modules/carRental/api/carRental/private/vehicleCategory/vehicleCategory.schema-def";
 import {createVehicleCategoryFormSchema} from "armonia/src/modules/carRental/api/carRental/private/vehicleCategory/createVehicleCategory.form.validator";
 import {editVehicleCategoryFormSchema} from "armonia/src/modules/carRental/api/carRental/private/vehicleCategory/editVehicleCategory.form.validator";
@@ -11,14 +10,9 @@ import {vehicleCategoryService} from "@carRentalModule/database/schemas/vehicleC
 import {vehicleCategoryToDTO, vehicleCategoriesToDTO} from "@carRentalModule/utilities/mappers/vehicleCategory/vehicleCategoryMapper.dto";
 import {vehicleCategoriesToSelect} from "@carRentalModule/utilities/mappers/vehicleCategory/vehicleCategoryMapper.select";
 import {VehicleCategoryActions} from "@carRentalModule/database/schemas/vehicleCategory/vehicleCategory.actions";
-import type {CurrencySimple} from "armonia/src/modules/core/dto/currency.dto";
-import type {VehicleCategory as VehicleCategoryDTO} from "armonia/src/modules/carRental/api/carRental/private/vehicleCategory/vehicleCategory.dto";
 import {withRentalCurrency} from "@carRentalModule/utilities/services/rentalCurrency";
+import {assertValidSeasons, withSeasonCurrency} from "@carRentalModule/utilities/services/rentalRateSeasons";
 
-/** Each seasonal rate names the class's currency, so the sheet's season list shows "€ 59.00" (UX-07). */
-function withSeasonCurrency<T extends VehicleCategoryDTO & {currency?: CurrencySimple}>(dto: T): T {
-    return dto.currency ? {...dto, rateSeasons: dto.rateSeasons.map((season) => ({...season, currency: dto.currency}))} : dto;
-}
 
 const mediaUpload = mediaUploadMW({
     fields: {images: 12, videos: 3},
@@ -28,12 +22,6 @@ const mediaUpload = mediaUploadMW({
     },
     maxFileSize: 250 * 1024 * 1024,
 });
-
-function assertValidSeasons(seasons: {startDate: string; endDate: string}[] | undefined, languageCode: string): void {
-    if (seasons?.some((season) => season.endDate < season.startDate)) {
-        throw apiValidationException("rental_season_end_before_start", "", null, languageCode);
-    }
-}
 
 export const basePath = "/api/carRental/vehicleCategory";
 

@@ -69,6 +69,8 @@ export interface IVehicleCategory
     crossBorderAllowed: boolean;
     crossBorderFee?: number;
     isPublic: boolean;
+    /** Booked as a class ("or similar"); off when the group only heads its cars rented on their own (D198). */
+    soldAsClass: boolean;
     sortOrder: number;
 }
 
@@ -170,6 +172,7 @@ const VehicleCategorySchema = new Schema<IVehicleCategory>(
         crossBorderAllowed: {type: SchemaTypes.Boolean, default: true},
         crossBorderFee: {type: SchemaTypes.Number, min: 0, dynamicTableConfiguration: {currencyPath: "currency"}},
         isPublic: {type: SchemaTypes.Boolean, default: true},
+        soldAsClass: {type: SchemaTypes.Boolean, default: true},
         sortOrder: {type: SchemaTypes.Number, default: 0, dynamicTableConfiguration: {visible: false}},
     },
     {accessMode: "loose"},

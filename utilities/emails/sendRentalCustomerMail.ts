@@ -17,7 +17,7 @@ import {sendMail} from "@coreModule/utilities/emails/mailDeliveryService";
 const LOCALES_ROOT = path.join(__dirname, "static", "locales");
 const TEMPLATE_DIR = path.join(__dirname, "templates", "rentalCustomer");
 
-export type RentalCustomerEmailKind = "confirmed" | "cancelled" | "reminder" | "handedOver" | "returned" | "charged";
+export type RentalCustomerEmailKind = "confirmed" | "cancelled" | "reminder" | "handedOver" | "returned" | "charged" | "carChanged";
 
 /** Copy suffix per kind: `subject{X}`, `heading{X}`, `preheader{X}`, `intro{X}`, `closing{X}`. */
 const KIND_SUFFIX: Record<RentalCustomerEmailKind, string> = {
@@ -27,6 +27,7 @@ const KIND_SUFFIX: Record<RentalCustomerEmailKind, string> = {
     handedOver: "HandedOver",
     returned: "Returned",
     charged: "Charged",
+    carChanged: "CarChanged",
 };
 
 export type RentalCustomerEmail = {

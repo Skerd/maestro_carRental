@@ -7,6 +7,7 @@ import RentalReservation from "@carRentalModule/database/schemas/rentalReservati
 import {vehicleService} from "@carRentalModule/database/schemas/vehicle/vehicle.service";
 import {rentalReservationService} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation.service";
 import {vehicleBlockService} from "@carRentalModule/database/schemas/vehicleBlock/vehicleBlock.service";
+import {rentalLocationService} from "@carRentalModule/database/schemas/rentalLocation/rentalLocation.service";
 import {vehiclesWithLapsingPapers} from "./vehiclePapers";
 const MINUTE = 60 * 1000;
 
@@ -23,6 +24,21 @@ export function blockingReservationFilter(now: Date): Record<string, unknown> {
             {status: "held", holdExpiresAt: {$gt: now}},
         ],
     };
+}
+
+/**
+ * How many live bookings to come are for this exact car (D198). While there are any, the car stays rented on its own:
+ * those customers were promised it.
+ */
+export function countUpcomingExactBookings(vehicleId: ObjectId, ctx: {companyId: ObjectId; session?: ClientSession | null}): Promise<number> {
+    const now = new Date();
+    return rentalReservationService.count({
+        company: ctx.companyId,
+        vehicle: vehicleId,
+        exactVehicle: true,
+        blockedUntil: {$gt: now},
+        ...blockingReservationFilter(now),
+    }, {session: ctx.session ?? undefined});
 }
 
 /** The busy window a booking from `pickupAt` to `returnAt` needs, turnaround included. */
@@ -96,8 +112,10 @@ export async function projectedLocations(vehicles: LocatedVehicle[], at: Date, c
 }
 
 /**
- * Active vehicles of a category free for [start, end), best first: those that will
- * be at the pickup location at the start (see `projectedLocations`), then by plate.
+ * Active vehicles of a category free for [start, end), best first: cars not rented on
+ * their own before those that are (D198: a class booking leaves the showcase cars for
+ * the customers who want exactly them), then those that will be at the pickup location
+ * at the start (see `projectedLocations`), then by plate.
  * A car whose insurance or road papers are known to run out before `end` is left out
  * (TD-B264): the handover would refuse it, so it is never booked.
  */
@@ -105,17 +123,18 @@ export async function freeVehiclesInCategory(
     query: WindowQuery & {categoryId: ObjectId; preferLocationId?: ObjectId},
 ): Promise<ObjectId[]> {
     const {companyId, categoryId, preferLocationId, session} = query;
-    const vehicles = await vehicleService.find({company: companyId, category: categoryId, status: "active", deletedAt: null}, {session: session ?? undefined}, undefined, "_id homeLocation currentLocation plate", {plate: 1});
+    const vehicles = await vehicleService.find({company: companyId, category: categoryId, status: "active", deletedAt: null}, {session: session ?? undefined}, undefined, "_id homeLocation currentLocation plate listedAlone", {plate: 1});
     const ids = vehicles.map((vehicle) => vehicle._id);
     const [busy, lapsing] = await Promise.all([
         busyVehicleIds({...query, vehicleIds: ids}),
         vehiclesWithLapsingPapers(ids, {from: query.start, until: query.end}, {companyId, session}),
     ]);
     const free = vehicles.filter((vehicle) => !busy.has(String(vehicle._id)) && !lapsing.has(String(vehicle._id)));
-    if (!preferLocationId) return free.map((vehicle) => vehicle._id);
+    const listed = (vehicle: (typeof free)[number]) => (vehicle.listedAlone ? 1 : 0);
+    if (!preferLocationId) return free.sort((a, b) => listed(a) - listed(b)).map((vehicle) => vehicle._id);
     const located = await projectedLocations(free, query.start, companyId, session);
     const there = (vehicle: (typeof free)[number]) => (located.get(String(vehicle._id)) === String(preferLocationId) ? 0 : 1);
-    return free.sort((a, b) => there(a) - there(b)).map((vehicle) => vehicle._id);
+    return free.sort((a, b) => listed(a) - listed(b) || there(a) - there(b)).map((vehicle) => vehicle._id);
 }
 
 /** True when the car will not be at the pickup location at pickup time, so staff must move it there. */
@@ -168,4 +187,28 @@ export async function assertNoBookingClash(
         ...blockingReservationFilter(new Date()),
     }, {session: ctx.session}, undefined, "number");
     if (clash) throw apiValidationException("vehicle_block_overlaps_reservation", "", null, ctx.languageCode, [clash.number]);
+}
+
+/**
+ * Where a car rented on its own comes from for an online booking (D198): nothing to add when it will be at the pickup
+ * branch then; otherwise only when the company brings such cars over, with enough notice, for its transfer fee.
+ */
+export async function exactCarPlacement(
+    vehicle: LocatedVehicle & {_id: ObjectId},
+    pickup: {locationId: ObjectId; at: Date},
+    input: {companyId: ObjectId; config: {exactCarTransfers?: boolean; exactCarTransferFee?: number; exactCarTransferNoticeHours?: number}; now: Date; languageCode: string; session?: ClientSession | null},
+): Promise<{fromLocationId: ObjectId; fee: number} | undefined> {
+    const located = (await projectedLocations([vehicle], pickup.at, input.companyId, input.session)).get(String(vehicle._id));
+    if (located === String(pickup.locationId)) return undefined;
+    const {config} = input;
+    if (!config.exactCarTransfers) {
+        // Named, so the customer can pick it up there instead.
+        const there = located ? await rentalLocationService.findOne({_id: new ObjectId(located), company: input.companyId}, {session: input.session ?? undefined}, undefined, "name") : null;
+        throw apiValidationException("rental_exact_car_elsewhere", "", null, input.languageCode, [there?.name ?? ""]);
+    }
+    const noticeHours = config.exactCarTransferNoticeHours ?? 0;
+    if (pickup.at.getTime() - input.now.getTime() < noticeHours * 60 * MINUTE) {
+        throw apiValidationException("rental_exact_car_notice", "", null, input.languageCode, [String(noticeHours)]);
+    }
+    return {fromLocationId: new ObjectId(located), fee: config.exactCarTransferFee ?? 0};
 }

@@ -154,6 +154,19 @@ export const vehicleCategorySheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
+                            permissions: {read: "soldAsClass"},
+                            field: {
+                                name: "soldAsClass",
+                                widget: "#DisplayCard",
+                                label: "soldAsClass",
+                                widgetProps: {
+                                    icon: "#IconCar",
+                                    type: "boolean",
+                                },
+                            },
+                        },
+                        {
+                            render: "#DisplayCard",
                             dependent: "minDriverAge",
                             permissions: {read: "minDriverAge"},
                             field: {
@@ -865,6 +878,15 @@ const vehicleCategoryCreateFormNodes: ViewConfig["nodes"] = [
                     {
                         render: "#Field",
                         field: {
+                            name: "soldAsClass",
+                            widget: "#Switch",
+                            label: "form.soldAsClassLabel",
+                            description: "form.soldAsClassDescription",
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
                             name: "sortOrder",
                             widget: "#Input",
                             label: "form.sortOrderLabel",
@@ -1316,7 +1338,7 @@ const vehicleCategoryEditFormNodes: ViewConfig["nodes"] = [
     {
         render: "#TitleWithCollapse",
         props: {title: "form.visibilitySectionTitle"},
-        permissions: {readAny: ["isPublic", "sortOrder"], writeAny: ["isPublic", "sortOrder"]},
+        permissions: {readAny: ["isPublic", "soldAsClass", "sortOrder"], writeAny: ["isPublic", "soldAsClass", "sortOrder"]},
         children: [
             {
                 render: "#FormGrid",
@@ -1330,6 +1352,16 @@ const vehicleCategoryEditFormNodes: ViewConfig["nodes"] = [
                             widget: "#Switch",
                             label: "form.isPublicLabel",
                             description: "form.isPublicDescription",
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "soldAsClass", write: "soldAsClass"},
+                        field: {
+                            name: "soldAsClass",
+                            widget: "#Switch",
+                            label: "form.soldAsClassLabel",
+                            description: "form.soldAsClassDescription",
                         },
                     },
                     {

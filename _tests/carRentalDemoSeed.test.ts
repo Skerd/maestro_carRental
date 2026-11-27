@@ -102,9 +102,13 @@ describe("car rental demo seed", () => {
     it("seeds a full fleet with bookings in every status and each car's paperwork", () => asCompany(async () => {
         await seedCarRentalDemoData(undefined, company);
 
-        expect(await Vehicle.countDocuments({company: company._id})).toBe(80);
+        expect(await Vehicle.countDocuments({company: company._id})).toBe(85);
         expect(await RentalLocation.countDocuments({})).toBe(6);
-        expect(await VehicleCategory.countDocuments({})).toBe(10);
+        expect(await VehicleCategory.countDocuments({})).toBe(11);
+        // Sold car by car, or also car by car (D198).
+        expect((await VehicleCategory.findOne({slug: "premium"}))!.soldAsClass).toBe(false);
+        expect(await Vehicle.countDocuments({listedAlone: true})).toBeGreaterThan(20);
+        expect(await RentalReservation.countDocuments({exactVehicle: true})).toBeGreaterThan(10);
         const reservations = await RentalReservation.find({}).select(
             "status vehicle pickupAt blockedUntil",
         );
@@ -184,10 +188,10 @@ describe("car rental demo seed", () => {
             (await VehicleCategory.findOne({slug: "suv-4x4"}))!.crossBorderFee,
         ).toBe(15);
 
-        expect(await VehicleInsurance.countDocuments({})).toBeGreaterThan(80);
+        expect(await VehicleInsurance.countDocuments({})).toBeGreaterThan(85);
         expect(
             await VehicleDocument.countDocuments({type: "registration"}),
-        ).toBe(80);
+        ).toBe(85);
         expect(
             await VehicleDamage.countDocuments({reservation: {$exists: true}}),
         ).toBe(
@@ -197,7 +201,7 @@ describe("car rental demo seed", () => {
         );
         expect(
             await Vehicle.countDocuments({nextServiceDueAt: {$exists: true}}),
-        ).toBe(80);
+        ).toBe(85);
         expect(
             await PaymentTransaction.countDocuments({
                 sourceType: "rentalReservation",

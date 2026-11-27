@@ -14,5 +14,7 @@
   "damage": "Dommage : {description}",
   "fine": "Amende {reference}",
   "fineAdmin": "Frais de traitement de l'amende",
-  "chargeRemoved": "Retiré : {label}"
+  "chargeRemoved": "Retiré : {label}",
+  "carTransfer": "Acheminement de la voiture depuis {location}",
+  "repriced": "prix recalculé pour cette voiture"
 }

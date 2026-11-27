@@ -95,6 +95,8 @@ export type IRentalReservationExtra = {
 
 export type IRentalReservationSnapshot = {
     categoryName: string;
+    /** The exact car's name when it was booked on its own (D198); emails and the agreement name it. */
+    vehicleTitle?: string;
     vehicleLabel?: string;
     pickupLocationName: string;
     pickupAddress?: string;
@@ -168,6 +170,8 @@ export interface IRentalReservation
     /** Where an online booking was made: the company's own site or the central portal. Emails link back there. */
     category: IVehicleCategory;
     vehicle: IVehicle;
+    /** This exact car was booked, at its own prices (D198): it is guaranteed, never "or similar". */
+    exactVehicle: boolean;
     pickupLocation: IRentalLocation;
     returnLocation: IRentalLocation;
     pickupAt: Date;
@@ -291,11 +295,11 @@ const RentalReservationSchema = new Schema<IRentalReservation>(
             immutable: true,
             permissions: NoWritePermission,
         },
+        // Not immutable: "Change car" may move a booking to a car of another category (D198). No form writes it.
         category: {
             type: SchemaTypes.ObjectId,
             ref: "VehicleCategory",
             required: true,
-            immutable: true,
             refAllowlist: VehicleCategorySimpleSnippet,
             permissions: NoWritePermission,
             dynamicTableConfiguration: {refDisplayKey: ["name"]},
@@ -308,6 +312,14 @@ const RentalReservationSchema = new Schema<IRentalReservation>(
             permissions: NoWritePermission,
             dynamicTableConfiguration: {
                 refDisplayKey: ["plate", "make", "model"],
+            },
+        },
+        exactVehicle: {
+            type: SchemaTypes.Boolean,
+            default: false,
+            permissions: NoWritePermission,
+            dynamicTableConfiguration: {
+                enumTones: {true: "info", false: "neutral"},
             },
         },
         pickupLocation: {
@@ -513,6 +525,7 @@ const RentalReservationSchema = new Schema<IRentalReservation>(
         snapshot: {
             type: {
                 categoryName: {type: SchemaTypes.String, required: true},
+                vehicleTitle: {type: SchemaTypes.String},
                 vehicleLabel: {type: SchemaTypes.String},
                 pickupLocationName: {type: SchemaTypes.String, required: true},
                 pickupAddress: {type: SchemaTypes.String},

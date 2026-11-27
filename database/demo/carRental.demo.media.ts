@@ -18,11 +18,24 @@ export const CATEGORY_PHOTOS: Record<DemoCategorySlug, string[]> = {
     "suv-4x4": ["1623013274387-45cbcbc1725b", "1765519697974-5429f4804c48", "1730470577490-40dd6677623a", "1533473359331-0135ef1b58bf", "1563720223185-11003d516935"],
     premium: ["1503376780353-7e6692767b70", "1616422285623-13ff0162193c", "1590362891991-f776e747a588", "1555215695-3004980ad54e", "1768522982031-1ed947a091b0"],
     electric: ["1560958089-b8a1929cea89", "1655288115919-7f8b6480ce53", "1763543007050-4dac73ffc67f", "1639302610362-4c86747e8680"],
+    // The special cars' first photos (D198).
+    special: ["1756704756051-9aa48231c440", "1659611807210-917ac61ff451", "1655468332000-18ecac4ab2c8", "1772593547280-d480065a9f73", "1632823469217-b0ff8f4f9197"],
     minivan: ["1675311183084-755007dbb223", "1653978681856-ab2f1feb221b", "1623371857133-6d5552bbdc13", "1724479839764-65981526641d", "1649553324097-dec0c232be42"],
 };
 
-/** A car's photos: three from its category's set, starting at a different photo per model. */
-export function modelPhotos(category: DemoCategorySlug, modelOffset: number): string[] {
+/** The special cars' own photos (D198), each set checked to show that model with no readable plate. */
+const SPECIAL_PHOTOS: Record<string, string[]> = {
+    "Mercedes-Benz G-Class": ["1756704756051-9aa48231c440", "1569240651611-302c9897bde5", "1648413653877-ade5eefd2f1b"],
+    "Porsche 911 Cabriolet": ["1659611807210-917ac61ff451", "1667070884824-c80435b3457b", "1631568440988-54e5aa8f1f24"],
+    "Land Rover Defender 110": ["1655468332000-18ecac4ab2c8", "1741905358565-5ae6835ac172", "1741905358583-1999b08d6e2e"],
+    "Ford Mustang Convertible": ["1772593547280-d480065a9f73", "1731392913970-737fcafc893b", "1708979418859-5533d33f952b"],
+    "Mercedes-Benz S-Class": ["1632823469217-b0ff8f4f9197", "1610099610040-ab19f3a5ec35", "1680446983373-853872fb667a"],
+};
+
+/** A car's photos: a special car's own set, else three from its category's set, starting at a different photo per model. */
+export function modelPhotos(category: DemoCategorySlug, modelOffset: number, modelKey?: string): string[] {
+    const own = modelKey ? SPECIAL_PHOTOS[modelKey] : undefined;
+    if (own) return own;
     const pool = CATEGORY_PHOTOS[category];
     return [0, 1, 2].map((n) => pool[(modelOffset + n) % pool.length]);
 }
