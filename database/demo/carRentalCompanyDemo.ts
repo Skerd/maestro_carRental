@@ -105,6 +105,7 @@ import {
     type DemoHistory,
 } from "./carRental.demo.plan";
 import City from "@coreModule/database/schemas/city/city";
+import Currency from "@coreModule/database/schemas/currency/currency";
 import {publicPersonName} from "@coreModule/utilities/helpers/publicName";
 
 const LANGUAGE = "en-US";
@@ -157,11 +158,14 @@ export async function seedCarRentalDemoData(
             company._id,
             {logger, languageCode: LANGUAGE},
         );
+        // The demo prices are euros, as Albanian rental desks quote them; a new config takes the platform's first currency.
+        const euro = await Currency.findOne({abbreviation: "EUR"}).select("_id");
         await CarRentalConfig.updateOne(
             {_id: config._id},
             {
                 // The company's owner gets the staff alerts (new bookings, expiring paperwork, service due).
                 $set: {
+                    ...(euro && {currency: euro._id}),
                     publicBookingEnabled: true,
                     listedOnPortal: true,
                     paymentPolicy: "pay_at_pickup",
@@ -1074,7 +1078,8 @@ async function seedCounterRecords(input: {
             const charges = [{code: "fine" as const, label: rentalPricingLabel(LANGUAGE, "fine", {reference: fine.reference}), amount: fine.amount}];
             const held = await RentalReservation.findById(booking._id).session(session);
             if (!held) throw new Error(`Booking for ${fine.reference} vanished`);
-            await addReservationCharges(held, charges, {by: owned.createdBy}, {session, logger, languageCode: LANGUAGE, auditUserId: owned.createdBy});
+            // Silent like the handover and return: the demo customers are made up.
+            await addReservationCharges(held, charges, {by: owned.createdBy, silent: true}, {session, logger, languageCode: LANGUAGE, auditUserId: owned.createdBy});
             created.chargedAmount = fine.amount;
             created.charges = charges.map(({label, amount}) => ({label, amount}));
             created.status = "charged";
