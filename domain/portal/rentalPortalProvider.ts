@@ -174,7 +174,9 @@ const CARS_MAX = 2000;
 /** A car rented on its own as its card names it: year and colour, then its group's seats and gearbox. */
 function carSubtitle(car: IVehicle, group: IVehicleCategory, languageCode: string): string {
     const specs = {seats: car.seats ?? group.seats, transmission: car.transmission ?? group.transmission};
-    return [car.year ? String(car.year) : "", car.color ?? "", classSubtitle(specs, languageCode)].filter(Boolean).join(" · ");
+    // The colour is a code (D199), named in the visitor's language.
+    const color = car.color ? loadEmailStrings(["rentalPortal"], languageCode, PORTAL_LOCALES)[`color_${car.color}`] ?? "" : "";
+    return [car.year ? String(car.year) : "", color, classSubtitle(specs, languageCode)].filter(Boolean).join(" · ");
 }
 
 /** The photo a car's card shows: its listing photo, else its group's (never its own photos, which show the plate). */

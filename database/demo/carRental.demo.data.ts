@@ -1,4 +1,5 @@
 import {multiplyMoney} from "armonia/src/modules/core/helpers/money";
+import type {VehicleColor} from "armonia/src/modules/carRental/api/carRental/private/vehicle/vehicle.schema-def";
 
 /**
  * Static tables of the car-rental demo company: locations, categories, models,
@@ -415,11 +416,11 @@ export const DEMO_MODELS: {
 /** The special cars' own pages: name, words, colour and prices (D198). */
 type CarSpecs = {seats?: number; doors?: number; luggage?: number; fuelType?: "petrol" | "diesel"};
 
-const SPECIAL_LISTINGS: Record<string, {title: string; description: string; color: string; dailyRate: number; weekendDailyRate?: number; depositAmount: number; specs: CarSpecs}> = {
+const SPECIAL_LISTINGS: Record<string, {title: string; description: string; color: VehicleColor; dailyRate: number; weekendDailyRate?: number; depositAmount: number; specs: CarSpecs}> = {
     "Mercedes-Benz G-Class": {
         title: "Mercedes-Benz G 63 AMG – E zezë",
         description: "Ikona e rrugëve shqiptare: për Thethin, për dasmën ose thjesht për bulevardin e Tiranës.",
-        color: "E zezë",
+        color: "black",
         dailyRate: 240,
         weekendDailyRate: 280,
         depositAmount: 4000,
@@ -428,7 +429,7 @@ const SPECIAL_LISTINGS: Record<string, {title: string; description: string; colo
     "Porsche 911 Cabriolet": {
         title: "Porsche 911 Carrera Cabriolet",
         description: "Kapotë e hapur përgjatë Rivierës, nga Vlora në Himarë. Për shoferë me përvojë.",
-        color: "Gri",
+        color: "grey",
         dailyRate: 290,
         weekendDailyRate: 330,
         depositAmount: 5000,
@@ -437,7 +438,7 @@ const SPECIAL_LISTINGS: Record<string, {title: string; description: string; colo
     "Land Rover Defender 110": {
         title: "Land Rover Defender 110",
         description: "Komod në autostradë dhe i fortë në rrugët malore drejt Valbonës dhe Thethit.",
-        color: "Jeshile e errët",
+        color: "green",
         dailyRate: 190,
         depositAmount: 3000,
         specs: {seats: 5, doors: 5, luggage: 4, fuelType: "diesel"},
@@ -445,7 +446,7 @@ const SPECIAL_LISTINGS: Record<string, {title: string; description: string; colo
     "Ford Mustang Convertible": {
         title: "Ford Mustang GT Convertible",
         description: "V8 dhe kapotë e hapur: dita perfekte në bregdet.",
-        color: "Blu e errët",
+        color: "blue",
         dailyRate: 150,
         weekendDailyRate: 175,
         depositAmount: 2000,
@@ -454,7 +455,7 @@ const SPECIAL_LISTINGS: Record<string, {title: string; description: string; colo
     "Mercedes-Benz S-Class": {
         title: "Mercedes-Benz S-Class – Makina e dasmës",
         description: "E zbukuruar me lule sipas kërkesës, me shofer opsional. E preferuara e dasmave në Tiranë dhe Durrës.",
-        color: "E bardhë",
+        color: "white",
         dailyRate: 180,
         weekendDailyRate: 220,
         depositAmount: 2500,
@@ -487,16 +488,8 @@ const PLATE_SERIES: Record<DemoCategorySlug, string> = {
     minivan: "AL0",
 };
 
-const COLORS = [
-    "E bardhë",
-    "Argjendi",
-    "E zezë",
-    "Gri",
-    "Blu",
-    "E kuqe",
-    "Jeshile e errët",
-    "Bezhë",
-];
+/** Colour codes (D199): the panel and the site show them in the reader's language. */
+const COLORS: VehicleColor[] = ["white", "silver", "black", "grey", "blue", "red", "green", "beige"];
 
 export type DemoVehicle = {
     index: number;
@@ -507,7 +500,7 @@ export type DemoVehicle = {
     /** "Make Model": photo kits and seed media are shared per model. */
     modelKey: string;
     year: number;
-    color: string;
+    color: VehicleColor;
     home: number;
     /** Odometer the day the demo window starts (90 days ago). */
     baseKm: number;

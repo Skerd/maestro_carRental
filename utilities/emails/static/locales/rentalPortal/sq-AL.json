@@ -1,5 +1,19 @@
 {
   "seats": "{count} vende",
   "manual": "Manuale",
-  "automatic": "Automatike"
+  "automatic": "Automatike",
+  "color_white": "E bardhë",
+  "color_black": "E zezë",
+  "color_silver": "Argjendi",
+  "color_grey": "Gri",
+  "color_blue": "Blu",
+  "color_red": "E kuqe",
+  "color_green": "Jeshile",
+  "color_beige": "Bezhë",
+  "color_brown": "Kafe",
+  "color_yellow": "E verdhë",
+  "color_orange": "Portokalli",
+  "color_gold": "Ari",
+  "color_purple": "Vjollcë",
+  "color_other": "Tjetër"
 }

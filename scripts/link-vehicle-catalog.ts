@@ -1,6 +1,6 @@
 /**
  * One-off (D199, asked for with the vehicle catalog): links every existing car to the catalog model its typed make and
- * model name, keeping the typed names. Reports by default; `--apply` writes. `--company="<name or id>"` limits it to one
+ * model name, keeping the typed names, and moves typed colours onto the colour list. Reports by default; `--apply` writes. `--company="<name or id>"` limits it to one
  * company. Cars that match nothing are listed for staff to pick by hand.
  *
  * Usage (from maestro/):
@@ -15,7 +15,7 @@ import {connectToMongoDb} from "@coreModule/connections/connectToMongoDb";
 import {asCrossTenant} from "@coreModule/utilities/endpoints/tenantScope";
 import {companyService} from "@coreModule/database/schemas/company/company.service";
 import {getLogger} from "@coreModule/loggers/serverLog";
-import {linkVehiclesToCatalog} from "@carRentalModule/utilities/services/vehicleCatalogLink";
+import {linkVehiclesToCatalog, moveVehicleColorsToCodes} from "@carRentalModule/utilities/services/vehicleCatalogLink";
 
 async function main() {
     const logger = getLogger("link_vehicle_catalog");
@@ -29,6 +29,10 @@ async function main() {
     const result = await linkVehiclesToCatalog({companyId: company?._id, apply});
     logger.info(`${apply ? "Linked" : "Would link"} ${result.linked.length} car(s); ${result.unmatched.length} match nothing.`);
     for (const car of result.unmatched) logger.info(`Unmatched: ${car.plate} ${car.make} ${car.model}`);
+    // Typed colours move onto the colour list too.
+    const colors = await moveVehicleColorsToCodes({companyId: company?._id, apply});
+    logger.info(`${apply ? "Moved" : "Would move"} ${colors.moved} typed colour(s) to the colour list; ${colors.cleared.length} unknown.`);
+    for (const car of colors.cleared) logger.info(`Unknown colour, ${apply ? "cleared" : "would clear"}: ${car.plate} "${car.color}"`);
     await mongoose.disconnect();
     process.exit(0);
 }

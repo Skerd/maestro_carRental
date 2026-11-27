@@ -1,7 +1,7 @@
 import type {ViewConfig} from "armonia/src/modules/core/api/auxiliary/private/viewConfig";
 import {lifecycleSheetGroup} from "@coreModule/database/schemas/shared/lifecycleSheetGroup";
 import {
-    VEHICLE_COLOR_MAX,
+    VEHICLE_COLORS,
     VEHICLE_IMAGES_MAX,
     VEHICLE_LISTING_DESCRIPTION_MAX,
     VEHICLE_LISTING_IMAGES_MAX,
@@ -187,7 +187,11 @@ export const vehicleSheetView: ViewConfig = {
                                 name: "color",
                                 widget: "#DisplayCard",
                                 label: "color",
-                                widgetProps: {icon: "#IconPalette"},
+                                widgetProps: {
+                                    icon: "#IconPalette",
+                                    type: "enum",
+                                    languageKeyCategory: "colorValues",
+                                },
                             },
                         },
                         {
@@ -1104,6 +1108,7 @@ const statusOptions = ["active", "maintenance", "retired"].map((value) => ({
     label: `form.status.${value}`,
 }));
 
+const colorOptions = VEHICLE_COLORS.map((value) => ({value, label: `form.colors.${value}`}));
 const transmissionOptions = [
     {value: "manual", label: "form.transmission.manual"},
     {value: "automatic", label: "form.transmission.automatic"},
@@ -1211,10 +1216,10 @@ const vehicleCreateFormNodes: ViewConfig["nodes"] = [
                         render: "#Field",
                         field: {
                             name: "color",
-                            widget: "#Input",
+                            widget: "#SimpleSelect",
                             label: "form.colorLabel",
                             placeholder: "form.colorPlaceholder",
-                            widgetProps: {maxLength: VEHICLE_COLOR_MAX},
+                            widgetProps: {options: colorOptions, className: "grow w-full"},
                         },
                     },
                     {
@@ -1738,10 +1743,10 @@ const vehicleEditFormNodes: ViewConfig["nodes"] = [
                         permissions: {read: "color", write: "color"},
                         field: {
                             name: "color",
-                            widget: "#Input",
+                            widget: "#SimpleSelect",
                             label: "form.colorLabel",
                             placeholder: "form.colorPlaceholder",
-                            widgetProps: {maxLength: VEHICLE_COLOR_MAX},
+                            widgetProps: {options: colorOptions, className: "grow w-full"},
                         },
                     },
                     {

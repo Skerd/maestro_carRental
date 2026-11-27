@@ -1,5 +1,19 @@
 {
   "seats": "{count} seats",
   "manual": "Manual",
-  "automatic": "Automatic"
+  "automatic": "Automatic",
+  "color_white": "White",
+  "color_black": "Black",
+  "color_silver": "Silver",
+  "color_grey": "Grey",
+  "color_blue": "Blue",
+  "color_red": "Red",
+  "color_green": "Green",
+  "color_beige": "Beige",
+  "color_brown": "Brown",
+  "color_yellow": "Yellow",
+  "color_orange": "Orange",
+  "color_gold": "Gold",
+  "color_purple": "Purple",
+  "color_other": "Other"
 }

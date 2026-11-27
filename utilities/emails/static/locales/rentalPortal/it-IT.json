@@ -1,5 +1,19 @@
 {
   "seats": "{count} posti",
   "manual": "Manuale",
-  "automatic": "Automatico"
+  "automatic": "Automatico",
+  "color_white": "Bianco",
+  "color_black": "Nero",
+  "color_silver": "Argento",
+  "color_grey": "Grigio",
+  "color_blue": "Blu",
+  "color_red": "Rosso",
+  "color_green": "Verde",
+  "color_beige": "Beige",
+  "color_brown": "Marrone",
+  "color_yellow": "Giallo",
+  "color_orange": "Arancione",
+  "color_gold": "Oro",
+  "color_purple": "Viola",
+  "color_other": "Altro"
 }

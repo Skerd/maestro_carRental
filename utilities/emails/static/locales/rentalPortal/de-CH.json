@@ -1,5 +1,19 @@
 {
   "seats": "{count} Sitze",
   "manual": "Schaltgetriebe",
-  "automatic": "Automatik"
+  "automatic": "Automatik",
+  "color_white": "Weiss",
+  "color_black": "Schwarz",
+  "color_silver": "Silber",
+  "color_grey": "Grau",
+  "color_blue": "Blau",
+  "color_red": "Rot",
+  "color_green": "Grün",
+  "color_beige": "Beige",
+  "color_brown": "Braun",
+  "color_yellow": "Gelb",
+  "color_orange": "Orange",
+  "color_gold": "Gold",
+  "color_purple": "Violett",
+  "color_other": "Andere"
 }

@@ -17,7 +17,7 @@ import {IMedia} from "@coreModule/database/schemas/media/media";
 import {MediaSimpleSnippet} from "@coreModule/database/schemas/media/media.snippets";
 import {COLUMN_TYPE} from "armonia/src/modules/core/database/filter/typeOperators";
 import {
-    VEHICLE_COLOR_MAX,
+    VEHICLE_COLORS,
     VEHICLE_LISTING_DESCRIPTION_MAX,
     VEHICLE_LISTING_TITLE_MAX,
     VEHICLE_MAKE_MAX,
@@ -29,6 +29,7 @@ import {
     VEHICLE_VIN_MAX,
     VEHICLE_YEAR,
     VehicleSchemaDef,
+    type VehicleColor,
     type VehicleReadiness,
     type VehicleStatus,
 } from "armonia/src/modules/carRental/api/carRental/private/vehicle/vehicle.schema-def";
@@ -63,7 +64,7 @@ export interface IVehicle extends Document, IOwnershipPluginFields, ISoftDeleteP
     year?: number;
     plate: string;
     vin?: string;
-    color?: string;
+    color?: VehicleColor;
     homeLocation: IRentalLocation;
     /** Where the car is now: its return location after a one-way rental, or a transfer's destination. Unset means at home. */
     currentLocation?: IRentalLocation;
@@ -173,10 +174,10 @@ const VehicleSchema = new Schema<IVehicle>(
                 hideColumn: true
             },
         },
+        // One of a fixed list, shown in the reader's language (D199).
         color: {
             type: SchemaTypes.String,
-            trim: true,
-            maxlength: VEHICLE_COLOR_MAX,
+            enum: VEHICLE_COLORS,
         },
         homeLocation: {
             type: SchemaTypes.ObjectId,

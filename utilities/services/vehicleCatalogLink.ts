@@ -3,6 +3,8 @@ import {platformRowsClause} from "@coreModule/utilities/security/platformAccess"
 import {vehicleCatalogService} from "@carRentalModule/database/schemas/vehicleCatalog/vehicleCatalog.service";
 import {vehicleService} from "@carRentalModule/database/schemas/vehicle/vehicle.service";
 import {catalogMatcher, type CatalogModelRef} from "./vehicleCatalogMatch";
+import {vehicleColorCode} from "./vehicleColorMatch";
+import {VEHICLE_COLORS} from "armonia/src/modules/carRental/api/carRental/private/vehicle/vehicle.schema-def";
 
 /** The catalog's usable models with their make's name and type's key, for matching typed names (D199). */
 export async function catalogModelRefs(): Promise<(CatalogModelRef & {makeId: string})[]> {
@@ -48,6 +50,30 @@ export async function linkVehiclesToCatalog(input: {companyId?: ObjectId; apply:
         }
         result.linked.push({...row, catalogModelId: found.id});
         if (input.apply) await vehicleService.updateOne({_id: car._id}, {$set: {catalogModel: found.id, catalogMake: makeOf.get(found.id)}});
+    }
+    return result;
+}
+
+export type ColorMoveResult = {moved: number; cleared: {plate: string; color: string}[]};
+
+/**
+ * Moves typed colours onto the colour list (D199): a colour word in any panel language becomes its code; one with no
+ * known word is cleared and listed (a free-text colour would fail the car's next save). `apply: false` only reports.
+ */
+export async function moveVehicleColorsToCodes(input: {companyId?: ObjectId; apply: boolean}): Promise<ColorMoveResult> {
+    const cars = await vehicleService.find(
+        {...(input.companyId ? {company: input.companyId} : {}), color: {$exists: true, $nin: [...VEHICLE_COLORS, null]}, deletedAt: null},
+        {},
+        undefined,
+        "_id plate color",
+    );
+    const result: ColorMoveResult = {moved: 0, cleared: []};
+    for (const car of cars) {
+        const typed = String(car.color);
+        const code = vehicleColorCode(typed);
+        if (code) result.moved += 1;
+        else result.cleared.push({plate: car.plate, color: typed});
+        if (input.apply) await vehicleService.updateOne({_id: car._id}, code ? {$set: {color: code}} : {$unset: {color: ""}});
     }
     return result;
 }
