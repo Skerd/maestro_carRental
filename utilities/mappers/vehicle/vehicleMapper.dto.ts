@@ -3,6 +3,7 @@ import type {Vehicle} from "armonia/src/modules/carRental/api/carRental/private/
 import type {VehicleCategoryPriced} from "armonia/src/modules/carRental/dto/vehicleCategory.dto";
 import type {RentalLocationSimple} from "armonia/src/modules/carRental/dto/rentalLocation.dto";
 import {dateToISOString, mapMedia, mapSnippet} from "@coreModule/utilities/mappers/common.mapper";
+import {vehicleCatalogEntrySimpleToDTO} from "@carRentalModule/utilities/mappers/vehicleCatalog/vehicleCatalogMapper.dto";
 import {VehicleCategoryPricedSnippet} from "@carRentalModule/database/schemas/vehicleCategory/vehicleCategory.snippets";
 import {RentalLocationSimpleSnippet} from "@carRentalModule/database/schemas/rentalLocation/rentalLocation.snippets";
 import {mapLifeCycleToDTO, mapOwnershipToDTO, mapPlatformHiddenToDTO, mapSoftDeleteToDTO} from "@coreModule/utilities/mappers/plugin/pluginMappers.dto";
@@ -11,6 +12,8 @@ export function vehicleToDTO(vehicle: IVehicle): Vehicle {
     return {
         _id: vehicle._id.toString(),
         category: mapSnippet<VehicleCategoryPriced>()(vehicle.category, VehicleCategoryPricedSnippet),
+        catalogMake: vehicleCatalogEntrySimpleToDTO(vehicle.catalogMake),
+        catalogModel: vehicleCatalogEntrySimpleToDTO(vehicle.catalogModel),
         make: vehicle.make,
         model: vehicle.model,
         year: vehicle.year,

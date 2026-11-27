@@ -27,6 +27,8 @@ import type {SelfServeBusinessType} from "@coreModule/domain/company/selfServeBu
 import type {AccountVerifiedHook} from "@coreModule/utilities/modules/moduleCompanyDefaults";
 import {asCrossTenant} from "@coreModule/utilities/endpoints/tenantScope";
 import {rentalReservationService} from "@carRentalModule/database/schemas/rentalReservation/rentalReservation.service";
+import VehicleCatalogEntry from "@carRentalModule/database/schemas/vehicleCatalog/vehicleCatalog";
+import {seedVehicleCatalog} from "@carRentalModule/database/seeds/vehicleCatalog/vehicleCatalog.seed";
 import {carRentalReportables} from "@carRentalModule/domain/reports/carRentalReportables";
 
 export const carRentalModels: Model<any>[] = [
@@ -49,6 +51,7 @@ export const carRentalModels: Model<any>[] = [
     RentalReview,
     RentalSubscription,
     RentalSearchStat,
+    VehicleCatalogEntry,
 ];
 
 export async function dropCarRentalCollections(): Promise<void> {
@@ -101,4 +104,6 @@ export const moduleBootstrap = {
     selfServeBusinessTypes,
     onAccountVerified,
     reportables: carRentalReportables,
+    // The platform's vehicle catalog (D199), seeded into the platform company at every database setup.
+    platformLists: seedVehicleCatalog,
 };

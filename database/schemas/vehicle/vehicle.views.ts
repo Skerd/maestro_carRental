@@ -6,8 +6,6 @@ import {
     VEHICLE_LISTING_DESCRIPTION_MAX,
     VEHICLE_LISTING_IMAGES_MAX,
     VEHICLE_LISTING_TITLE_MAX,
-    VEHICLE_MAKE_MAX,
-    VEHICLE_MODEL_MAX,
     VEHICLE_NOTES_MAX,
     VEHICLE_PLATE_MAX,
     VEHICLE_VIDEOS_MAX,
@@ -75,7 +73,13 @@ export const vehicleSheetView: ViewConfig = {
                                 name: "make",
                                 widget: "#DisplayCard",
                                 label: "make",
-                                widgetProps: {icon: "#IconCar"},
+                                widgetProps: {
+                                    icon: "#IconCar",
+                                    linkedRefPath: "catalogMake",
+                                    linkedSheetModel: "vehiclecatalogentries",
+                                    linkedSheetWidget: "#VehicleCatalogSheetView",
+                                    linkedSheetEntityProp: "vehicleCatalogEntry",
+                                },
                             },
                         },
                         {
@@ -85,7 +89,13 @@ export const vehicleSheetView: ViewConfig = {
                                 name: "model",
                                 widget: "#DisplayCard",
                                 label: "model",
-                                widgetProps: {icon: "#IconCar"},
+                                widgetProps: {
+                                    icon: "#IconCar",
+                                    linkedRefPath: "catalogModel",
+                                    linkedSheetModel: "vehiclecatalogentries",
+                                    linkedSheetWidget: "#VehicleCatalogSheetView",
+                                    linkedSheetEntityProp: "vehicleCatalogEntry",
+                                },
                             },
                         },
                         {
@@ -1144,25 +1154,41 @@ const vehicleCreateFormNodes: ViewConfig["nodes"] = [
                 props: {columns: 3},
                 children: [
                     {
+                        // From the platform's vehicle catalog (D199): the make, labelled with its type ("Car › Mercedes-Benz").
                         render: "#Field",
                         field: {
-                            name: "make",
-                            widget: "#Input",
+                            name: "catalogMake",
+                            widget: "#ApiSelect",
                             label: "form.makeLabel",
                             placeholder: "form.makePlaceholder",
                             required: true,
-                            widgetProps: {maxLength: VEHICLE_MAKE_MAX},
+                            widgetProps: {
+                                apiUrl: "/api/carRental/vehicleCatalog/select",
+                                postBody: {level: "make"},
+                                pageSize: 50,
+                                normalizeEmptyToUndefined: true,
+                                cascadeClearFormFields: ["catalogModel"],
+                            },
                         },
                     },
                     {
+                        // One of the make's models; it fills the car's empty specs.
                         render: "#Field",
                         field: {
-                            name: "model",
-                            widget: "#Input",
+                            name: "catalogModel",
+                            widget: "#ApiSelect",
                             label: "form.modelLabel",
                             placeholder: "form.modelPlaceholder",
+                            description: "form.catalogModelDescription",
                             required: true,
-                            widgetProps: {maxLength: VEHICLE_MODEL_MAX},
+                            widgetProps: {
+                                apiUrl: "/api/carRental/vehicleCatalog/select",
+                                postBody: {level: "model"},
+                                postBodyFromFormFields: [{field: "catalogMake", paramName: "parentEntry"}],
+                                enableWhenFormFieldsNonEmpty: ["catalogMake"],
+                                pageSize: 50,
+                                normalizeEmptyToUndefined: true,
+                            },
                         },
                     },
                     {
@@ -1610,7 +1636,7 @@ const vehicleEditFormNodes: ViewConfig["nodes"] = [
     {
         render: "#TitleWithCollapse",
         props: {title: "form.vehicleSectionTitle"},
-        permissions: {readAny: ["category", "plate", "make", "model", "year", "color", "vin", "notes"], writeAny: ["category", "plate", "make", "model", "year", "color", "vin", "notes"]},
+        permissions: {readAny: ["category", "plate", "catalogMake", "catalogModel", "year", "color", "vin", "notes"], writeAny: ["category", "plate", "catalogMake", "catalogModel", "year", "color", "vin", "notes"]},
         children: [
             {
                 render: "#FormGrid",
@@ -1651,27 +1677,43 @@ const vehicleEditFormNodes: ViewConfig["nodes"] = [
                 props: {columns: 3},
                 children: [
                     {
+                        // From the platform's vehicle catalog (D199): the make, labelled with its type ("Car › Mercedes-Benz").
                         render: "#Field",
-                        permissions: {read: "make", write: "make"},
+                        permissions: {read: "catalogMake", write: "catalogMake"},
                         field: {
-                            name: "make",
-                            widget: "#Input",
+                            name: "catalogMake",
+                            widget: "#ApiSelect",
                             label: "form.makeLabel",
                             placeholder: "form.makePlaceholder",
                             required: true,
-                            widgetProps: {maxLength: VEHICLE_MAKE_MAX},
+                            widgetProps: {
+                                apiUrl: "/api/carRental/vehicleCatalog/select",
+                                postBody: {level: "make"},
+                                pageSize: 50,
+                                normalizeEmptyToUndefined: true,
+                                cascadeClearFormFields: ["catalogModel"],
+                            },
                         },
                     },
                     {
+                        // One of the make's models; it fills the car's empty specs.
                         render: "#Field",
-                        permissions: {read: "model", write: "model"},
+                        permissions: {read: "catalogModel", write: "catalogModel"},
                         field: {
-                            name: "model",
-                            widget: "#Input",
+                            name: "catalogModel",
+                            widget: "#ApiSelect",
                             label: "form.modelLabel",
                             placeholder: "form.modelPlaceholder",
+                            description: "form.catalogModelDescription",
                             required: true,
-                            widgetProps: {maxLength: VEHICLE_MODEL_MAX},
+                            widgetProps: {
+                                apiUrl: "/api/carRental/vehicleCatalog/select",
+                                postBody: {level: "model"},
+                                postBodyFromFormFields: [{field: "catalogMake", paramName: "parentEntry"}],
+                                enableWhenFormFieldsNonEmpty: ["catalogMake"],
+                                pageSize: 50,
+                                normalizeEmptyToUndefined: true,
+                            },
                         },
                     },
                     {

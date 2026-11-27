@@ -78,6 +78,7 @@ import {recordCounterPayment} from "@carRentalModule/utilities/services/rentalPa
 import {rentalPricingLabel} from "@carRentalModule/utilities/services/rentalPricingLabels";
 import {resolveRentalTrip} from "@carRentalModule/utilities/services/rentalTrip";
 import {syncVehicleServiceDue} from "@carRentalModule/utilities/services/vehicleRecords";
+import {linkVehiclesToCatalog} from "@carRentalModule/utilities/services/vehicleCatalogLink";
 import {
     CAR_BY_CAR_CATEGORIES,
     DEMO_CATEGORIES,
@@ -460,6 +461,10 @@ export async function seedCarRentalDemoData(
                 );
             }
         }
+
+        // Every demo car points at its model in the platform's vehicle catalog, when the catalog has it (D199).
+        const catalogLink = await linkVehiclesToCatalog({companyId: company._id, apply: true});
+        if (catalogLink.unmatched.length) logger.info(`Demo cars not in the vehicle catalog: ${catalogLink.unmatched.map((car) => `${car.make} ${car.model}`).join(", ")}`);
 
         // A demo booking was made `bookedDaysBefore` its pickup, as its `created` timeline entry says: its createdAt
         // says so too, so lists and reports read a real booking history (TD-B290). Raw writes: createdAt is immutable.

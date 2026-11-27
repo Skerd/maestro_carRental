@@ -42,6 +42,8 @@ import {
 } from "armonia/src/modules/carRental/api/carRental/private/vehicleCategory/vehicleCategory.schema-def";
 import type {IRentalLocation} from "../rentalLocation/rentalLocation";
 import {VehicleCategoryPricedSnippet} from "../vehicleCategory/vehicleCategory.snippets";
+import type {IVehicleCatalogEntry} from "../vehicleCatalog/vehicleCatalog";
+import {VehicleCatalogEntrySimpleSnippet} from "../vehicleCatalog/vehicleCatalog.snippets";
 import {RentalLocationSimpleSnippet} from "../rentalLocation/rentalLocation.snippets";
 import {applyVehicleIndexes} from "./vehicle.indexes";
 import {vehicleViews} from "./vehicle.views";
@@ -53,6 +55,9 @@ const NoWritePermission = {
 
 export interface IVehicle extends Document, IOwnershipPluginFields, ISoftDeletePluginFields, ILifeCyclePluginFields, IPlatformHiddenPluginFields {
     category: IVehicleCategory;
+    /** Its make and model in the platform's vehicle catalog (D199); `make` and `model` keep their names. */
+    catalogMake?: IVehicleCatalogEntry;
+    catalogModel?: IVehicleCatalogEntry;
     make: string;
     model: string;
     year?: number;
@@ -117,19 +122,35 @@ const VehicleSchema = new Schema<IVehicle>(
                 refDisplayKey: ["name"]
             },
         },
+        catalogMake: {
+            type: SchemaTypes.ObjectId,
+            ref: "VehicleCatalogEntry",
+            refAllowlist: VehicleCatalogEntrySimpleSnippet,
+            dynamicTableConfiguration: {refDisplayKey: ["name"], visible: false},
+        },
+        catalogModel: {
+            type: SchemaTypes.ObjectId,
+            ref: "VehicleCatalogEntry",
+            refAllowlist: VehicleCatalogEntrySimpleSnippet,
+            dynamicTableConfiguration: {refDisplayKey: ["name"], visible: false},
+        },
+        // Written by the server from the catalog (D199): never typed.
         make: {
             type: SchemaTypes.String,
             required: true,
             trim: true,
             minlength: 1,
             maxlength: VEHICLE_MAKE_MAX,
+            permissions: NoWritePermission,
         },
+        // Written by the server from the catalog (D199): never typed.
         model: {
             type: SchemaTypes.String,
             required: true,
             trim: true,
             minlength: 1,
             maxlength: VEHICLE_MODEL_MAX,
+            permissions: NoWritePermission,
         },
         year: {
             type: SchemaTypes.Number,

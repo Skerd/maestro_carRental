@@ -26,6 +26,7 @@ import {withRentalCurrency} from "@carRentalModule/utilities/services/rentalCurr
 import {vehicleHub} from "@carRentalModule/utilities/services/vehicleHub";
 import {vehicleCategoryService} from "@carRentalModule/database/schemas/vehicleCategory/vehicleCategory.service";
 import {assertValidSeasons, withSeasonCurrency} from "@carRentalModule/utilities/services/rentalRateSeasons";
+import {applyCatalogModel} from "@carRentalModule/utilities/services/vehicleCatalogFill";
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import {effectiveVehicleRates} from "armonia/src/modules/carRental/helpers/vehicleRates";
 import type {Vehicle as VehicleDto} from "armonia/src/modules/carRental/api/carRental/private/vehicle/vehicle.dto";
@@ -88,13 +89,14 @@ export const {router} = createCrudRouter({
     createMiddleware: [mediaUpload],
     editMiddleware: [mediaUpload],
     // A car's own seasons are checked like a category's (D198).
-    buildCreateData: (params: any) => {
+    // A car's own seasons are checked like a category's (D198); a catalog model fills its names and specs (D199).
+    buildCreateData: async (params: any) => {
         assertValidSeasons(params.rateSeasons, params.languageCode);
-        return buildCreateDataFromSchemaDef(VehicleSchemaDef)(params);
+        return applyCatalogModel(await buildCreateDataFromSchemaDef(VehicleSchemaDef)(params), params);
     },
-    buildUpdateData: (params: any, writeFields) => {
+    buildUpdateData: async (params: any, writeFields) => {
         assertValidSeasons(params.rateSeasons, params.languageCode);
-        return buildUpdateDataFromSchemaDef(VehicleSchemaDef)(params, writeFields);
+        return applyCatalogModel(await buildUpdateDataFromSchemaDef(VehicleSchemaDef)(params, writeFields), params);
     },
     /**
      * A vehicle that goes out of service or into another category would leave its
