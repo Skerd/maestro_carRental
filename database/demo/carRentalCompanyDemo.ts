@@ -290,10 +290,10 @@ export async function seedCarRentalDemoData(
 
         // Cars share their photos per model: one set of uploads per model, not per car.
         const photosByModel = new Map<string, ObjectId[]>();
-        for (const [offset, model] of DEMO_MODELS.entries()) {
+        for (const model of DEMO_MODELS) {
             const modelKey = `${model.make} ${model.model}`;
             const {galleryIds} = await resolveDemoImagesFromUnsplash(
-                modelPhotos(model.category, offset, modelKey),
+                modelPhotos(model.category, modelKey),
                 `${company._id}:${modelKey}`,
                 modelKey,
                 company,
@@ -327,6 +327,14 @@ export async function seedCarRentalDemoData(
                     images: photos,
                     videos: clips(VEHICLE_VIDEOS[vehicle.category]),
                     status: "active",
+                    // A re-run may give a plate another model: drop the last run's catalog link (relinked below) and own prices.
+                    catalogMake: undefined,
+                    catalogModel: undefined,
+                    listingTitle: undefined,
+                    listingDescription: undefined,
+                    dailyRate: undefined,
+                    weekendDailyRate: undefined,
+                    depositAmount: undefined,
                     // Rented on its own (D198): its public photos are the stock photos of its model, which show no plate of ours.
                     ...listing,
                     listingImages: listing.listedAlone ? photos : [],

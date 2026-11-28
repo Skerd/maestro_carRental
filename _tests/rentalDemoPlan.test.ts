@@ -2,6 +2,7 @@ import {describe, expect, it} from "vitest";
 import {addLocalDays} from "@coreModule/utilities/time/timeWindows";
 import {CAR_BY_CAR_CATEGORIES, DEMO_LOCATIONS, demoListing, demoVehicles} from "@carRentalModule/database/demo/carRental.demo.data";
 import {planDemoBookings, planVehicleHistory} from "@carRentalModule/database/demo/carRental.demo.plan";
+import {CATEGORY_PHOTOS, MODEL_COLORS, modelPhotos} from "@carRentalModule/database/demo/carRental.demo.media";
 
 const today = "2026-10-20";
 const year = 2026;
@@ -18,6 +19,18 @@ describe("demo fleet plan", () => {
             expect(vehicles.some((vehicle) => vehicle.plate === plate)).toBe(true);
         }
         expect(vehicles.filter((vehicle) => vehicle.status !== "active")).toHaveLength(5);
+    });
+
+    it("shows many makes: two cars a model at most, each model with its own photos and their colour", () => {
+        const perModel = new Map<string, number>();
+        for (const vehicle of vehicles) perModel.set(vehicle.modelKey, (perModel.get(vehicle.modelKey) ?? 0) + 1);
+        expect(Math.max(...perModel.values())).toBeLessThanOrEqual(2);
+        expect(new Set(vehicles.map((vehicle) => vehicle.make)).size).toBeGreaterThanOrEqual(20);
+        for (const vehicle of vehicles) {
+            expect(modelPhotos(vehicle.category, vehicle.modelKey)).not.toBe(CATEGORY_PHOTOS[vehicle.category]);
+            // Its colour is the one its photos show.
+            if (vehicle.category !== "special") expect(vehicle.color).toBe(MODEL_COLORS[vehicle.modelKey]);
+        }
     });
 
     it("plans about 180 bookings, every status, all within 90 days back and 60 ahead", () => {

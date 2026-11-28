@@ -1,5 +1,6 @@
 import {multiplyMoney} from "armonia/src/modules/core/helpers/money";
 import type {VehicleColor} from "armonia/src/modules/carRental/api/carRental/private/vehicle/vehicle.schema-def";
+import {MODEL_COLORS} from "./carRental.demo.media";
 
 /**
  * Static tables of the car-rental demo company: locations, categories, models,
@@ -356,46 +357,47 @@ export type DemoCategorySlug = (typeof DEMO_CATEGORIES)[number]["slug"];
 export const CAR_BY_CAR_CATEGORIES: readonly DemoCategorySlug[] = ["premium", "suv-4x4", "minivan", "special"];
 const ALSO_EXACT_MODELS = ["Toyota C-HR", "Hyundai Tucson", "Tesla Model 3"];
 
-/** Models per category with how many cars of each; a category's counts add up to its share of the 80 cars. */
+/**
+ * Models per category with how many cars of each; a category's counts add up to its share of the 80 cars. Two cars a
+ * model at most, so the fleet shows many makes; every model has its own checked photos (carRental.demo.media).
+ */
 export const DEMO_MODELS: {
     category: DemoCategorySlug;
     make: string;
     model: string;
     count: number;
 }[] = [
-    {category: "mini", make: "Fiat", model: "500", count: 3},
-    {category: "mini", make: "Hyundai", model: "i10", count: 3},
+    {category: "mini", make: "Fiat", model: "500", count: 2},
+    {category: "mini", make: "MINI", model: "Hatch", count: 2},
+    {category: "mini", make: "Kia", model: "Picanto", count: 2},
     {category: "mini", make: "Suzuki", model: "Ignis", count: 2},
-    {category: "economy", make: "Fiat", model: "Panda", count: 3},
-    {category: "economy", make: "Toyota", model: "Yaris", count: 3},
-    {category: "economy", make: "Volkswagen", model: "Polo", count: 3},
-    {category: "economy", make: "Dacia", model: "Sandero", count: 3},
-    {category: "compact", make: "Volkswagen", model: "Golf", count: 4},
-    {category: "compact", make: "Hyundai", model: "i30", count: 3},
-    {category: "compact", make: "Toyota", model: "Corolla", count: 3},
-    {category: "sedan", make: "Skoda", model: "Octavia", count: 3},
-    {category: "sedan", make: "Hyundai", model: "Elantra", count: 3},
+    {category: "economy", make: "Renault", model: "Clio", count: 2},
+    {category: "economy", make: "Toyota", model: "Yaris", count: 2},
+    {category: "economy", make: "Volkswagen", model: "Polo", count: 2},
+    {category: "economy", make: "Peugeot", model: "208", count: 2},
+    {category: "economy", make: "Opel", model: "Corsa", count: 2},
+    {category: "economy", make: "Ford", model: "Fiesta", count: 2},
+    {category: "compact", make: "Volkswagen", model: "Golf", count: 2},
+    {category: "compact", make: "Hyundai", model: "i30", count: 2},
+    {category: "compact", make: "Toyota", model: "Corolla", count: 2},
+    {category: "compact", make: "Ford", model: "Focus", count: 2},
+    {category: "compact", make: "Mazda", model: "3", count: 2},
+    {category: "sedan", make: "Hyundai", model: "Elantra", count: 2},
     {category: "sedan", make: "Audi", model: "A3 Sedan", count: 2},
+    {category: "sedan", make: "Mercedes-Benz", model: "C-Class", count: 2},
+    {category: "sedan", make: "Mazda", model: "6", count: 2},
     {category: "estate", make: "Skoda", model: "Octavia Combi", count: 2},
     {category: "estate", make: "Volkswagen", model: "Passat Variant", count: 2},
-    {
-        category: "estate",
-        make: "Toyota",
-        model: "Corolla Touring Sports",
-        count: 2,
-    },
-    {category: "compact-suv", make: "Toyota", model: "C-HR", count: 3},
-    {category: "compact-suv", make: "Kia", model: "Niro", count: 3},
-    {category: "compact-suv", make: "Hyundai", model: "Tucson", count: 3},
-    {category: "compact-suv", make: "Dacia", model: "Duster", count: 3},
+    {category: "estate", make: "Volvo", model: "V90", count: 2},
+    {category: "compact-suv", make: "Toyota", model: "C-HR", count: 2},
+    {category: "compact-suv", make: "Kia", model: "Niro", count: 2},
+    {category: "compact-suv", make: "Hyundai", model: "Tucson", count: 2},
+    {category: "compact-suv", make: "Dacia", model: "Duster", count: 2},
+    {category: "compact-suv", make: "Nissan", model: "Qashqai", count: 2},
+    {category: "compact-suv", make: "Volkswagen", model: "T-Roc", count: 2},
     {category: "suv-4x4", make: "Toyota", model: "Land Cruiser", count: 2},
     {category: "suv-4x4", make: "Suzuki", model: "Jimny", count: 2},
-    {
-        category: "suv-4x4",
-        make: "Volkswagen",
-        model: "Tiguan 4Motion",
-        count: 2,
-    },
+    {category: "suv-4x4", make: "Volkswagen", model: "Tiguan 4Motion", count: 2},
     {category: "premium", make: "BMW", model: "5 Series", count: 2},
     {category: "premium", make: "Mercedes-Benz", model: "E-Class", count: 2},
     {category: "premium", make: "Audi", model: "A6", count: 2},
@@ -465,7 +467,8 @@ const SPECIAL_LISTINGS: Record<string, {title: string; description: string; colo
 
 /** Plates of earlier seeds, kept so re-seeding an existing database finds the same cars. */
 const LEGACY_PLATES: Record<string, string[]> = {
-    "Fiat Panda": ["AA101DM"],
+    // The first seed's Fiat Panda: Unsplash has no clean photo of one, so the plate is now a Clio.
+    "Renault Clio": ["AA101DM"],
     "Toyota Yaris": ["AA102DM"],
     "Toyota C-HR": ["AB201DM"],
     "Kia Niro": ["AB202DM"],
@@ -540,7 +543,7 @@ export function demoVehicles(currentYear: number): DemoVehicle[] {
                 model: model.model,
                 modelKey,
                 year,
-                color: SPECIAL_LISTINGS[modelKey]?.color ?? COLORS[(index * 3) % COLORS.length],
+                color: SPECIAL_LISTINGS[modelKey]?.color ?? MODEL_COLORS[modelKey] ?? COLORS[(index * 3) % COLORS.length],
                 // Half the fleet at the two Tirana branches, the rest along the coast and in the north.
                 home: [0, 1, 1, 0, 2, 3, 4, 1, 5, 0][index % 10],
                 baseKm:
